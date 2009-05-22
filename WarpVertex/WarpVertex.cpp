@@ -1,8 +1,10 @@
 //
-// Copyright (c) 2008 Skew Matrix  Software LLC.
+// Copyright (c) 2009 Skew Matrix  Software LLC.
 // All rights reserved.
 //
 
+#include <osgDB/WriteFile>
+#include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/TrackballManipulator>
@@ -10,6 +12,8 @@
 #include <osg/Geometry>
 #include <osg/io_utils>
 #include <osg/math>
+
+#include <sstream>
 #include <math.h>
 
 
@@ -111,8 +115,10 @@ unsigned short ceilPower2( unsigned short x )
     return x+1;
 }
 
-void
-createMeshData( osg::Geometry* geom )
+// This function is used for demo purposes only. It creates the "model" file,
+// just a simple planar mesh, and also creates the warp data file consisting
+// of per-vertex offset vectors and normals.
+void makeDataSet()
 {
     const float minX( -10.f );
     const float maxX( 20.f );
@@ -206,12 +212,19 @@ createMeshData( osg::Geometry* geom )
         }
     }
 
+    osg::ref_ptr< osg::Geometry > geom = new osg::Geometry;
     geom->setVertexArray( v );
     geom->setNormalArray( n );
     geom->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
     geom->setTexCoordArray( 0, tc );
     geom->setInitialBound( bb );
 
+    osg::Vec4Array* c = new osg::Vec4Array;
+    c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
+    geom->setColorArray( c );
+    geom->setColorBinding( osg::Geometry::BIND_OVERALL );
+
+    // Compute the indices and store in a DrawElementsUInt.
     for( yIdx=0; yIdx<(countY-1); yIdx++ )
     {
         osg::ref_ptr< osg::DrawElementsUInt > deui = new osg::DrawElementsUInt( GL_TRIANGLE_STRIP, countX*2 );
@@ -219,52 +232,104 @@ createMeshData( osg::Geometry* geom )
         int stIdxB( yIdx*countX );
         for( xIdx=0; xIdx<countX; xIdx++ )
         {
-            deui->push_back( (unsigned int)( stIdxA+xIdx ) );
-            deui->push_back( (unsigned int)( stIdxB+xIdx ) );
+            (*deui)[ xIdx*2 ] = ( (unsigned int)( stIdxA+xIdx ) );
+            (*deui)[ xIdx*2 + 1 ] = ( (unsigned int)( stIdxB+xIdx ) );
         }
         geom->addPrimitiveSet( deui.get() );
     }
 
-    osg::StateSet* ss = geom->getOrCreateStateSet();
+    osg::ref_ptr< osg::Geode > geode = new osg::Geode;
+    geode->addDrawable( geom.get() );
+    osgDB::writeNodeFile( *geode, "warpModel.osg" );
+
 
     // Compute the difference between vDest and v. There are the offset vectors.
-    float* vecs = new float[ s * t * 3 ];
-    float* vecsPtr = vecs;
-    float* norms = new float[ s * t * 3 ];
-    float* normsPtr = norms;
+    osg::ref_ptr< osg::Vec3Array > vecs = new osg::Vec3Array;
+    vecs->resize( s * t );
+    osg::ref_ptr< osg::Vec3Array > norms = new osg::Vec3Array;
+    norms->resize( s * t );
+    unsigned int idx( 0 );
     for( yIdx=0; yIdx<t; yIdx++ )
     {
         for( xIdx=0; xIdx<s; xIdx++ )
         {
             if( (xIdx >= countX) || (yIdx >= countY) )
             {
-                *vecsPtr++ = 0.;
-                *vecsPtr++ = 0.;
-                *vecsPtr++ = 0.;
-                *normsPtr++ = 0.;
-                *normsPtr++ = 0.;
-                *normsPtr++ = 1.;
+                (*vecs)[ idx ].set( 0., 0., 0. );
+                (*norms)[ idx ].set( 0., 0., 1. );
             }
             else
             {
                 unsigned int index( (yIdx * countX) + xIdx );
-                osg::Vec3 vector( (*vDest)[ index ] - (*v)[ index ] );
-                *vecsPtr++ = vector.x();
-                *vecsPtr++ = vector.y();
-                *vecsPtr++ = vector.z();
-                osg::Vec3 normal( (*nDest)[ index ] - (*n)[ index ] );
-                *normsPtr++ = normal.x();
-                *normsPtr++ = normal.y();
-                *normsPtr++ = normal.z();
+                (*vecs)[ idx ].set( (*vDest)[ index ] - (*v)[ index ] );
+                (*norms)[ idx ].set( (*nDest)[ index ] - (*n)[ index ] );
             }
+            idx++;
         }
     }
+
+    geom = new osg::Geometry;
+    geom->setVertexArray( vecs );
+    geom->setNormalArray( norms );
+    geom->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
+
+    // Encode the data width and height in the Geometry object name.
+    std::ostringstream ostr;
+    ostr << s << " " << t;
+    geom->setName( ostr.str() );
+
+    osgDB::writeObjectFile( *geom, "warpData.osg" );
+}
+
+osg::Node*
+createWarp()
+{
+    // Load the warp data. This is an OSG Geometry with vertex offset
+    // vectors stored in the VertexArray, and normal delta vectors
+    // stored in the NormalArray.
+    //
+    // Real data will (of course) be in a different format.
+    osg::Object* obj = osgDB::readObjectFile( "warpData.osg" );
+    osg::Geometry* wGeom = dynamic_cast< osg::Geometry* >( obj );
+    if( wGeom == NULL )
+    {
+        osg::notify( osg::ALWAYS ) << "Unable to load warp data." << std::endl;
+        exit( 1 );
+    }
+    osg::Vec3Array* wVecs = dynamic_cast< osg::Vec3Array* >( wGeom->getVertexArray() );
+    osg::Vec3Array* wNorms = dynamic_cast< osg::Vec3Array* >( wGeom->getNormalArray() );
+    if( ( wVecs == NULL ) || ( wNorms == NULL ) )
+    {
+        osg::notify( osg::ALWAYS ) << "Unable to find warp offset data in warp data file." << std::endl;
+        exit( 1 );
+    }
+    // Get the data array size. It's stored in the object name
+    // in the format "<s> <t>".
+    std::istringstream istr( wGeom->getName() );
+    unsigned int s, t;
+    istr >> s >> t;
+
+
+    // Load the model file to be warped. Configure its
+    // StateSet for warping.
+    osg::Node* node = osgDB::readNodeFile( "warpModel.osg" );
+    if( node == NULL )
+    {
+        osg::notify( osg::FATAL ) << "Can't load warp model file." << std::endl;
+        exit( 1 );
+    }
+
+    // TBD Need to compute the initial bound by applying the vertex offsets to
+    // all the vertices and creating a bounding sphere around the result.
+    // Right now, this just works because the model has initial bounds already stored in it.
+
+    osg::StateSet* ss = node->getOrCreateStateSet();
 
     // specify the vector offset texture. The vertex shader will index into
     // this texture to obtain a vector to offset each xyz vertex.
     osg::Image* iVecs = new osg::Image;
     iVecs->setImage( s, t, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*) vecs, osg::Image::USE_NEW_DELETE );
+        (unsigned char*) wVecs->getDataPointer(), osg::Image::USE_NEW_DELETE );
     osg::Texture2D* texVecs = new osg::Texture2D( iVecs );
     texVecs->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
     texVecs->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
@@ -277,7 +342,7 @@ createMeshData( osg::Geometry* geom )
     // specify the normal offset texture.
     osg::Image* iNorms = new osg::Image;
     iNorms->setImage( s, t, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*) norms, osg::Image::USE_NEW_DELETE );
+        (unsigned char*) wNorms->getDataPointer(), osg::Image::USE_NEW_DELETE );
     osg::Texture2D* texNorms = new osg::Texture2D( iNorms );
     texNorms->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
     texNorms->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
@@ -287,8 +352,12 @@ createMeshData( osg::Geometry* geom )
         new osg::Uniform( "texNorm", 1 );
     ss->addUniform( texNormUniform.get() );
 
+    // Vertex shader to reference the vertex offset and normal offset data,
+    // scale them according to elapsed time, and apply them to the incoming
+    // xyz vertex and normal data.
     std::string vertexSource =
 
+        // Vertex and normal offset textures.
         "uniform sampler2D texVec; \n"
         "uniform sampler2D texNorm; \n"
 
@@ -298,6 +367,8 @@ createMeshData( osg::Geometry* geom )
         "{ \n"
             "float scalar = mod( osg_SimulationTime, 4. ) * .25; \n"
 
+            // Use the current st texture coordinate to obtain the vertex and normal offset
+            // for the current vertex and normal being processed.
             "vec4 vecOff = scalar * texture2D( texVec, gl_MultiTexCoord0.st ); \n"
             "vec4 normOff = scalar * texture2D( texNorm, gl_MultiTexCoord0.st ); \n"
             "vec4 position = vec4( (gl_Vertex.xyz + vecOff.xyz), gl_Vertex.w ); \n"
@@ -306,6 +377,7 @@ createMeshData( osg::Geometry* geom )
             "gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * position; \n"
 
             "vec3 norm = gl_NormalMatrix * normal; \n"
+            // Simple diffuse lighting computation with light at infinite viewer.
             "float diff = max( 0., dot( norm.xyz, vec3( 0., 0., 1. ) ) ); \n"
             "gl_FrontColor = vec4( .7*diff, .55*diff, .15*diff, 1. ); \n"
 
@@ -319,39 +391,25 @@ createMeshData( osg::Geometry* geom )
     program->addShader( vertexShader.get() );
     ss->setAttribute( program.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
+
+    return( node );
 }
 
-osg::Group*
-createMesh()
-{
-    osg::ref_ptr< osg::Group > grp = new osg::Group;
-    osg::Geode* geode = new osg::Geode;
-    grp->addChild( geode );
-
-    osg::Geometry* geom = new osg::Geometry();
-    geode->addDrawable( geom );
-
-    createMeshData( geom );
-
-    osg::Vec4Array* c = new osg::Vec4Array;
-    c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
-    geom->setColorArray( c );
-    geom->setColorBinding( osg::Geometry::BIND_OVERALL );
-
-    return( grp.release() );
-}
 
 int
 main( int argc,
       char ** argv )
 {
-    osg::ref_ptr< osg::Group > root = new osg::Group;
-    root->addChild( createMesh() );
+    // Just do this once, to create the "model" and data files.
+    //makeDataSet();
+    //return( 0 );
+
 
     osgViewer::Viewer viewer;
+    viewer.setSceneData( createWarp() );
+
     viewer.addEventHandler( new osgViewer::StatsHandler );
     viewer.setUpViewOnSingleScreen( 0 );
-    viewer.setSceneData( root.get() );
 
     viewer.setCameraManipulator( new osgGA::TrackballManipulator );
 
