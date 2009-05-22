@@ -4,7 +4,6 @@ Geode {
   num_drawables 1
   Geometry {
     UniqueID Geometry_0
-    initialBound -10 -10 -5.99744 8 3 5.99744
     useDisplayList TRUE
     useVertexBufferObjects FALSE
     PrimitiveSets 28

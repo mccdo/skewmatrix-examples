@@ -321,7 +321,11 @@ createWarp()
 
     // TBD Need to compute the initial bound by applying the vertex offsets to
     // all the vertices and creating a bounding sphere around the result.
-    // Right now, this just works because the model has initial bounds already stored in it.
+    //
+    // To avoid iterating over all the vertices and offset vectors, we just fake it:
+    osg::BoundingSphere bs = node->getBound();
+    bs.radius() *= 2.f;
+    node->setInitialBound( bs );
 
     osg::StateSet* ss = node->getOrCreateStateSet();
 
