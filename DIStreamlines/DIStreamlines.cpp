@@ -4,6 +4,7 @@
 //
 
 #include <osgDB/ReadFile>
+#include <osgDB/FileUtils>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/TrackballManipulator>
@@ -109,28 +110,27 @@ const int n( 256 );
 // value dynamically...
 const float dX( .25f );
 
-// Streamline color. Blending is non-saturating, so it never
-// reaches full intensity white. Alpha is modulated with the
-// point sprint texture alpha, so the value here is a maximum
-// for the "densist" part of the point sprint texture.
-const osg::Vec4 slColor( .7, .7, 1., 1. );
 
 
 void
-createSLPoint( osg::Geometry& geom, int nInstances )
+createSLPoint( osg::Geometry& geom, int nInstances, const osg::Vec3 position, const osg::Vec4 color )
 {
     // Configure a Geometry to draw a single point, but use the draw instanced PrimitiveSet
     // to draw the point multiple times.
     osg::Vec3Array* v = new osg::Vec3Array;
     v->resize( 1 );
     geom.setVertexArray( v );
-    (*v)[ 0 ] = osg::Vec3( 0., 0., 0. );
+    (*v)[ 0 ] = position;
 
+    // Streamline color. Blending is non-saturating, so it never
+    // reaches full intensity white. Alpha is modulated with the
+    // point sprint texture alpha, so the value here is a maximum
+    // for the "densist" part of the point sprint texture.
     osg::Vec4Array* c = new osg::Vec4Array;
     c->resize( 1 );
     geom.setColorArray( c );
     geom.setColorBinding( osg::Geometry::BIND_OVERALL );
-    (*c)[ 0 ] = slColor;
+    (*c)[ 0 ] = color;
 
     geom.addPrimitiveSet( new osg::DrawArrays( GL_POINTS, 0, 1, nInstances ) );
 
@@ -193,57 +193,43 @@ createInstanced( const int m, const int n )
     // display lists and use buffer objects instead.
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
-    createSLPoint( *geom, m*n );
+    osg::Vec3 loc( -3., 0., 0. );
+    createSLPoint( *geom, m*n, loc, osg::Vec4( .6, .7, 1., 1. ) );
     geode->addDrawable( geom );
 
     // Note:
     // OSG has no idea where our vertex shader will render the points. For proper culling
     // and near/far computation, set an approximate initial bounding box.
-    osg::BoundingBox bb( osg::Vec3( 0., -1., -4. ), osg::Vec3( m*n*dX, 1., 4. ) );
+    osg::BoundingBox bb( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
+    geom->setInitialBound( bb );
+
+    // 2nd streamline
+    geom = new osg::Geometry;
+    geom->setUseDisplayList( false );
+    geom->setUseVertexBufferObjects( true );
+    loc.set( 0., -3., 1. );
+    createSLPoint( *geom, m*n, loc, osg::Vec4( 1., .7, .5, 1. ) );
+    geode->addDrawable( geom );
+
+    bb = osg::BoundingBox( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
+    geom->setInitialBound( bb );
+
+    // 3rd streamline
+    geom = new osg::Geometry;
+    geom->setUseDisplayList( false );
+    geom->setUseVertexBufferObjects( true );
+    loc.set( 2., 4.5, 1.5 );
+    createSLPoint( *geom, m*n, loc, osg::Vec4( .5, 1., .6, 1. ) );
+    geode->addDrawable( geom );
+
+    bb = osg::BoundingBox( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
     geom->setInitialBound( bb );
 
 
-    std::string vertexSource =
-
-        "uniform vec2 sizes; \n"
-        "uniform sampler2D texPos; \n"
-
-        "uniform float osg_SimulationTime; \n"
-        "uniform float totalInstances; \n"
-        "uniform float fadeTime; \n"
-        "uniform float repeatTime; \n"
-
-        "void main() \n"
-        "{ \n"
-            // Using the instance ID, generate "texture coords" for this instance.
-            "const float r = ((float)gl_InstanceID) / sizes.x; \n"
-            "vec2 tC; \n"
-            "tC.s = fract( r ); tC.t = floor( r ) / sizes.y; \n"
-
-            // Create orthonormal basis to position and orient this instance.
-            "vec4 pos = texture2D( texPos, tC ); \n"
-            "pos.x *= 2.; \n" // Huh? x seems to be half the value I expect...
-            "vec4 v = gl_ModelViewMatrix * ( gl_Vertex + pos ); \n"
-            "gl_Position = gl_ProjectionMatrix * v; \n"
-
-            // TBD. Need to make this configurable from a uniform.
-            "gl_PointSize = -2000. / v.z; \n"
-
-            // Compute a time offset from the InstanceID to
-            // emulate motion.
-            "float timeOffset = ( ((float)gl_InstanceID) / totalInstances ) * repeatTime; \n"
-            "float repTimer = mod( ( osg_SimulationTime - timeOffset ), repeatTime ); \n"
-            "float alpha = fadeTime - min( repTimer, fadeTime ); \n"
-            "vec4 color = gl_Color; color.a *= alpha; \n"
-            "gl_FrontColor = color; \n"
-
-        "} \n";
-
     osg::StateSet* ss = geode->getOrCreateStateSet();
 
-    osg::ref_ptr< osg::Shader > vertexShader = new osg::Shader();
-    vertexShader->setType( osg::Shader::VERTEX );
-    vertexShader->setShaderSource( vertexSource );
+    osg::ref_ptr< osg::Shader > vertexShader = osg::Shader::readShaderFile(
+        osg::Shader::VERTEX, osgDB::findDataFile( "streamline.vs" ) );
 
     osg::ref_ptr< osg::Program > program = new osg::Program();
     program->addShader( vertexShader.get() );
