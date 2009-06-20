@@ -1,14 +1,4 @@
-ADD_EXECUTABLE( DIStreamlines
+SET( CATEGORY Example )
+MAKE_EXECUTABLE( DIStreamlines
     DIStreamlines.cpp
-)
-
-LINK_INTERNAL(
-    DIStreamlines
-    osgViewer
-    osgGA
-    osgText
-    osgDB
-    osgUtil
-    osg
-    OpenThreads
 )

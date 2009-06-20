@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2008 Skew Matrix  Software LLC.
+// Copyright (c) 2008 Skew Matrix Software LLC.
 // All rights reserved.
 //
 
