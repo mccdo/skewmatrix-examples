@@ -23,7 +23,11 @@ public:
         unsigned int idx;
         for( idx=0; idx<geode.getNumDrawables(); idx++ )
         {
-            osg::Geometry* geom = geode.getDrawable( idx )->asGeometry();
+            osg::Drawable* draw = geode.getDrawable( idx );
+            draw->setUseDisplayList( false );
+            draw->setUseVertexBufferObjects( true );
+
+            osg::Geometry* geom = draw->asGeometry();
             if( geom == NULL ) continue;
 
             geom->setVertexAttribData( 0,
