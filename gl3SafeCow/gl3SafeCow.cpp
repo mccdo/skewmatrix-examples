@@ -1,4 +1,4 @@
-// Copyright (c) 2000 Skew Matrix Software LLC. All rights reserved.
+// Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
 #include <osgDB/ReadFile>
 #include <osgDB/FileUtils>
