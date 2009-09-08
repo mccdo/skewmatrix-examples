@@ -145,7 +145,7 @@ void makeDataSet()
 
     osg::BoundingBox bb;
     const osg::Vec3 normal( 0., 0., 1. );
-    int xIdx, yIdx;
+    unsigned int xIdx, yIdx;
     for( yIdx=0; yIdx<countY; yIdx++ )
     {
         for( xIdx=0; xIdx<countX; xIdx++ )
