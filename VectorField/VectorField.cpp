@@ -3,6 +3,7 @@
 // All rights reserved.
 //
 
+#include <osgDB/FileUtils>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
@@ -268,99 +269,9 @@ createInstanced()
     geom->setInitialBound( bb );
 
 
-    std::string vertexSource =
 
-        "uniform vec3 sizes; \n"
-        "uniform sampler3D texPos; \n"
-        "uniform sampler3D texDir; \n"
-        "uniform sampler3D texCross; \n"
-        "uniform sampler3D scalar; \n"
-        "uniform sampler1D texCS; \n"
-
-        "uniform float modulo; \n"
-
-        "uniform vec4 plane0; \n"
-        "uniform vec4 plane1; \n"
-
-        "void main() \n"
-        "{ \n"
-            "float fiid = gl_InstanceID; \n"
-
-            "if( mod( fiid, modulo ) > 0.0 ) \n"
-            "{ \n"
-                // Discard this instance.
-                // There is no straightforward way to "discard" a vertex in a vertex shader,
-                // (unlike discard in a fragment shader). So we use an aspect of clipping to
-                // "clip away" unwanted vertices and vectors. Here's how it works:
-                // The gl_Position output of the vertex shader is an xyzw value in clip coordinates,
-                // with -w < xyz < w. All xyz outside the range -w to w are clipped by hardware
-                // (they are outside the view volume). So, to discard an entire vector, we set all
-                // its gl_Positions to (1,1,1,0). All vertices are clipped because -0 < 1 < 0 is false.
-                // If all vertices for a given instance have this value, the entire instance is
-                // effectively discarded.
-                "gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 ); \n"
-            "} \n"
-            "else \n"
-            "{ \n"
-                // Using the instance ID, generate stp texture coords for this instance.
-                "float p1 = fiid / (sizes.x*sizes.y); \n"
-                "float t1 = fract( p1 ) * sizes.y;\n"
-                "vec3 tC; \n"
-                "tC.s = fract( t1 ); \n"
-                "tC.t = floor( t1 ) / sizes.y; \n"
-                "tC.p = floor( p1 ) / sizes.z; \n"
-
-                // Sample (look up) position and orientation values.
-                "vec4 pos = texture3D( texPos, tC ); \n"
-                "vec4 dir = texture3D( texDir, tC ); \n"
-                "vec4 c = texture3D( texCross, tC ); \n"
-
-                // Is the entire arror clipped?
-                "float dot0 = dot( plane0, vec4( pos.xyz, 1.0 ) ); \n"
-                "float dot1 = dot( plane1, vec4( pos.xyz, 1.0 ) ); \n"
-                "if( (dot0<0.0) || (dot1<0.0) ) \n"
-                "{ \n"
-                    // Clipped -- discard the whole arror.
-                    "gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 ); \n"
-                "} \n"
-                "else \n"
-                "{ \n"
-                    // Orient the arrow.
-                    "vec3 up = cross( c.xyz, dir.xyz ); \n"
-                    "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
-                    "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
-                    "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
-                    "vec4 oVec; \n"
-                    "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
-                    "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
-                    "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
-
-                    // Position the oriented arrow and convert to clip coords.
-                    "oVec = oVec + pos; \n"
-                    "oVec.w = 1.0; \n"
-                    "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
-                    "gl_ClipVertex = (gl_ModelViewMatrix * oVec); \n"
-
-                    // Orient the normal.
-                    "vec3 oNorm; \n"
-                    "oNorm.x = dot( xV, gl_Normal ); \n"
-                    "oNorm.y = dot( yV, gl_Normal ); \n"
-                    "oNorm.z = dot( zV, gl_Normal ); \n"
-                    "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
-
-                    // Diffuse lighting with light at the eyepoint.
-                    "vec4 scalarV = texture3D( scalar, tC ); \n"
-                    "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
-                    "vec4 amb = oColor * 0.3; \n"
-                    "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
-                    "gl_FrontColor = amb + diff; \n"
-                "} \n"
-            "} \n"
-        "} \n";
-
-    osg::ref_ptr< osg::Shader > vertexShader = new osg::Shader();
-    vertexShader->setType( osg::Shader::VERTEX );
-    vertexShader->setShaderSource( vertexSource );
+    osg::ref_ptr< osg::Shader > vertexShader = new osg::Shader( osg::Shader::VERTEX );
+    vertexShader->loadShaderSourceFromFile( osgDB::findDataFile( "vectorfield.vs" ) );
 
     osg::ref_ptr< osg::Program > program = new osg::Program();
     program->addShader( vertexShader.get() );
