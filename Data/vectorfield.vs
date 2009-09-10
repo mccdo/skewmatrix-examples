@@ -1,7 +1,6 @@
 uniform vec3 sizes;
 uniform sampler3D texPos;
 uniform sampler3D texDir;
-uniform sampler3D texCross;
 uniform sampler3D scalar;
 uniform sampler1D texCS;
 
@@ -21,7 +20,7 @@ uniform vec4 plane1;
 // If all vertices for a given instance have this value, the entire instance is
 // effectively discarded.
 bool
-discardInstance( in float fiid )
+discardInstance( const in float fiid )
 {
     bool discardInstance = ( mod( fiid, modulo ) > 0.0 );
     if( discardInstance )
@@ -30,7 +29,7 @@ discardInstance( in float fiid )
 }
 
 vec3
-generateTexCoord( in const float fiid )
+generateTexCoord( const in float fiid )
 {
     // Using the instance ID, generate stp texture coords for this instance.
     float p1 = fiid / (sizes.x*sizes.y);
@@ -45,7 +44,7 @@ generateTexCoord( in const float fiid )
 }
 
 bool
-clipInstance( in vec3 pos )
+clipInstance( const in vec3 pos )
 {
     // Is the entire arrow clipped?
     float dot0 = dot( plane0, vec4( pos.xyz, 1.0 ) );
@@ -58,57 +57,66 @@ clipInstance( in vec3 pos )
 }
 
 mat3
-makeOrientMat( in const vec3 tC )
+makeOrientMat( const in vec3 tC )
 {
-    vec4 dir = texture3D( texDir, tC );
-    vec4 c = texture3D( texCross, tC );
-    vec3 up = cross( c.xyz, dir.xyz );
-    
-    mat3 m = mat3( c.x, up.x, dir.x,
-                   c.y, up.y, dir.y,
-                   c.z, up.z, dir.z );
-                   
+    const vec4 dir = texture3D( texDir, tC );
+
+    // Compute a vector at a right angle to the direction.
+    // First try projection direction into xy rotated -90 degrees.
+    // If that gives us almost the same vector we started with,
+    // then project into yz instead, rotated 90 degrees.
+    vec3 c = vec3( dir.y, -dir.x, 0.0 );
+    normalize( c );
+    if( abs( dot( c, dir ) ) > 0.9 )
+    {
+        vec3 c = vec3( 0.0, dir.z, -dir.y );
+        normalize( c );
+    }
+
+    const vec3 up = cross( c.xyz, dir.xyz );
+
+    // Orientation uses the cross product vector as x,
+    // the up vector as y, and the direction vector as z.
+    const mat3 m = mat3( c.xyz, up, dir.xyz );
     return( m );
 }
 
 vec4
-simpleLighting( in const vec4 color, in const vec3 normal, in const float diffCont, in const float ambCont )
+simpleLighting( const in vec4 color, const in vec3 normal, const in float diffCont, const in float ambCont )
 {
-    vec4 amb = color * ambCont;
-    vec4 diff = color * dot( normal, vec3( 0.0, 0.0, 1.0 ) ) * diffCont;
+    const vec4 amb = color * ambCont;
+    const vec3 eyeVec = vec3( 0.0, 0.0, 1.0 );
+    const float dotVal = max( dot( normal, eyeVec ), 0.0 );
+    const vec4 diff = color * dotVal * diffCont;
     return( amb + diff );
 }
 
 void main()
 {
-    float fiid = gl_InstanceID;
-    
+    // Get instance ID and discard entire arrow if this instance is not to be rendered.
+    const float fiid = gl_InstanceID;
     if( discardInstance( fiid ) )
         return;
 
-    vec3 tC = generateTexCoord( fiid );
+    // Generate stp texture coords from the instance ID.
+    const vec3 tC = generateTexCoord( fiid );
 
     // Sample (look up) position. Discard instance if clipped.
-    vec4 pos = texture3D( texPos, tC );
+    const vec4 pos = texture3D( texPos, tC );
     if( clipInstance( pos ) )
         return;
 
-    // Sample (look up) orientation values and create a matrix.
-    mat3 orientMat = makeOrientMat( tC );
-
-    // Orient the arrow.
-    vec3 oVec = orientMat * gl_Vertex.xyz;
-
-    // Position the oriented arrow and convert to clip coords.
+    // Create an orientation matrix. Orient/transform the arrow.
+    const mat3 orientMat = makeOrientMat( tC );
+    const vec3 oVec = orientMat * gl_Vertex.xyz;
     vec4 hoVec = vec4( oVec + pos, 1.0 );
     gl_Position = gl_ModelViewProjectionMatrix * hoVec;
 
     // Orient the normal.
-    vec3 oNorm = orientMat * gl_Normal;
-    vec3 norm = normalize(gl_NormalMatrix * oNorm);
+    const vec3 norm = normalize( gl_NormalMatrix * orientMat * gl_Normal );
 
-    // Diffuse lighting with light at the eyepoint.
-    vec4 scalarV = texture3D( scalar, tC );
-    vec4 oColor = texture1D( texCS, scalarV.a );
+    // Compute color and lighting.
+    const vec4 scalarV = texture3D( scalar, tC );
+    const vec4 oColor = texture1D( texCS, scalarV.a );
     gl_FrontColor = simpleLighting( oColor, norm, 0.7, 0.3 );
 }

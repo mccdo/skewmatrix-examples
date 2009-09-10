@@ -194,11 +194,10 @@ getPosition( int m, int n, int o, float& x, float& y, float& z )
 }
 
 void
-createDataArrays( float* pos, float* dir, float* cross, float* scalar )
+createDataArrays( float* pos, float* dir, float* scalar )
 {
     float* posI = pos;
     float* dirI = dir;
-    float* crossI = cross;
     float* scalarI = scalar;
 
     int mIdx, nIdx, oIdx;
@@ -215,10 +214,6 @@ createDataArrays( float* pos, float* dir, float* cross, float* scalar )
                 *posI++ = z;
 
                 float yzLen( sqrtf( y*y + z*z ) );
-                *crossI++ = 0.f;
-                *crossI++ = -z/yzLen;
-                *crossI++ = y/yzLen;
-
                 *scalarI++ = yzLen / 21.9f;
 
                 float xD;
@@ -288,9 +283,8 @@ createInstanced()
 
     float* pos( new float[ dM * dN * dO * 3 ] );
     float* dir( new float[ dM * dN * dO * 3 ] );
-    float* cross( new float[ dM * dN * dO * 3 ] );
     float* scalar( new float[ dM * dN * dO ] );
-    createDataArrays( pos, dir, cross, scalar );
+    createDataArrays( pos, dir, scalar );
 
     osg::Image* iPos = new osg::Image;
     iPos->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
@@ -322,21 +316,6 @@ createInstanced()
 
 
 
-    osg::Image* iCross = new osg::Image;
-    iCross->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*)cross, osg::Image::USE_NEW_DELETE );
-    osg::Texture3D* texCross = new osg::Texture3D( iCross );
-    texCross->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
-    texCross->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
-
-    ss->setTextureAttribute( 2, texCross );
-
-    osg::ref_ptr< osg::Uniform > texCrossUniform =
-        new osg::Uniform( "texCross", 2 );
-    ss->addUniform( texCrossUniform.get() );
-
-
-
     osg::Image* iScalar = new osg::Image;
     iScalar->setImage( dM, dN, dO, GL_ALPHA32F_ARB, GL_ALPHA, GL_FLOAT,
         (unsigned char*)scalar, osg::Image::USE_NEW_DELETE );
@@ -344,10 +323,10 @@ createInstanced()
     texScalar->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
     texScalar->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
 
-    ss->setTextureAttribute( 3, texScalar );
+    ss->setTextureAttribute( 2, texScalar );
 
     osg::ref_ptr< osg::Uniform > texScalarUniform =
-        new osg::Uniform( "scalar", 3 );
+        new osg::Uniform( "scalar", 2 );
     ss->addUniform( texScalarUniform.get() );
 
 
@@ -359,14 +338,14 @@ createInstanced()
     texCS->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::LINEAR);
     texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
 
-    ss->setTextureAttribute( 4, texCS );
+    ss->setTextureAttribute( 3, texCS );
 
     osg::ref_ptr< osg::Uniform > texCSUniform =
-        new osg::Uniform( "texCS", 4 );
+        new osg::Uniform( "texCS", 3 );
     ss->addUniform( texCSUniform.get() );
 
 
-    //delete[] pos, dir, cross, scalar;
+    //delete[] pos, dir, scalar;
 
     return grp;
 }
