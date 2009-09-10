@@ -3,18 +3,26 @@
 // All rights reserved.
 //
 
-#include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
 #include <osg/Geometry>
-#include <osg/PositionAttitudeTransform>
+#include <osg/Texture3D>
+#include <osg/Texture1D>
+#include <osg/Uniform>
+
+
+// (Some of the) GL 3 enums not defined by OSG.
+#define GL_CLIP_DISTANCE0                 0x3000
+#define GL_MAX_CLIP_DISTANCES             0x0D32
 
 
 
 
-const int m( 128 );
-const int n( 128 );
+const int dM( 32 );
+const int dN( 32 );
+const int dO( 32 );
+
 const int nVerts( 22 );
 const float dx( 1.5f ), dy( 1.5f );
 
@@ -23,6 +31,7 @@ const float dx( 1.5f ), dy( 1.5f );
 void
 createArrow( osg::Geometry& geom, int nInstances=1 )
 {
+    // Create an arrow pointing in the +z direction.
     const float sD( .05 ); // shaft diameter
     const float hD( .075 ); // head diameter
     const float len( 1. ); // length
@@ -60,10 +69,8 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 8 ] = osg::Vec3( 1., 0., 0. );
     (*n)[ 9 ] = osg::Vec3( 1., 0., 0. );
 
-    if( nInstances > 1 )
-        geom.addPrimitiveSet( new osg::DrawArrays( GL_QUAD_STRIP, 0, 10, nInstances ) );
-    else
-        geom.addPrimitiveSet( new osg::DrawArrays( GL_QUAD_STRIP, 0, 10 ) );
+    // TBD tri strip
+    geom.addPrimitiveSet( new osg::DrawArrays( GL_QUAD_STRIP, 0, 10, nInstances ) );
 
     // Head
     (*v)[ 10 ] = osg::Vec3( hD, -hD, sh );
@@ -102,61 +109,76 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 20 ] = norm;
     (*n)[ 21 ] = norm;
 
-    if( nInstances > 1 )
-        geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12, nInstances ) );
-    else
-        geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12 ) );
+    geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12, nInstances ) );
 }
 
 
-
-float*
-createPositionArray( int m, int n )
+void
+getPosition( int m, int n, int o, float& x, float& y, float& z )
 {
-    float* pos = new float[ m * n * 3 ];
+    const float center( 15.5f );
+    x = ( m - center );
+    y = ( n - center );
+    z = ( o - center );
+}
+
+void
+createDataArrays( float* pos, float* dir, float* cross, float* scalar )
+{
     float* posI = pos;
+    float* dirI = dir;
+    float* crossI = cross;
+    float* scalarI = scalar;
 
-    int mIdx, nIdx;
-    for( mIdx = 0; mIdx < m; mIdx++ )
+    int mIdx, nIdx, oIdx;
+    for( mIdx = 0; mIdx < dM; mIdx++ )
     {
-        for( nIdx = 0; nIdx < n; nIdx++ )
+        for( nIdx = 0; nIdx < dN; nIdx++ )
         {
-            *posI++ = mIdx*dx;
-            *posI++ =  nIdx*dy;
-            *posI++ = 0.;
+            for( oIdx = 0; oIdx < dO; oIdx++ )
+            {
+                float x, y, z;
+                getPosition( mIdx, nIdx, oIdx, x, y, z );
+                *posI++ = x;
+                *posI++ = y;
+                *posI++ = z;
+
+                float yzLen( sqrtf( y*y + z*z ) );
+                *crossI++ = 0.f;
+                *crossI++ = -z/yzLen;
+                *crossI++ = y/yzLen;
+
+                *scalarI++ = yzLen / 21.9f;
+
+                float xD;
+                if( yzLen < 1.f )
+                    xD = 25.f;
+                else
+                    xD = 3.f/yzLen;
+                float yD = y * -0.1f;
+                float zD = z * -0.1f;
+                float len( sqrtf( xD*xD + yD*yD + zD*zD ) );
+                *dirI++ = xD/len;
+                *dirI++ = yD/len;
+                *dirI++ = zD/len;
+            }
         }
     }
-
-    return pos;
 }
 
-float*
-createAttitudeArray( int m, int n )
-{
-    float* att = new float[ m * n * 3 ];
-    float* attI = att;
+float colorScale[] = {
+    1.0f, 1.0f, 1.0f, // white
+    1.0f, 0.0f, 0.0f, // red
+    1.0f, 0.5f, 0.0f, // orange
+    0.8f, 0.8f, 0.0f, // yellow
+    0.0f, 0.8f, 0.0f, // green
+    0.0f, 0.8f, 1.0f, // turquise
+    0.2f, 0.2f, 1.0f, // blue
+    0.5f, 0.0f, 0.7f }; // violet
 
-    int mIdx, nIdx;
-    for( mIdx = 0; mIdx < m; mIdx++ )
-    {
-        for( nIdx = 0; nIdx < n; nIdx++ )
-        {
-            float nD = sqrtf( mIdx*mIdx + nIdx*nIdx ) / (float) m * 2.f;
-            osg::Vec3 v( sin( -nD*osg::PI ), cos( nD*osg::PI ), sin( nD*osg::PI ) );
-            if( v.length2() < .0001 )
-                v.set( 0., 0., 1. );
-            v.normalize();
-            *attI++ = v.x();
-            *attI++ = v.y();
-            *attI++ = v.z();
-        }
-    }
-
-    return att;
-}
 
 osg::Node*
-createNonInstanced( const int m, const int n )
+createInstanced()
 {
     osg::Group* grp = new osg::Group;
 
@@ -164,84 +186,78 @@ createNonInstanced( const int m, const int n )
     osg::Geometry* geom = new osg::Geometry;
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
-    createArrow( *geom, 1 );
-    geode->addDrawable( geom );
-
-    float* pos = createPositionArray( m, n );
-    float* posI = pos;
-    float* att = createAttitudeArray( m, n );
-    float* attI = att;
-
-    for( int iIdx=0; iIdx<m*n; iIdx++ )
-    {
-        osg::PositionAttitudeTransform* pat = new osg::PositionAttitudeTransform;
-        pat->setPosition( osg::Vec3( posI[0], posI[1], posI[2] ) );
-        posI += 3;
-
-        osg::Vec3 a( attI[0], attI[1], attI[2] );
-        osg::Quat q; q.makeRotate( osg::Vec3( 0., 0., 1. ), a );
-        pat->setAttitude( q );
-        attI += 3;
-
-        pat->addChild( geode );
-        grp->addChild( pat );
-    }
-
-    grp->getOrCreateStateSet()->setMode( GL_NORMALIZE, osg::StateAttribute::ON );
-
-    delete[] pos;
-    delete[] att;
-
-    return grp;
-}
-
-osg::Node*
-createInstanced( const int m, const int n )
-{
-    osg::Group* grp = new osg::Group;
-
-    osg::Geode* geode = new osg::Geode;
-    osg::Geometry* geom = new osg::Geometry;
-    geom->setUseDisplayList( false );
-    geom->setUseVertexBufferObjects( true );
-    createArrow( *geom, m*n );
+    createArrow( *geom, dM*dN*dO );
     geode->addDrawable( geom );
     grp->addChild( geode );
 
-    osg::BoundingBox bb( 0., 0., 0., m*dx, n*dy, 1. );
+    float x0, y0, z0;
+    getPosition( 0, 0, 0, x0, y0, z0 );
+    float x1, y1, z1;
+    getPosition( dM, dN, dO, x1, y1, z1 );
+    osg::BoundingBox bb( x0, y0, z0, x1, y1, z1 );
     geom->setInitialBound( bb );
 
 
     std::string vertexSource =
 
-        "uniform vec2 sizes; \n"
-        "uniform sampler2D texPos; \n"
-        "uniform sampler2D texAtt; \n"
+        "uniform vec3 sizes; \n"
+        "uniform sampler3D texPos; \n"
+        "uniform sampler3D texDir; \n"
+        "uniform sampler3D texCross; \n"
+        "uniform sampler3D scalar; \n"
+        "uniform sampler1D texCS; \n"
+        "uniform float modulo; \n"
+        "varying float gl_ClipDistance[1]; \n"
 
         "void main() \n"
         "{ \n"
-            // Using the instance ID, generate "texture coords" for this instance.
-            "const float r = ((float)gl_InstanceID) / sizes.x; \n"
-            "vec2 tC; \n"
-            "tC.s = fract( r ); tC.t = floor( r ) / sizes.y; \n"
+            "float iid = gl_InstanceID; \n"
+            "if( mod( iid, modulo ) == 0.0 ) \n"
+                "gl_ClipDistance[ 0 ] = 1.0; \n"
+            "else \n"
+                "gl_ClipDistance[ 0 ] = -1.0; \n"
 
-            // Create orthonormal basis to position and orient this instance.
-            "vec4 newZ = texture2D( texAtt, tC ); \n"
-            "vec3 newX = cross( newZ.xyz, vec3( 0,0,1 ) ); \n"
-            "normalize( newX ); \n"
-            "vec3 newY = cross( newZ.xyz, newX ); \n"
-            "normalize( newY ); \n"
-            "vec4 pos = texture2D( texPos, tC ); \n"
-            "mat4 mV = mat4( newX.x, newX.y, newX.z, 0., newY.x, newY.y, newY.z, 0., newZ.x, newZ.y, newZ.z, 0., pos.x, pos.y, pos.z, 1. ); \n"
-            "gl_Position = (gl_ModelViewProjectionMatrix * mV * gl_Vertex); \n"
+            // Using the instance ID, generate stp texture coords for this instance.
+            "float p1 = gl_InstanceID / (sizes.x*sizes.y); \n"
+            "float t1 = fract( p1 ) * sizes.y;\n"
+            "vec3 tC; \n"
+            "tC.s = fract( t1 ); \n"
+            "tC.t = floor( t1 ) / sizes.y; \n"
+            "tC.p = floor( p1 ) / sizes.z; \n"
 
-            // Use just the orientation components to transform the normal.
-            "mat3 mN = mat3( newX, newY, newZ ); \n"
-            "vec3 norm = normalize(gl_NormalMatrix * mN * gl_Normal); \n"
+            // Sample (look up) position and orientation values.
+            "vec4 pos = texture3D( texPos, tC ); \n"
+            "vec4 dir = texture3D( texDir, tC ); \n"
+            "vec4 c = texture3D( texCross, tC ); \n"
+
+            // Orient the arrow.
+            "vec3 up = cross( c.xyz, dir.xyz ); \n"
+            "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
+            "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
+            "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
+            "vec4 oVec; \n"
+            "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
+            "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
+            "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
+
+            // Position the oriented arrow and convert to clip coords.
+            "oVec = oVec + pos; \n"
+            "oVec.w = 1.0; \n"
+            "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
+
+            // Orient the normal.
+            "vec3 oNorm; \n"
+            "oNorm.x = dot( xV, gl_Normal ); \n"
+            "oNorm.y = dot( yV, gl_Normal ); \n"
+            "oNorm.z = dot( zV, gl_Normal ); \n"
+            "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
 
             // Diffuse lighting with light at the eyepoint.
-            "gl_FrontColor = gl_Color * dot( norm, vec3( 0, 0, 1 ) ); \n"
-
+            "vec4 scalarV = texture3D( scalar, tC ); \n"
+            "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
+            "vec4 amb = oColor * 0.3; \n"
+            "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
+            "gl_FrontColor = amb + diff; \n"
         "} \n";
 
     osg::ref_ptr< osg::Shader > vertexShader = new osg::Shader();
@@ -256,18 +272,23 @@ createInstanced( const int m, const int n )
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
 
     osg::ref_ptr< osg::Uniform > sizesUniform =
-        new osg::Uniform( "sizes", osg::Vec2( (float)m, (float)n ) );
+        new osg::Uniform( "sizes", osg::Vec3( (float)dM, (float)dN, (float)dO ) );
     ss->addUniform( sizesUniform.get() );
 
 
-    float* pos = createPositionArray( m, n );
+
+    float* pos( new float[ dM * dN * dO * 3 ] );
+    float* dir( new float[ dM * dN * dO * 3 ] );
+    float* cross( new float[ dM * dN * dO * 3 ] );
+    float* scalar( new float[ dM * dN * dO ] );
+    createDataArrays( pos, dir, cross, scalar );
 
     osg::Image* iPos = new osg::Image;
-    iPos->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+    iPos->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
         (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
-    osg::Texture2D* texPos = new osg::Texture2D( iPos );
-    texPos->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
-    texPos->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+    osg::Texture3D* texPos = new osg::Texture3D( iPos );
+    texPos->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
+    texPos->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
 
     ss->setTextureAttribute( 0, texPos );
 
@@ -275,25 +296,72 @@ createInstanced( const int m, const int n )
         new osg::Uniform( "texPos", 0 );
     ss->addUniform( texPosUniform.get() );
 
-    //delete[] pos;
 
 
-    float* att = createAttitudeArray( m, n );
+    osg::Image* iDir = new osg::Image;
+    iDir->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+        (unsigned char*)dir, osg::Image::USE_NEW_DELETE );
+    osg::Texture3D* texDir = new osg::Texture3D( iDir );
+    texDir->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
+    texDir->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
 
-    osg::Image* iAtt = new osg::Image;
-    iAtt->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*)att, osg::Image::USE_NEW_DELETE );
-    osg::Texture2D* texAtt = new osg::Texture2D( iAtt );
-    texAtt->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
-    texAtt->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+    ss->setTextureAttribute( 1, texDir );
 
-    ss->setTextureAttribute( 1, texAtt );
+    osg::ref_ptr< osg::Uniform > texDirUniform =
+        new osg::Uniform( "texDir", 1 );
+    ss->addUniform( texDirUniform.get() );
 
-    osg::ref_ptr< osg::Uniform > texAttUniform =
-        new osg::Uniform( "texAtt", 1 );
-    ss->addUniform( texAttUniform.get() );
 
-    //delete[] att;
+
+    osg::Image* iCross = new osg::Image;
+    iCross->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+        (unsigned char*)cross, osg::Image::USE_NEW_DELETE );
+    osg::Texture3D* texCross = new osg::Texture3D( iCross );
+    texCross->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
+    texCross->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
+
+    ss->setTextureAttribute( 2, texCross );
+
+    osg::ref_ptr< osg::Uniform > texCrossUniform =
+        new osg::Uniform( "texCross", 2 );
+    ss->addUniform( texCrossUniform.get() );
+
+
+
+    osg::Image* iScalar = new osg::Image;
+    iScalar->setImage( dM, dN, dO, GL_ALPHA32F_ARB, GL_ALPHA, GL_FLOAT,
+        (unsigned char*)scalar, osg::Image::USE_NEW_DELETE );
+    osg::Texture3D* texScalar = new osg::Texture3D( iScalar );
+    texScalar->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
+    texScalar->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
+
+    ss->setTextureAttribute( 3, texScalar );
+
+    osg::ref_ptr< osg::Uniform > texScalarUniform =
+        new osg::Uniform( "scalar", 3 );
+    ss->addUniform( texScalarUniform.get() );
+
+
+
+    osg::Image* iColorScale = new osg::Image;
+    iColorScale->setImage( 8, 1, 1, GL_RGBA, GL_RGB, GL_FLOAT,
+        (unsigned char*)colorScale, osg::Image::USE_NEW_DELETE );
+    osg::Texture1D* texCS = new osg::Texture1D( iColorScale );
+    texCS->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::LINEAR);
+    texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
+
+    ss->setTextureAttribute( 4, texCS );
+
+    osg::ref_ptr< osg::Uniform > texCSUniform =
+        new osg::Uniform( "texCS", 4 );
+    ss->addUniform( texCSUniform.get() );
+
+
+    ss->addUniform( new osg::Uniform( "modulo", 3.0f ) );
+    ss->setMode( GL_CLIP_DISTANCE0, osg::StateAttribute::ON );
+
+
+    //delete[] pos, dir, cross, scalar;
 
     return grp;
 }
@@ -304,15 +372,15 @@ main( int argc,
 {
     osg::ref_ptr< osg::Node > root;
 
-    osg::notify( osg::ALWAYS ) << m*n << " instances." << std::endl;
-    osg::notify( osg::ALWAYS ) << m*n*nVerts << " total vertices." << std::endl;
+    osg::notify( osg::ALWAYS ) << dM*dN*dO << " instances." << std::endl;
+    osg::notify( osg::ALWAYS ) << dM*dN*dO*nVerts << " total vertices." << std::endl;
 
-    //root = createNonInstanced( m, n );
-    root = createInstanced( m, n );
+    root = createInstanced();
 
     osgViewer::Viewer viewer;
+    viewer.setUpViewInWindow( 10, 30, 800, 600 );
+    viewer.getCamera()->setClearColor( osg::Vec4(0,0,0,0) );
     viewer.addEventHandler( new osgViewer::StatsHandler );
-    viewer.setUpViewOnSingleScreen( 0 );
     viewer.setSceneData( root.get() );
     return( viewer.run() );
 }
