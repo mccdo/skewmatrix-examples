@@ -284,6 +284,15 @@ createInstanced()
             "if( mod( fiid, modulo ) > 0.0 ) \n"
             "{ \n"
                 // Discard this instance.
+                // There is no straightforward way to "discard" a vertex in a vertex shader,
+                // (unlike discard in a fragment shader). So we use an aspect of clipping to
+                // "clip away" unwanted vertices and vectors. Here's how it works:
+                // The gl_Position output of the vertex shader is an xyzw value in clip coordinates,
+                // with -w < xyz < w. All xyz outside the range -w to w are clipped by hardware
+                // (they are outside the view volume). So, to discard an entire vector, we set all
+                // its gl_Positions to (1,1,1,0). All vertices are clipped because -0 < 1 < 0 is false.
+                // If all vertices for a given instance have this value, the entire instance is
+                // effectively discarded.
                 "gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 ); \n"
             "} \n"
             "else \n"
