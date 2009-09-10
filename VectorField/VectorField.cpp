@@ -10,6 +10,7 @@
 #include <osg/Texture3D>
 #include <osg/Texture1D>
 #include <osg/Uniform>
+#include <osg/ClipPlane>
 
 
 // (Some of the) GL 3 enums not defined by OSG.
@@ -324,6 +325,7 @@ createInstanced()
                 "oVec = oVec + pos; \n"
                 "oVec.w = 1.0; \n"
                 "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
+                "gl_ClipVertex = (gl_ModelViewMatrix * oVec); \n"
 
                 // Orient the normal.
                 "vec3 oNorm; \n"
@@ -455,6 +457,11 @@ main( int argc,
     osg::ref_ptr< osg::Uniform > uModulo( new osg::Uniform( "modulo", 1.0f ) );
     uModulo->setDataVariance( osg::Object::DYNAMIC );
     root->getOrCreateStateSet()->addUniform( uModulo.get() );
+
+    root->getOrCreateStateSet()->setAttributeAndModes(
+        new osg::ClipPlane( 0, osg::Plane( 1., 0., 0., 2. ) ), osg::StateAttribute::ON );
+    root->getOrCreateStateSet()->setAttributeAndModes(
+        new osg::ClipPlane( 1, osg::Plane( -1., 0., 0., 2. ) ), osg::StateAttribute::ON );
 
     KeyHandler* kh = new KeyHandler( uModulo.get() );
 
