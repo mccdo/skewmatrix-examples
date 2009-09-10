@@ -17,6 +17,75 @@
 #define GL_MAX_CLIP_DISTANCES             0x0D32
 
 
+class KeyHandler : public osgGA::GUIEventHandler
+{
+public:
+    KeyHandler( osg::Uniform* modulo )
+      : _modulo( modulo )
+    {}
+
+    virtual bool handle( const osgGA::GUIEventAdapter & event_adaptor, osgGA::GUIActionAdapter & action_adaptor )
+    {
+        bool handled = false;
+        switch( event_adaptor.getEventType() )
+        {
+            case ( osgGA::GUIEventAdapter::KEYDOWN ):
+            {
+                int key = event_adaptor.getKey();
+                int keyv( key - '0' );
+                if( (keyv > 0) && (keyv < 10) )
+                {
+                    _modulo->set( (float)keyv );
+                    handled = true;
+                }
+                /*
+                switch( key )
+                {
+                    case '+': // speed up
+                    {
+                        elapsedTime = getCurrentTime();
+                        timer.setStartTick( timer.tick() );
+
+                        // Increase speed by 33%
+                        scalar *= ( 4./3. );
+
+                        handled = true;
+                    }
+                    break;
+                    case '-': // slow down
+                    {
+                        elapsedTime = getCurrentTime();
+                        timer.setStartTick( timer.tick() );
+
+                        // Decrease speed by 25%
+                        scalar *= .75;
+
+                        handled = true;
+                    }
+                    break;
+                    case 'p': // pause
+                    {
+                        elapsedTime = getCurrentTime();
+                        timer.setStartTick( timer.tick() );
+
+                        paused = !paused;
+
+                        handled = true;
+                    }
+                    break;
+
+                }
+                */
+            }
+        }
+        return( handled );
+    }
+
+private:
+    osg::ref_ptr< osg::Uniform > _modulo;
+};
+
+
 
 
 const int dM( 32 );
@@ -207,57 +276,60 @@ createInstanced()
         "uniform sampler3D scalar; \n"
         "uniform sampler1D texCS; \n"
         "uniform float modulo; \n"
-        "varying float gl_ClipDistance[1]; \n"
 
         "void main() \n"
         "{ \n"
-            "float iid = gl_InstanceID; \n"
-            "if( mod( iid, modulo ) == 0.0 ) \n"
-                "gl_ClipDistance[ 0 ] = 1.0; \n"
+            "float fiid = gl_InstanceID; \n"
+
+            "if( mod( fiid, modulo ) > 0.0 ) \n"
+            "{ \n"
+                // Discard this instance.
+                "gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 ); \n"
+            "} \n"
             "else \n"
-                "gl_ClipDistance[ 0 ] = -1.0; \n"
+            "{ \n"
+                // Using the instance ID, generate stp texture coords for this instance.
+                "float p1 = fiid / (sizes.x*sizes.y); \n"
+                "float t1 = fract( p1 ) * sizes.y;\n"
+                "vec3 tC; \n"
+                "tC.s = fract( t1 ); \n"
+                "tC.t = floor( t1 ) / sizes.y; \n"
+                "tC.p = floor( p1 ) / sizes.z; \n"
 
-            // Using the instance ID, generate stp texture coords for this instance.
-            "float p1 = gl_InstanceID / (sizes.x*sizes.y); \n"
-            "float t1 = fract( p1 ) * sizes.y;\n"
-            "vec3 tC; \n"
-            "tC.s = fract( t1 ); \n"
-            "tC.t = floor( t1 ) / sizes.y; \n"
-            "tC.p = floor( p1 ) / sizes.z; \n"
+                // Sample (look up) position and orientation values.
+                "vec4 pos = texture3D( texPos, tC ); \n"
+                "vec4 dir = texture3D( texDir, tC ); \n"
+                "vec4 c = texture3D( texCross, tC ); \n"
 
-            // Sample (look up) position and orientation values.
-            "vec4 pos = texture3D( texPos, tC ); \n"
-            "vec4 dir = texture3D( texDir, tC ); \n"
-            "vec4 c = texture3D( texCross, tC ); \n"
+                // Orient the arrow.
+                "vec3 up = cross( c.xyz, dir.xyz ); \n"
+                "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
+                "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
+                "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
+                "vec4 oVec; \n"
+                "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
+                "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
+                "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
 
-            // Orient the arrow.
-            "vec3 up = cross( c.xyz, dir.xyz ); \n"
-            "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
-            "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
-            "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
-            "vec4 oVec; \n"
-            "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
-            "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
-            "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
+                // Position the oriented arrow and convert to clip coords.
+                "oVec = oVec + pos; \n"
+                "oVec.w = 1.0; \n"
+                "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
 
-            // Position the oriented arrow and convert to clip coords.
-            "oVec = oVec + pos; \n"
-            "oVec.w = 1.0; \n"
-            "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
+                // Orient the normal.
+                "vec3 oNorm; \n"
+                "oNorm.x = dot( xV, gl_Normal ); \n"
+                "oNorm.y = dot( yV, gl_Normal ); \n"
+                "oNorm.z = dot( zV, gl_Normal ); \n"
+                "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
 
-            // Orient the normal.
-            "vec3 oNorm; \n"
-            "oNorm.x = dot( xV, gl_Normal ); \n"
-            "oNorm.y = dot( yV, gl_Normal ); \n"
-            "oNorm.z = dot( zV, gl_Normal ); \n"
-            "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
-
-            // Diffuse lighting with light at the eyepoint.
-            "vec4 scalarV = texture3D( scalar, tC ); \n"
-            "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
-            "vec4 amb = oColor * 0.3; \n"
-            "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
-            "gl_FrontColor = amb + diff; \n"
+                // Diffuse lighting with light at the eyepoint.
+                "vec4 scalarV = texture3D( scalar, tC ); \n"
+                "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
+                "vec4 amb = oColor * 0.3; \n"
+                "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
+                "gl_FrontColor = amb + diff; \n"
+            "} \n"
         "} \n";
 
     osg::ref_ptr< osg::Shader > vertexShader = new osg::Shader();
@@ -357,10 +429,6 @@ createInstanced()
     ss->addUniform( texCSUniform.get() );
 
 
-    ss->addUniform( new osg::Uniform( "modulo", 3.0f ) );
-    ss->setMode( GL_CLIP_DISTANCE0, osg::StateAttribute::ON );
-
-
     //delete[] pos, dir, cross, scalar;
 
     return grp;
@@ -370,17 +438,22 @@ int
 main( int argc,
       char ** argv )
 {
-    osg::ref_ptr< osg::Node > root;
-
     osg::notify( osg::ALWAYS ) << dM*dN*dO << " instances." << std::endl;
     osg::notify( osg::ALWAYS ) << dM*dN*dO*nVerts << " total vertices." << std::endl;
 
-    root = createInstanced();
+    osg::ref_ptr< osg::Node > root = createInstanced();
+
+    osg::ref_ptr< osg::Uniform > uModulo( new osg::Uniform( "modulo", 1.0f ) );
+    uModulo->setDataVariance( osg::Object::DYNAMIC );
+    root->getOrCreateStateSet()->addUniform( uModulo.get() );
+
+    KeyHandler* kh = new KeyHandler( uModulo.get() );
 
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     viewer.getCamera()->setClearColor( osg::Vec4(0,0,0,0) );
     viewer.addEventHandler( new osgViewer::StatsHandler );
+    viewer.addEventHandler( kh );
     viewer.setSceneData( root.get() );
     return( viewer.run() );
 }
