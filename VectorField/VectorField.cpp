@@ -276,7 +276,11 @@ createInstanced()
         "uniform sampler3D texCross; \n"
         "uniform sampler3D scalar; \n"
         "uniform sampler1D texCS; \n"
+
         "uniform float modulo; \n"
+
+        "uniform vec4 plane0; \n"
+        "uniform vec4 plane1; \n"
 
         "void main() \n"
         "{ \n"
@@ -311,35 +315,46 @@ createInstanced()
                 "vec4 dir = texture3D( texDir, tC ); \n"
                 "vec4 c = texture3D( texCross, tC ); \n"
 
-                // Orient the arrow.
-                "vec3 up = cross( c.xyz, dir.xyz ); \n"
-                "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
-                "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
-                "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
-                "vec4 oVec; \n"
-                "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
-                "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
-                "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
+                // Is the entire arror clipped?
+                "float dot0 = dot( plane0, vec4( pos.xyz, 1.0 ) ); \n"
+                "float dot1 = dot( plane1, vec4( pos.xyz, 1.0 ) ); \n"
+                "if( (dot0<0.0) || (dot1<0.0) ) \n"
+                "{ \n"
+                    // Clipped -- discard the whole arror.
+                    "gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 ); \n"
+                "} \n"
+                "else \n"
+                "{ \n"
+                    // Orient the arrow.
+                    "vec3 up = cross( c.xyz, dir.xyz ); \n"
+                    "vec3 xV = vec3( c.x, up.x, dir.x ); \n"
+                    "vec3 yV = vec3( c.y, up.y, dir.y ); \n"
+                    "vec3 zV = vec3( c.z, up.z, dir.z ); \n"
+                    "vec4 oVec; \n"
+                    "oVec.x = dot( xV, gl_Vertex.xyz ); \n"
+                    "oVec.y = dot( yV, gl_Vertex.xyz ); \n"
+                    "oVec.z = dot( zV, gl_Vertex.xyz ); \n"
 
-                // Position the oriented arrow and convert to clip coords.
-                "oVec = oVec + pos; \n"
-                "oVec.w = 1.0; \n"
-                "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
-                "gl_ClipVertex = (gl_ModelViewMatrix * oVec); \n"
+                    // Position the oriented arrow and convert to clip coords.
+                    "oVec = oVec + pos; \n"
+                    "oVec.w = 1.0; \n"
+                    "gl_Position = (gl_ModelViewProjectionMatrix * oVec); \n"
+                    "gl_ClipVertex = (gl_ModelViewMatrix * oVec); \n"
 
-                // Orient the normal.
-                "vec3 oNorm; \n"
-                "oNorm.x = dot( xV, gl_Normal ); \n"
-                "oNorm.y = dot( yV, gl_Normal ); \n"
-                "oNorm.z = dot( zV, gl_Normal ); \n"
-                "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
+                    // Orient the normal.
+                    "vec3 oNorm; \n"
+                    "oNorm.x = dot( xV, gl_Normal ); \n"
+                    "oNorm.y = dot( yV, gl_Normal ); \n"
+                    "oNorm.z = dot( zV, gl_Normal ); \n"
+                    "vec3 norm = normalize(gl_NormalMatrix * oNorm); \n"
 
-                // Diffuse lighting with light at the eyepoint.
-                "vec4 scalarV = texture3D( scalar, tC ); \n"
-                "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
-                "vec4 amb = oColor * 0.3; \n"
-                "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
-                "gl_FrontColor = amb + diff; \n"
+                    // Diffuse lighting with light at the eyepoint.
+                    "vec4 scalarV = texture3D( scalar, tC ); \n"
+                    "vec4 oColor = texture1D( texCS, scalarV.a ); \n"
+                    "vec4 amb = oColor * 0.3; \n"
+                    "vec4 diff = oColor * dot( norm, vec3( 0.0, 0.0, 1.0 ) ) * 0.7; \n"
+                    "gl_FrontColor = amb + diff; \n"
+                "} \n"
             "} \n"
         "} \n";
 
@@ -458,10 +473,10 @@ main( int argc,
     uModulo->setDataVariance( osg::Object::DYNAMIC );
     root->getOrCreateStateSet()->addUniform( uModulo.get() );
 
-    root->getOrCreateStateSet()->setAttributeAndModes(
-        new osg::ClipPlane( 0, osg::Plane( 1., 0., 0., 2. ) ), osg::StateAttribute::ON );
-    root->getOrCreateStateSet()->setAttributeAndModes(
-        new osg::ClipPlane( 1, osg::Plane( -1., 0., 0., 2. ) ), osg::StateAttribute::ON );
+    root->getOrCreateStateSet()->addUniform( new osg::Uniform( "plane0",
+        osg::Vec4( 0.707, 0.707, 0., 2. ) ) );
+    root->getOrCreateStateSet()->addUniform( new osg::Uniform( "plane1",
+        osg::Vec4( -0.707, -0.707, 0., 2. ) ) );
 
     KeyHandler* kh = new KeyHandler( uModulo.get() );
 
