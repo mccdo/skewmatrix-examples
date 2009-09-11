@@ -232,6 +232,78 @@ createDataArrays( float* pos, float* dir, float* scalar )
     }
 }
 
+//
+// ceilPower2 - Originally in OpenGL Distilled example source code.
+//
+// Return next highest power of 2 greater than x
+// if x is a power of 2, return x.
+unsigned short
+ceilPower2( unsigned short x )
+{
+    if( x == 0 )
+        return( 1 );
+
+    if( (x & (x-1)) == 0 )
+        // x is a power of 2.
+        return( x );
+
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    return( x+1 );
+}
+
+void compute3DTextureSize( unsigned int dataCount, int& s, int& t, int& p )
+{
+    // GL_MAX_3D_TEXTURE_SIZE min value is 16.
+    // NVIDIA seems to support 2048.
+    s = 256;
+    while( dataCount / s == 0 )
+        s /= 2;
+
+    float sliceSize( (float) dataCount / (float) s );
+    float tDim = sqrtf( sliceSize );
+    if( tDim > 65535.f )
+        osg::notify( osg::FATAL ) << "compute3DTextureSize: Value too large " << tDim << std::endl;
+    t = ceilPower2( (unsigned short)( tDim ) + 1 );
+
+    float pDim = sliceSize / ((float)t);
+    if( pDim == ((int)sliceSize) / t)
+        p = ceilPower2( (unsigned short)( pDim ) );
+    else
+        p = ceilPower2( (unsigned short)( pDim ) + 1 );
+    osg::notify( osg::ALWAYS ) << s << " " << t << " " << p << std::endl;
+}
+
+osg::Texture3D*
+makeFloatTexture( int numData, unsigned char* data, int numComponents, osg::Texture::FilterMode filter )
+{
+    int s, t, p;
+    compute3DTextureSize( numData, s, t, p );
+
+    GLenum intFormat, pixFormat;
+    if( numComponents == 1 )
+    {
+        intFormat = GL_ALPHA32F_ARB;
+        pixFormat = GL_ALPHA;
+    }
+    else
+    {
+        // Must be 3 for now.
+        intFormat = GL_RGB32F_ARB;
+        pixFormat = GL_RGB;
+    }
+    osg::Image* image = new osg::Image;
+    image->setImage( s, t, p, intFormat, pixFormat, GL_FLOAT,
+        data, osg::Image::USE_NEW_DELETE );
+    osg::Texture3D* texture = new osg::Texture3D( image );
+    texture->setFilter( osg::Texture::MIN_FILTER, filter );
+    texture->setFilter( osg::Texture::MAG_FILTER, filter );
+    return( texture );
+}
+
+
 float colorScale[] = {
     1.0f, 1.0f, 1.0f, // white
     1.0f, 0.0f, 0.0f, // red
@@ -242,6 +314,18 @@ float colorScale[] = {
     0.2f, 0.2f, 1.0f, // blue
     0.5f, 0.0f, 0.7f }; // violet
 
+    /*
+struct MyDrawCallback : public osg::Drawable::DrawCallback 
+{
+    virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+    {
+        GLint n;
+        glGetIntegerv( GL_MAX_3D_TEXTURE_SIZE, &n );
+        osg::notify( osg::ALWAYS ) << n << std::endl;
+        drawable->drawImplementation( renderInfo );
+    }
+};
+*/
 
 osg::Node*
 createInstanced()
@@ -252,6 +336,7 @@ createInstanced()
     osg::Geometry* geom = new osg::Geometry;
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
+
     createArrow( *geom, dM*dN*dO );
     geode->addDrawable( geom );
     grp->addChild( geode );
@@ -275,62 +360,44 @@ createInstanced()
     ss->setAttribute( program.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
 
-    osg::ref_ptr< osg::Uniform > sizesUniform =
-        new osg::Uniform( "sizes", osg::Vec3( (float)dM, (float)dN, (float)dO ) );
-    ss->addUniform( sizesUniform.get() );
-
-
 
     float* pos( new float[ dM * dN * dO * 3 ] );
     float* dir( new float[ dM * dN * dO * 3 ] );
     float* scalar( new float[ dM * dN * dO ] );
     createDataArrays( pos, dir, scalar );
 
-    osg::Image* iPos = new osg::Image;
-    iPos->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
-    osg::Texture3D* texPos = new osg::Texture3D( iPos );
-    texPos->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
-    texPos->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
-
-    ss->setTextureAttribute( 0, texPos );
-
+    // Posidion array.
+    ss->setTextureAttribute( 0, 
+        makeFloatTexture( dM*dN*dO, (unsigned char*)pos, 3, osg::Texture2D::NEAREST ) );
     osg::ref_ptr< osg::Uniform > texPosUniform =
         new osg::Uniform( "texPos", 0 );
     ss->addUniform( texPosUniform.get() );
 
-
-
-    osg::Image* iDir = new osg::Image;
-    iDir->setImage( dM, dN, dO, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*)dir, osg::Image::USE_NEW_DELETE );
-    osg::Texture3D* texDir = new osg::Texture3D( iDir );
-    texDir->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
-    texDir->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
-
-    ss->setTextureAttribute( 1, texDir );
-
+    // Direction array.
+    ss->setTextureAttribute( 1, 
+        makeFloatTexture( dM*dN*dO, (unsigned char*)dir, 3, osg::Texture2D::NEAREST ) );
     osg::ref_ptr< osg::Uniform > texDirUniform =
         new osg::Uniform( "texDir", 1 );
     ss->addUniform( texDirUniform.get() );
 
-
-
-    osg::Image* iScalar = new osg::Image;
-    iScalar->setImage( dM, dN, dO, GL_ALPHA32F_ARB, GL_ALPHA, GL_FLOAT,
-        (unsigned char*)scalar, osg::Image::USE_NEW_DELETE );
-    osg::Texture3D* texScalar = new osg::Texture3D( iScalar );
-    texScalar->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::NEAREST );
-    texScalar->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::NEAREST );
-
-    ss->setTextureAttribute( 2, texScalar );
-
+    // Scalar array.
+    ss->setTextureAttribute( 2, 
+        makeFloatTexture( dM*dN*dO, (unsigned char*)scalar, 1, osg::Texture2D::NEAREST ) );
     osg::ref_ptr< osg::Uniform > texScalarUniform =
         new osg::Uniform( "scalar", 2 );
     ss->addUniform( texScalarUniform.get() );
 
+    {
+        // Pass the 3D texture dimensions to the shader as a "sizes" uniform.
+        int s, t, p;
+        compute3DTextureSize( dM*dN*dO, s, t, p );
+        osg::ref_ptr< osg::Uniform > sizesUniform =
+            new osg::Uniform( "sizes", osg::Vec3( (float)s, (float)t, (float)p ) );
+        ss->addUniform( sizesUniform.get() );
+    }
 
 
+    // Set up the color spectrum.
     osg::Image* iColorScale = new osg::Image;
     iColorScale->setImage( 8, 1, 1, GL_RGBA, GL_RGB, GL_FLOAT,
         (unsigned char*)colorScale, osg::Image::USE_NEW_DELETE );
@@ -339,7 +406,6 @@ createInstanced()
     texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
 
     ss->setTextureAttribute( 3, texCS );
-
     osg::ref_ptr< osg::Uniform > texCSUniform =
         new osg::Uniform( "texCS", 3 );
     ss->addUniform( texCSUniform.get() );
@@ -371,6 +437,7 @@ main( int argc,
     KeyHandler* kh = new KeyHandler( uModulo.get() );
 
     osgViewer::Viewer viewer;
+    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     viewer.getCamera()->setClearColor( osg::Vec4(0,0,0,0) );
     viewer.addEventHandler( new osgViewer::StatsHandler );

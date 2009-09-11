@@ -39,7 +39,7 @@ generateTexCoord( const in float fiid )
     tC.s = fract( t1 );
     tC.t = floor( t1 ) / sizes.y;
     tC.p = floor( p1 ) / sizes.z;
-    
+
     return( tC );
 }
 
