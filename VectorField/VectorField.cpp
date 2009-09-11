@@ -89,15 +89,217 @@ private:
 
 
 
+class VectorFieldData : public osg::Referenced
+{
+public:
+    VectorFieldData()
+      : _pos( NULL ),
+        _dir( NULL ),
+        _scalar( NULL )
+    {}
+    ~VectorFieldData()
+    {
+        if( _pos != NULL )
+            delete[] _pos;
+        if( _dir != NULL )
+            delete[] _dir;
+        if( _scalar != NULL )
+            delete[] _scalar;
+        _pos = _dir = _scalar = NULL;
+    }
 
-const int dM( 32 );
-const int dN( 32 );
-const int dO( 32 );
+    void loadData()
+    {
+        internalLoad();
+    }
 
+    osg::Texture3D* getPositionTexture()
+    {
+        return( _texPos.get() );
+    }
+    osg::Texture3D* getDirectionTexture()
+    {
+        return( _texDir.get() );
+    }
+    osg::Texture3D* getScalarTexture()
+    {
+        return( _texScalar.get() );
+    }
+
+    osg::Vec3s getTextureSizes()
+    {
+        return( _texSizes );
+    }
+    unsigned int getDataCount()
+    {
+        return( _dataSizes.x() * _dataSizes.y() * _dataSizes.z() );
+    }
+
+    osg::BoundingBox getBoundingBox()
+    {
+        float x0, y0, z0;
+        getPosition( 0, 0, 0, x0, y0, z0 );
+        float x1, y1, z1;
+        getPosition( _dataSizes.x(), _dataSizes.y(), _dataSizes.z(), x1, y1, z1 );
+        return( osg::BoundingBox( x0, y0, z0, x1, y1, z1 ) );
+    }
+
+protected:
+    osg::ref_ptr< osg::Texture3D > _texPos, _texDir, _texScalar;
+    osg::Vec3s _texSizes;
+    osg::Vec3 _dataSizes;
+
+    float* _pos;
+    float* _dir;
+    float* _scalar;
+
+    virtual void internalLoad()
+    {
+        // TBD Actual data size would come from file.
+        _dataSizes = osg::Vec3( 32, 32, 32 );
+
+        // Determine optimal 3D texture dimensions.
+        int s, t, p;
+        compute3DTextureSize( getDataCount(), s, t, p );
+        _texSizes = osg::Vec3s( s, t, p );
+
+        // Allocate memory for data.
+        unsigned int size( getDataCount() );
+        _pos = new float[ size * 3 ];
+        _dir = new float[ size * 3 ];
+        _scalar = new float[ size ];
+
+        // TBD You would replace this line with code to load the data from file.
+        // In this example, we just generate test data.
+        createDataArrays( _pos, _dir, _scalar );
+
+        _texPos = makeFloatTexture( size, (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
+        _texDir = makeFloatTexture( size, (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
+        _texScalar = makeFloatTexture( size, (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
+    }
+
+    void getPosition( int m, int n, int o, float& x, float& y, float& z )
+    {
+        const float center( 15.5f );
+        x = ( m - center );
+        y = ( n - center );
+        z = ( o - center );
+    }
+
+    void createDataArrays( float* pos, float* dir, float* scalar )
+    {
+        float* posI = pos;
+        float* dirI = dir;
+        float* scalarI = scalar;
+
+        int mIdx, nIdx, oIdx;
+        for( mIdx = 0; mIdx < _dataSizes.x(); mIdx++ )
+        {
+            for( nIdx = 0; nIdx < _dataSizes.y(); nIdx++ )
+            {
+                for( oIdx = 0; oIdx < _dataSizes.z(); oIdx++ )
+                {
+                    float x, y, z;
+                    getPosition( mIdx, nIdx, oIdx, x, y, z );
+                    *posI++ = x;
+                    *posI++ = y;
+                    *posI++ = z;
+
+                    float yzLen( sqrtf( y*y + z*z ) );
+                    *scalarI++ = yzLen / 21.9f;
+
+                    float xD;
+                    if( yzLen < 1.f )
+                        xD = 25.f;
+                    else
+                        xD = 3.f/yzLen;
+                    float yD = y * -0.1f;
+                    float zD = z * -0.1f;
+                    float len( sqrtf( xD*xD + yD*yD + zD*zD ) );
+                    *dirI++ = xD/len;
+                    *dirI++ = yD/len;
+                    *dirI++ = zD/len;
+                }
+            }
+        }
+    }
+
+    //
+    // ceilPower2 - Originally in OpenGL Distilled example source code.
+    //
+    // Return next highest power of 2 greater than x
+    // if x is a power of 2, return x.
+    unsigned short ceilPower2( unsigned short x )
+    {
+        if( x == 0 )
+            return( 1 );
+
+        if( (x & (x-1)) == 0 )
+            // x is a power of 2.
+            return( x );
+
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        return( x+1 );
+    }
+
+    void compute3DTextureSize( unsigned int dataCount, int& s, int& t, int& p )
+    {
+        // GL_MAX_3D_TEXTURE_SIZE min value is 16.
+        // NVIDIA seems to support 2048.
+        s = 256;
+        while( dataCount / s == 0 )
+            s /= 2;
+
+        float sliceSize( (float) dataCount / (float) s );
+        float tDim = sqrtf( sliceSize );
+        if( tDim > 65535.f )
+            osg::notify( osg::FATAL ) << "compute3DTextureSize: Value too large " << tDim << std::endl;
+        t = ceilPower2( (unsigned short)( tDim ) + 1 );
+
+        float pDim = sliceSize / ((float)t);
+        if( pDim == ((int)sliceSize) / t)
+            p = ceilPower2( (unsigned short)( pDim ) );
+        else
+            p = ceilPower2( (unsigned short)( pDim ) + 1 );
+        osg::notify( osg::ALWAYS ) << s << " " << t << " " << p << std::endl;
+    }
+
+    osg::Texture3D* makeFloatTexture( int numData, unsigned char* data, int numComponents, osg::Texture::FilterMode filter )
+    {
+        int s( _texSizes.x() );
+        int t( _texSizes.y() );
+        int p( _texSizes.z() );
+
+        GLenum intFormat, pixFormat;
+        if( numComponents == 1 )
+        {
+            intFormat = GL_ALPHA32F_ARB;
+            pixFormat = GL_ALPHA;
+        }
+        else
+        {
+            // Must be 3 for now.
+            intFormat = GL_RGB32F_ARB;
+            pixFormat = GL_RGB;
+        }
+        osg::Image* image = new osg::Image;
+        image->setImage( s, t, p, intFormat, pixFormat, GL_FLOAT,
+            data, osg::Image::NO_DELETE );
+        osg::Texture3D* texture = new osg::Texture3D( image );
+        texture->setFilter( osg::Texture::MIN_FILTER, filter );
+        texture->setFilter( osg::Texture::MAG_FILTER, filter );
+        return( texture );
+    }
+};
+
+osg::ref_ptr< VectorFieldData > _vectorField;
+
+
+// Number of vertices in arrow
 const int nVerts( 22 );
-const float dx( 1.5f ), dy( 1.5f );
-
-
 
 void
 createArrow( osg::Geometry& geom, int nInstances=1 )
@@ -183,127 +385,6 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12, nInstances ) );
 }
 
-
-void
-getPosition( int m, int n, int o, float& x, float& y, float& z )
-{
-    const float center( 15.5f );
-    x = ( m - center );
-    y = ( n - center );
-    z = ( o - center );
-}
-
-void
-createDataArrays( float* pos, float* dir, float* scalar )
-{
-    float* posI = pos;
-    float* dirI = dir;
-    float* scalarI = scalar;
-
-    int mIdx, nIdx, oIdx;
-    for( mIdx = 0; mIdx < dM; mIdx++ )
-    {
-        for( nIdx = 0; nIdx < dN; nIdx++ )
-        {
-            for( oIdx = 0; oIdx < dO; oIdx++ )
-            {
-                float x, y, z;
-                getPosition( mIdx, nIdx, oIdx, x, y, z );
-                *posI++ = x;
-                *posI++ = y;
-                *posI++ = z;
-
-                float yzLen( sqrtf( y*y + z*z ) );
-                *scalarI++ = yzLen / 21.9f;
-
-                float xD;
-                if( yzLen < 1.f )
-                    xD = 25.f;
-                else
-                    xD = 3.f/yzLen;
-                float yD = y * -0.1f;
-                float zD = z * -0.1f;
-                float len( sqrtf( xD*xD + yD*yD + zD*zD ) );
-                *dirI++ = xD/len;
-                *dirI++ = yD/len;
-                *dirI++ = zD/len;
-            }
-        }
-    }
-}
-
-//
-// ceilPower2 - Originally in OpenGL Distilled example source code.
-//
-// Return next highest power of 2 greater than x
-// if x is a power of 2, return x.
-unsigned short
-ceilPower2( unsigned short x )
-{
-    if( x == 0 )
-        return( 1 );
-
-    if( (x & (x-1)) == 0 )
-        // x is a power of 2.
-        return( x );
-
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    return( x+1 );
-}
-
-void compute3DTextureSize( unsigned int dataCount, int& s, int& t, int& p )
-{
-    // GL_MAX_3D_TEXTURE_SIZE min value is 16.
-    // NVIDIA seems to support 2048.
-    s = 256;
-    while( dataCount / s == 0 )
-        s /= 2;
-
-    float sliceSize( (float) dataCount / (float) s );
-    float tDim = sqrtf( sliceSize );
-    if( tDim > 65535.f )
-        osg::notify( osg::FATAL ) << "compute3DTextureSize: Value too large " << tDim << std::endl;
-    t = ceilPower2( (unsigned short)( tDim ) + 1 );
-
-    float pDim = sliceSize / ((float)t);
-    if( pDim == ((int)sliceSize) / t)
-        p = ceilPower2( (unsigned short)( pDim ) );
-    else
-        p = ceilPower2( (unsigned short)( pDim ) + 1 );
-    osg::notify( osg::ALWAYS ) << s << " " << t << " " << p << std::endl;
-}
-
-osg::Texture3D*
-makeFloatTexture( int numData, unsigned char* data, int numComponents, osg::Texture::FilterMode filter )
-{
-    int s, t, p;
-    compute3DTextureSize( numData, s, t, p );
-
-    GLenum intFormat, pixFormat;
-    if( numComponents == 1 )
-    {
-        intFormat = GL_ALPHA32F_ARB;
-        pixFormat = GL_ALPHA;
-    }
-    else
-    {
-        // Must be 3 for now.
-        intFormat = GL_RGB32F_ARB;
-        pixFormat = GL_RGB;
-    }
-    osg::Image* image = new osg::Image;
-    image->setImage( s, t, p, intFormat, pixFormat, GL_FLOAT,
-        data, osg::Image::USE_NEW_DELETE );
-    osg::Texture3D* texture = new osg::Texture3D( image );
-    texture->setFilter( osg::Texture::MIN_FILTER, filter );
-    texture->setFilter( osg::Texture::MAG_FILTER, filter );
-    return( texture );
-}
-
-
 float colorScale[] = {
     1.0f, 1.0f, 1.0f, // white
     1.0f, 0.0f, 0.0f, // red
@@ -314,21 +395,9 @@ float colorScale[] = {
     0.2f, 0.2f, 1.0f, // blue
     0.5f, 0.0f, 0.7f }; // violet
 
-    /*
-struct MyDrawCallback : public osg::Drawable::DrawCallback 
-{
-    virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
-    {
-        GLint n;
-        glGetIntegerv( GL_MAX_3D_TEXTURE_SIZE, &n );
-        osg::notify( osg::ALWAYS ) << n << std::endl;
-        drawable->drawImplementation( renderInfo );
-    }
-};
-*/
 
 osg::Node*
-createInstanced()
+createInstanced( VectorFieldData& vf )
 {
     osg::Group* grp = new osg::Group;
 
@@ -337,16 +406,11 @@ createInstanced()
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
 
-    createArrow( *geom, dM*dN*dO );
+    createArrow( *geom, vf.getDataCount() );
     geode->addDrawable( geom );
     grp->addChild( geode );
 
-    float x0, y0, z0;
-    getPosition( 0, 0, 0, x0, y0, z0 );
-    float x1, y1, z1;
-    getPosition( dM, dN, dO, x1, y1, z1 );
-    osg::BoundingBox bb( x0, y0, z0, x1, y1, z1 );
-    geom->setInitialBound( bb );
+    geom->setInitialBound( vf.getBoundingBox() );
 
 
 
@@ -361,38 +425,30 @@ createInstanced()
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
 
 
-    float* pos( new float[ dM * dN * dO * 3 ] );
-    float* dir( new float[ dM * dN * dO * 3 ] );
-    float* scalar( new float[ dM * dN * dO ] );
-    createDataArrays( pos, dir, scalar );
 
     // Posidion array.
-    ss->setTextureAttribute( 0, 
-        makeFloatTexture( dM*dN*dO, (unsigned char*)pos, 3, osg::Texture2D::NEAREST ) );
+    ss->setTextureAttribute( 0, vf.getPositionTexture() );
     osg::ref_ptr< osg::Uniform > texPosUniform =
         new osg::Uniform( "texPos", 0 );
     ss->addUniform( texPosUniform.get() );
 
     // Direction array.
-    ss->setTextureAttribute( 1, 
-        makeFloatTexture( dM*dN*dO, (unsigned char*)dir, 3, osg::Texture2D::NEAREST ) );
+    ss->setTextureAttribute( 1, vf.getDirectionTexture() );
     osg::ref_ptr< osg::Uniform > texDirUniform =
         new osg::Uniform( "texDir", 1 );
     ss->addUniform( texDirUniform.get() );
 
     // Scalar array.
-    ss->setTextureAttribute( 2, 
-        makeFloatTexture( dM*dN*dO, (unsigned char*)scalar, 1, osg::Texture2D::NEAREST ) );
+    ss->setTextureAttribute( 2, vf.getScalarTexture() );
     osg::ref_ptr< osg::Uniform > texScalarUniform =
         new osg::Uniform( "scalar", 2 );
     ss->addUniform( texScalarUniform.get() );
 
     {
         // Pass the 3D texture dimensions to the shader as a "sizes" uniform.
-        int s, t, p;
-        compute3DTextureSize( dM*dN*dO, s, t, p );
+        osg::Vec3s ts( vf.getTextureSizes() );
         osg::ref_ptr< osg::Uniform > sizesUniform =
-            new osg::Uniform( "sizes", osg::Vec3( (float)s, (float)t, (float)p ) );
+            new osg::Uniform( "sizes", osg::Vec3( (float)ts.x(), (float)ts.y(), (float)ts.z() ) );
         ss->addUniform( sizesUniform.get() );
     }
 
@@ -400,7 +456,7 @@ createInstanced()
     // Set up the color spectrum.
     osg::Image* iColorScale = new osg::Image;
     iColorScale->setImage( 8, 1, 1, GL_RGBA, GL_RGB, GL_FLOAT,
-        (unsigned char*)colorScale, osg::Image::USE_NEW_DELETE );
+        (unsigned char*)colorScale, osg::Image::NO_DELETE );
     osg::Texture1D* texCS = new osg::Texture1D( iColorScale );
     texCS->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::LINEAR);
     texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
@@ -420,10 +476,14 @@ int
 main( int argc,
       char ** argv )
 {
-    osg::notify( osg::ALWAYS ) << dM*dN*dO << " instances." << std::endl;
-    osg::notify( osg::ALWAYS ) << dM*dN*dO*nVerts << " total vertices." << std::endl;
+    _vectorField = new VectorFieldData;
+    _vectorField->loadData();
 
-    osg::ref_ptr< osg::Node > root = createInstanced();
+    unsigned int totalData( _vectorField->getDataCount() );
+    osg::notify( osg::ALWAYS ) << totalData << " instances." << std::endl;
+    osg::notify( osg::ALWAYS ) << totalData * nVerts << " total vertices." << std::endl;
+
+    osg::ref_ptr< osg::Node > root = createInstanced( *_vectorField );
 
     osg::ref_ptr< osg::Uniform > uModulo( new osg::Uniform( "modulo", 1.0f ) );
     uModulo->setDataVariance( osg::Object::DYNAMIC );
@@ -437,12 +497,19 @@ main( int argc,
     KeyHandler* kh = new KeyHandler( uModulo.get() );
 
     osgViewer::Viewer viewer;
-    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     viewer.getCamera()->setClearColor( osg::Vec4(0,0,0,0) );
     viewer.addEventHandler( new osgViewer::StatsHandler );
     viewer.addEventHandler( kh );
     viewer.setSceneData( root.get() );
+
+    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
+    viewer.realize();
+
+    GLint n( 0 );
+    glGetIntegerv( GL_MAX_3D_TEXTURE_SIZE, &n );
+    osg::notify( osg::ALWAYS ) << "GL_MAX_3D_TEXTURE_SIZE: " << n << std::endl;
+
     return( viewer.run() );
 }
 
