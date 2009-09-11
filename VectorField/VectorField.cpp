@@ -22,62 +22,39 @@
 class KeyHandler : public osgGA::GUIEventHandler
 {
 public:
-    KeyHandler( osg::Uniform* modulo )
-      : _modulo( modulo )
+    KeyHandler( osg::Uniform* modulo, osg::Uniform* planeOn )
+      : _modulo( modulo ),
+        _planeOn( planeOn )
     {}
 
-    virtual bool handle( const osgGA::GUIEventAdapter & event_adaptor, osgGA::GUIActionAdapter & action_adaptor )
+    virtual bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa )
     {
         bool handled = false;
-        switch( event_adaptor.getEventType() )
+        switch( ea.getEventType() )
         {
             case ( osgGA::GUIEventAdapter::KEYDOWN ):
             {
-                int key = event_adaptor.getKey();
-                int keyv( key - '0' );
+                const bool ctrl( ( ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_CTRL ) != 0 );
+                const int key = ea.getKey();
+                const int keyv( key - '0' );
                 if( (keyv > 0) && (keyv < 10) )
                 {
-                    _modulo->set( (float)keyv );
-                    handled = true;
+                    if( ctrl )
+                    {
+                        // ctrl-1 thru ctrl-6 toggle enable of clip planes.
+                        int value;
+                        _planeOn->getElement( keyv-1, value );
+                        _planeOn->setElement( keyv-1, (value==1) ? 0 : 1 );
+                        handled = true;
+                    }
+                    else
+                    {
+                        // Keys '1' through '9': draw every Nth vector.
+                        // Key '1' draws all vectors.
+                        _modulo->set( (float)keyv );
+                        handled = true;
+                    }
                 }
-                /*
-                switch( key )
-                {
-                    case '+': // speed up
-                    {
-                        elapsedTime = getCurrentTime();
-                        timer.setStartTick( timer.tick() );
-
-                        // Increase speed by 33%
-                        scalar *= ( 4./3. );
-
-                        handled = true;
-                    }
-                    break;
-                    case '-': // slow down
-                    {
-                        elapsedTime = getCurrentTime();
-                        timer.setStartTick( timer.tick() );
-
-                        // Decrease speed by 25%
-                        scalar *= .75;
-
-                        handled = true;
-                    }
-                    break;
-                    case 'p': // pause
-                    {
-                        elapsedTime = getCurrentTime();
-                        timer.setStartTick( timer.tick() );
-
-                        paused = !paused;
-
-                        handled = true;
-                    }
-                    break;
-
-                }
-                */
             }
         }
         return( handled );
@@ -85,6 +62,7 @@ public:
 
 private:
     osg::ref_ptr< osg::Uniform > _modulo;
+    osg::ref_ptr< osg::Uniform > _planeOn;
 };
 
 
@@ -393,8 +371,8 @@ float colorScale[] = {
     0.0f, 0.8f, 0.0f, // green
     0.0f, 0.8f, 1.0f, // turquise
     0.2f, 0.2f, 1.0f, // blue
-    0.5f, 0.0f, 0.7f }; // violet
-
+    0.5f, 0.0f, 0.7f  // violet
+};
 
 osg::Node*
 createInstanced( VectorFieldData& vf )
@@ -472,6 +450,17 @@ createInstanced( VectorFieldData& vf )
     return grp;
 }
 
+
+
+osg::Vec4 planeEquations[] = {
+    osg::Vec4( 1., 0., 0., 2. ),
+    osg::Vec4( -1., 0., 0., 2. ),
+    osg::Vec4( 0.707, 0.707, 0., 1. ),
+    osg::Vec4( -0.707, -0.707, 0., 1. ),
+    osg::Vec4( 0., 0., 1., 2. ),
+    osg::Vec4( 0., 0., -1., 0. )
+};
+
 int
 main( int argc,
       char ** argv )
@@ -489,12 +478,19 @@ main( int argc,
     uModulo->setDataVariance( osg::Object::DYNAMIC );
     root->getOrCreateStateSet()->addUniform( uModulo.get() );
 
-    root->getOrCreateStateSet()->addUniform( new osg::Uniform( "plane0",
-        osg::Vec4( 0.707, 0.707, 0., 2. ) ) );
-    root->getOrCreateStateSet()->addUniform( new osg::Uniform( "plane1",
-        osg::Vec4( -0.707, -0.707, 0., 2. ) ) );
+    int idx;
+    osg::ref_ptr< osg::Uniform > uPlanes = new osg::Uniform( osg::Uniform::FLOAT_VEC4, "planes", 6 );
+    for( idx=0; idx<6; idx++ )
+        uPlanes->setElement( idx, planeEquations[ idx ] );
+    root->getOrCreateStateSet()->addUniform( uPlanes.get() );
 
-    KeyHandler* kh = new KeyHandler( uModulo.get() );
+    int enables[] = { 0, 0, 0, 0, 0, 0 };
+    osg::IntArray* iArray = new osg::IntArray( 6, enables );
+    osg::ref_ptr< osg::Uniform > uPlaneOn = new osg::Uniform( osg::Uniform::INT, "planeOn", 6 );
+    uPlaneOn->setArray( iArray );
+    root->getOrCreateStateSet()->addUniform( uPlaneOn.get() );
+
+    KeyHandler* kh = new KeyHandler( uModulo.get(), uPlaneOn.get() );
 
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
@@ -506,6 +502,9 @@ main( int argc,
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.realize();
 
+    // Hm. Doesn't seem to work. How could we not have a current context at this point?
+    // Anyhow, had this as a draw callback at one point and was getting back 2048 on
+    // GeForce 9800M.
     GLint n( 0 );
     glGetIntegerv( GL_MAX_3D_TEXTURE_SIZE, &n );
     osg::notify( osg::ALWAYS ) << "GL_MAX_3D_TEXTURE_SIZE: " << n << std::endl;

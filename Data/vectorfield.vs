@@ -8,6 +8,8 @@ uniform float modulo;
 
 uniform vec4 plane0;
 uniform vec4 plane1;
+uniform vec4[ 6 ] planes;
+uniform int[ 6 ] planeOn;
 
 
 // There is no straightforward way to "discard" a vertex in a vertex shader,
@@ -28,10 +30,12 @@ discardInstance( const in float fiid )
     return( discardInstance );
 }
 
+// Based on the global 'sizes' uniform that contains the 3D stp texture dimensions,
+// and the input parameter current instances, generate an stp texture coord that
+// indexes into a texture to obtain data for this instance.
 vec3
 generateTexCoord( const in float fiid )
 {
-    // Using the instance ID, generate stp texture coords for this instance.
     float p1 = fiid / (sizes.x*sizes.y);
     float t1 = fract( p1 ) * sizes.y;
     
@@ -46,13 +50,20 @@ generateTexCoord( const in float fiid )
 bool
 clipInstance( const in vec3 pos )
 {
-    // Is the entire arrow clipped?
-    float dot0 = dot( plane0, vec4( pos.xyz, 1.0 ) );
-    float dot1 = dot( plane1, vec4( pos.xyz, 1.0 ) );
-    bool clip = ( (dot0<0.0) || (dot1<0.0) );
-    if( clip )
-        // Clipped -- discard the whole arror.
-        gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 );
+    bool clip = false;
+    int idx;
+    for( idx=0; idx<6; idx++ )
+    {
+        if( planeOn[idx] != 0 )
+        {
+            if( dot( planes[ idx ], vec4( pos.xyz, 1.0 ) ) < 0.0 )
+            {
+                gl_Position = vec4( 1.0, 1.0, 1.0, 0.0 );
+                clip = true;
+                break;
+            }
+        }
+    }
     return( clip );
 }
 
@@ -77,8 +88,7 @@ makeOrientMat( const in vec3 tC )
 
     // Orientation uses the cross product vector as x,
     // the up vector as y, and the direction vector as z.
-    const mat3 m = mat3( c.xyz, up, dir.xyz );
-    return( m );
+    return( mat3( c, up, dir.xyz ) );
 }
 
 vec4
