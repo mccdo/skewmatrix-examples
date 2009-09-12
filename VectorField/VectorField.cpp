@@ -66,7 +66,7 @@ private:
 };
 
 
-
+// Base class for abstracting vector field data storage
 class VectorFieldData : public osg::Referenced
 {
 public:
@@ -75,16 +75,6 @@ public:
         _dir( NULL ),
         _scalar( NULL )
     {}
-    ~VectorFieldData()
-    {
-        if( _pos != NULL )
-            delete[] _pos;
-        if( _dir != NULL )
-            delete[] _dir;
-        if( _scalar != NULL )
-            delete[] _scalar;
-        _pos = _dir = _scalar = NULL;
-    }
 
     void loadData()
     {
@@ -110,31 +100,40 @@ public:
     }
     unsigned int getDataCount()
     {
-        return( _dataSizes.x() * _dataSizes.y() * _dataSizes.z() );
+        return( _dataSize );
     }
 
-    osg::BoundingBox getBoundingBox()
-    {
-        float x0, y0, z0;
-        getPosition( 0, 0, 0, x0, y0, z0 );
-        float x1, y1, z1;
-        getPosition( _dataSizes.x(), _dataSizes.y(), _dataSizes.z(), x1, y1, z1 );
-        return( osg::BoundingBox( x0, y0, z0, x1, y1, z1 ) );
-    }
+    // You must override this to return a bounding box for your
+    // vector field data.
+    virtual osg::BoundingBox getBoundingBox() = 0;
 
 protected:
     osg::ref_ptr< osg::Texture3D > _texPos, _texDir, _texScalar;
     osg::Vec3s _texSizes;
-    osg::Vec3 _dataSizes;
+    unsigned int _dataSize;
 
     float* _pos;
     float* _dir;
     float* _scalar;
 
+    virtual ~VectorFieldData()
+    {
+        if( _pos != NULL )
+            delete[] _pos;
+        if( _dir != NULL )
+            delete[] _dir;
+        if( _scalar != NULL )
+            delete[] _scalar;
+        _pos = _dir = _scalar = NULL;
+    }
+
+    // You must override this to load your data and create textures from that data.
+    // The code below is intended only as a template/example. See also
+    // MyVectorFieldData::internalLoad().
     virtual void internalLoad()
     {
         // TBD Actual data size would come from file.
-        _dataSizes = osg::Vec3( 32, 32, 32 );
+        _dataSize = 0;
 
         // Determine optimal 3D texture dimensions.
         int s, t, p;
@@ -149,65 +148,25 @@ protected:
 
         // TBD You would replace this line with code to load the data from file.
         // In this example, we just generate test data.
-        createDataArrays( _pos, _dir, _scalar );
 
-        _texPos = makeFloatTexture( size, (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
-        _texDir = makeFloatTexture( size, (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
-        _texScalar = makeFloatTexture( size, (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
+        _texPos = makeFloatTexture( (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
+        _texDir = makeFloatTexture( (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
+        _texScalar = makeFloatTexture( (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
     }
 
-    void getPosition( int m, int n, int o, float& x, float& y, float& z )
-    {
-        const float center( 15.5f );
-        x = ( m - center );
-        y = ( n - center );
-        z = ( o - center );
-    }
 
-    void createDataArrays( float* pos, float* dir, float* scalar )
-    {
-        float* posI = pos;
-        float* dirI = dir;
-        float* scalarI = scalar;
-
-        int mIdx, nIdx, oIdx;
-        for( mIdx = 0; mIdx < _dataSizes.x(); mIdx++ )
-        {
-            for( nIdx = 0; nIdx < _dataSizes.y(); nIdx++ )
-            {
-                for( oIdx = 0; oIdx < _dataSizes.z(); oIdx++ )
-                {
-                    float x, y, z;
-                    getPosition( mIdx, nIdx, oIdx, x, y, z );
-                    *posI++ = x;
-                    *posI++ = y;
-                    *posI++ = z;
-
-                    float yzLen( sqrtf( y*y + z*z ) );
-                    *scalarI++ = yzLen / 21.9f;
-
-                    float xD;
-                    if( yzLen < 1.f )
-                        xD = 25.f;
-                    else
-                        xD = 3.f/yzLen;
-                    float yD = y * -0.1f;
-                    float zD = z * -0.1f;
-                    float len( sqrtf( xD*xD + yD*yD + zD*zD ) );
-                    *dirI++ = xD/len;
-                    *dirI++ = yD/len;
-                    *dirI++ = zD/len;
-                }
-            }
-        }
-    }
+    //
+    // The following set of protected member functions exist in support
+    // of your probable implementation of internalLoad. You can use them
+    // if you wish, but you are not required to do so.
+    //
 
     //
     // ceilPower2 - Originally in OpenGL Distilled example source code.
     //
     // Return next highest power of 2 greater than x
     // if x is a power of 2, return x.
-    unsigned short ceilPower2( unsigned short x )
+    static unsigned short ceilPower2( unsigned short x )
     {
         if( x == 0 )
             return( 1 );
@@ -223,29 +182,39 @@ protected:
         return( x+1 );
     }
 
-    void compute3DTextureSize( unsigned int dataCount, int& s, int& t, int& p )
+    // Given we need to store 'dataCount' values in a texture, compute
+    // optimal 3D texture dimensions large enough to hold those values.
+    // (This might not be the best implementation. Cubed root would
+    // come in handy here.)
+    static void compute3DTextureSize( unsigned int dataCount, int& s, int& t, int& p )
     {
         // GL_MAX_3D_TEXTURE_SIZE min value is 16.
         // NVIDIA seems to support 2048.
         s = 256;
         while( dataCount / s == 0 )
-            s /= 2;
+            s >>= 1;
 
         float sliceSize( (float) dataCount / (float) s );
         float tDim = sqrtf( sliceSize );
         if( tDim > 65535.f )
             osg::notify( osg::FATAL ) << "compute3DTextureSize: Value too large " << tDim << std::endl;
-        t = ceilPower2( (unsigned short)( tDim ) + 1 );
+        if( tDim == (int)tDim )
+            t = ceilPower2( (unsigned short)( tDim ) );
+        else
+            t = ceilPower2( (unsigned short)( tDim ) + 1 );
 
         float pDim = sliceSize / ((float)t);
         if( pDim == ((int)sliceSize) / t)
             p = ceilPower2( (unsigned short)( pDim ) );
         else
             p = ceilPower2( (unsigned short)( pDim ) + 1 );
-        osg::notify( osg::ALWAYS ) << s << " " << t << " " << p << std::endl;
+        osg::notify( osg::ALWAYS ) << "dataCount " << dataCount <<
+            " produces tex size (" << s << "," << t << "," << p <<
+            "), total storage: " << s*t*p << std::endl;
     }
 
-    osg::Texture3D* makeFloatTexture( int numData, unsigned char* data, int numComponents, osg::Texture::FilterMode filter )
+    // Creates a 3D texture containing floating point somponents.
+    osg::Texture3D* makeFloatTexture( unsigned char* data, int numComponents, osg::Texture::FilterMode filter )
     {
         int s( _texSizes.x() );
         int t( _texSizes.y() );
@@ -273,7 +242,111 @@ protected:
     }
 };
 
-osg::ref_ptr< VectorFieldData > _vectorField;
+// Derived class for testing purposes. generates data at runtime.
+class MyVectorFieldData : public VectorFieldData
+{
+public:
+    MyVectorFieldData()
+      : VectorFieldData()
+    {
+        /*
+        // For testing
+        int idx, s, t, p;
+        for( idx=1; idx<17; idx++)
+            compute3DTextureSize( idx, s, t, p );
+        */
+    }
+
+    virtual osg::BoundingBox getBoundingBox()
+    {
+        float x0, y0, z0;
+        getPosition( 0, 0, 0, x0, y0, z0 );
+        float x1, y1, z1;
+        getPosition( _sizes.x(), _sizes.y(), _sizes.z(), x1, y1, z1 );
+        return( osg::BoundingBox( x0, y0, z0, x1, y1, z1 ) );
+    }
+
+protected:
+    osg::Vec3 _sizes;
+
+    virtual ~MyVectorFieldData()
+    {}
+
+    virtual void internalLoad()
+    {
+        // Actual data size would come from file.
+        // NOTE: Crash in NVIDIA friver if total _dataSize
+        // is > 32768.
+        _sizes = osg::Vec3( 30, 37, 26 );
+        _dataSize = _sizes.x() * _sizes.y() * _sizes.z();
+
+        // Determine optimal 3D texture dimensions.
+        int s, t, p;
+        compute3DTextureSize( getDataCount(), s, t, p );
+        _texSizes = osg::Vec3s( s, t, p );
+
+        // Allocate memory for data.
+        unsigned int size( getDataCount() );
+        _pos = new float[ size * 3 ];
+        _dir = new float[ size * 3 ];
+        _scalar = new float[ size ];
+
+        // TBD You would replace this line with code to load the data from file.
+        // In this example, we just generate test data.
+        createDataArrays( _pos, _dir, _scalar );
+
+        _texPos = makeFloatTexture( (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
+        _texDir = makeFloatTexture( (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
+        _texScalar = makeFloatTexture( (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
+    }
+
+    void getPosition( int m, int n, int o, float& x, float& y, float& z )
+    {
+        const float center( 15.5f );
+        x = ( m - center );
+        y = ( n - center );
+        z = ( o - center );
+    }
+
+    void createDataArrays( float* pos, float* dir, float* scalar )
+    {
+        float* posI = pos;
+        float* dirI = dir;
+        float* scalarI = scalar;
+
+        int mIdx, nIdx, oIdx;
+        for( mIdx = 0; mIdx < _sizes.x(); mIdx++ )
+        {
+            for( nIdx = 0; nIdx < _sizes.y(); nIdx++ )
+            {
+                for( oIdx = 0; oIdx < _sizes.z(); oIdx++ )
+                {
+                    float x, y, z;
+                    getPosition( mIdx, nIdx, oIdx, x, y, z );
+                    *posI++ = x;
+                    *posI++ = y;
+                    *posI++ = z;
+
+                    float yzLen( sqrtf( y*y + z*z ) );
+                    *scalarI++ = yzLen / 21.9f;
+
+                    float xD;
+                    if( yzLen < 1.f )
+                        xD = 25.f;
+                    else
+                        xD = 3.f/yzLen;
+                    float yD = y * -0.1f;
+                    float zD = z * -0.1f;
+                    float len( sqrtf( xD*xD + yD*yD + zD*zD ) );
+                    *dirI++ = xD/len;
+                    *dirI++ = yD/len;
+                    *dirI++ = zD/len;
+                }
+            }
+        }
+    }
+};
+osg::ref_ptr< MyVectorFieldData > _vectorField;
 
 
 // Number of vertices in arrow
@@ -375,7 +448,7 @@ float colorScale[] = {
 };
 
 osg::Node*
-createInstanced( VectorFieldData& vf )
+createInstanced( MyVectorFieldData& vf )
 {
     osg::Group* grp = new osg::Group;
 
@@ -465,7 +538,7 @@ int
 main( int argc,
       char ** argv )
 {
-    _vectorField = new VectorFieldData;
+    _vectorField = new MyVectorFieldData;
     _vectorField->loadData();
 
     unsigned int totalData( _vectorField->getDataCount() );
