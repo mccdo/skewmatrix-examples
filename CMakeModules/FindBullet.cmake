@@ -27,11 +27,15 @@
 # built bullet. This is good for native, standalone, out-of-source builds which
 # is the preferred method when using cmake.
 
+SET( BULLET_ROOT "" CACHE PATH "Bullet install dir, parent of both header files and binaries." )
+SET( BULLET_BUILD_DIR "" CACHE PATH "Parent directory of Bullet binary file directories such as src/BulletCollision." )
+SET( BULLET_SOURCE_DIR "" CACHE PATH "Parent directory of Bullet header file directories such as src or include." )
 
 FIND_PATH( BULLET_INCLUDE_DIR btBulletCollisionCommon.h
             PATHS
                 ${BULLET_ROOT}
                 $ENV{BULLET_ROOT}
+                ${BULLET_SOURCE_DIR}
                 $ENV{BULLET_SOURCE_DIR}
             PATH_SUFFIXES
                 /src
@@ -51,6 +55,7 @@ MACRO( FIND_BULLET_LIBRARY_DIRNAME LIBNAME DIRNAME )
         PATHS
             ${BULLET_ROOT}
             $ENV{BULLET_ROOT}
+            ${BULLET_BUILD_DIR}
             $ENV{BULLET_BUILD_DIR}
         PATH_SUFFIXES
             ./src/${DIRNAME}

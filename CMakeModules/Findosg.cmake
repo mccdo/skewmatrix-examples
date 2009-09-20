@@ -36,12 +36,18 @@
 # for this so the code has been simplified. But for this to work,
 # you must be using the new CMake code (introduced just before Jan 1st, 2006).
 
+SET( OSG_BUILD_DIR "" CACHE PATH "If using OSG out of a source tree, specify the build directory." )
+SET( OSG_SOURCE_DIR "" CACHE PATH "If using OSG out of a source tree, specify the root of the source tree." )
+SET( OSG_ROOT "" CACHE PATH "Specify alternate OSG install directory. It is the parent of the include and lib dirs." )
+
 MACRO( FIND_OSG_INCLUDE THIS_OSG_INCLUDE_DIR THIS_OSG_INCLUDE_FILE )
     FIND_PATH( ${THIS_OSG_INCLUDE_DIR} ${THIS_OSG_INCLUDE_FILE}
         PATHS
+            ${OSG_SOURCE_DIR}
             $ENV{OSG_SOURCE_DIR}
             $ENV{OSGDIR}
             $ENV{OSG_DIR}
+            ${OSG_ROOT}
             /usr/local/
             /usr/
             /sw/ # Fink
@@ -72,8 +78,10 @@ MACRO(FIND_OSG_LIBRARY MYLIBRARY MYLIBRARYNAME)
         $ENV{OSG_DIR}
         $ENV{OSGDIR}/lib
         $ENV{OSGDIR}
+        ${OSG_BUILD_DIR}/lib
         $ENV{OSG_ROOT}/lib
         $ENV{OSG_ROOT}/Build/lib
+        ${OSG_ROOT}/lib
         ~/Library/Frameworks
         /Library/Frameworks
         /usr/local/lib
