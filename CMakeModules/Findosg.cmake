@@ -1,62 +1,42 @@
-# This is part of the Findosg* suite used to find OpenSceneGraph components.
-# Each component is separate and you must opt in to each module. You must 
-# also opt into OpenGL and OpenThreads (and Producer if needed) as these 
-# modules won't do it for you. This is to allow you control over your own 
-# system piece by piece in case you need to opt out of certain components
-# or change the Find behavior for a particular module (perhaps because the
-# default FindOpenGL.cmake module doesn't work with your system as an
-# example).
-# If you want to use a more convenient module that includes everything,
-# use the FindOpenSceneGraph.cmake instead of the Findosg*.cmake modules.
-# 
-# Locate osg
-# This module defines
-# OSG_LIBRARY
-# OSG_FOUND, if false, do not try to link to osg
-# OSG_INCLUDE_DIR, where to find the headers
+# Locate OpenSceneGraph.
 #
-# $OSGDIR is an environment variable that would
-# correspond to the ./configure --prefix=$OSGDIR
-# used in building osg.
-
-# Header files are presumed to be included like
-# #include <osg/PositionAttitudeTransform>
-# #include <osgUtil/SceneView>
-
-# For Windows, I have attempted to incorporate the environmental variables
-# and registry entries used by Mike E. Weiblen's (mew) OSG installer. 
-# 
-# On OSX, this will prefer the Framework version (if found) over others.
-# People will have to manually change the cache values of 
-# the library to override this selection or set the CMake environment
-# CMAKE_INCLUDE_PATH to modify the search paths.
+# This script defines:
+#   OSG_FOUND, set to "YES" or "NO".   
+#   OSG_LIBRARIES
+#   OSG_INCLUDE_DIR
+#   OSG_GEN_INCLUDE_DIR, OSG's CMake-generated "Config" header files directory.
+#   OSG_INCLUDE_DIRS, both OSG_INCLUDE_DIR and OSG_GEN_INCLUDE_DIR together.
+#   OSG*_LIBRARY, one for each library.
+#   OSG*_LIBRARY_debug, one for each library.
+#   OSG_LIBRARIES_DIR, path to the OSG libraries.
 #
-# I originally had implemented some really nasty hacks to do OS X
-# framework detection. CMake per my request has introduced native support
-# for this so the code has been simplified. But for this to work,
-# you must be using the new CMake code (introduced just before Jan 1st, 2006).
+# This script will look in standard locations for installed OSG. However, if you
+# install OSG into a non-standard location, you can use the OSG_ROOT
+# variable (in environment or CMake) to specify the location.
+#
+# You can also use OSG out of a source tree by specifying OSGWORKS_SOURCE_DIR
+# and OSGWORKS_BUILD_DIR (in environment or CMake).
+
 
 SET( OSG_BUILD_DIR "" CACHE PATH "If using OSG out of a source tree, specify the build directory." )
 SET( OSG_SOURCE_DIR "" CACHE PATH "If using OSG out of a source tree, specify the root of the source tree." )
-SET( OSG_ROOT "" CACHE PATH "Specify alternate OSG install directory. It is the parent of the include and lib dirs." )
+SET( OSG_ROOT "" CACHE PATH "Specify non-standard OSG install directory. It is the parent of the include and lib dirs." )
 
 MACRO( FIND_OSG_INCLUDE THIS_OSG_INCLUDE_DIR THIS_OSG_INCLUDE_FILE )
+    MARK_AS_ADVANCED( ${THIS_OSG_INCLUDE_DIR} )
     FIND_PATH( ${THIS_OSG_INCLUDE_DIR} ${THIS_OSG_INCLUDE_FILE}
         PATHS
+            ${OSG_ROOT}
+            $ENV{OSG_ROOT}
             ${OSG_SOURCE_DIR}
             $ENV{OSG_SOURCE_DIR}
-            $ENV{OSGDIR}
-            $ENV{OSG_DIR}
-            ${OSG_ROOT}
-            /usr/local/
-            /usr/
-            /sw/ # Fink
-            /opt/local/ # DarwinPorts
-            /opt/csw/ # Blastwave
-            /opt/
+            /usr/local
+            /usr
+            /sw # Fink
+            /opt/local # DarwinPorts
+            /opt/csw # Blastwave
+            /opt
             "C:/Program Files/OpenSceneGraph"
-            [HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session\ Manage
-    r\\Environment;OSG_ROOT]/
             ~/Library/Frameworks
             /Library/Frameworks
         PATH_SUFFIXES
@@ -67,54 +47,53 @@ ENDMACRO( FIND_OSG_INCLUDE THIS_OSG_INCLUDE_DIR THIS_OSG_INCLUDE_FILE )
 FIND_OSG_INCLUDE( OSG_INCLUDE_DIR osg/PositionAttitudeTransform )
 FIND_OSG_INCLUDE( OSG_GEN_INCLUDE_DIR osg/Config )
 
+message( STATUS "OSG_LIBRARY_SEARCH_PATHS " ${OSG_LIBRARY_SEARCH_PATHS} )
 MACRO(FIND_OSG_LIBRARY MYLIBRARY MYLIBRARYNAME)
     MARK_AS_ADVANCED( ${MYLIBRARY} )
     MARK_AS_ADVANCED( ${MYLIBRARY}_debug )
     FIND_LIBRARY( ${MYLIBRARY}
-        NAMES ${MYLIBRARYNAME}
+        NAMES
+            ${MYLIBRARYNAME}
         PATHS
-        $ENV{OSG_DIR}/lib
-        $ENV{OSG_DIR}/Build/lib
-        $ENV{OSG_DIR}
-        $ENV{OSGDIR}/lib
-        $ENV{OSGDIR}
-        ${OSG_BUILD_DIR}/lib
-        $ENV{OSG_ROOT}/lib
-        $ENV{OSG_ROOT}/Build/lib
-        ${OSG_ROOT}/lib
-        ~/Library/Frameworks
-        /Library/Frameworks
-        /usr/local/lib
-        /usr/lib
-        /sw/lib
-        /opt/local/lib
-        /opt/csw/lib
-        /opt/lib
-        "C:/Program Files/OpenSceneGraph/lib"
-        [HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session\ Manager\\Environment;OSG_ROOT]/lib
-        /usr/freeware/lib64
+            ${OSG_ROOT}
+            $ENV{OSG_ROOT}
+            ${OSG_BUILD_DIR}
+            $ENV{OSG_BUILD_DIR}
+            ~/Library/Frameworks
+            /Library/Frameworks
+            /usr/local
+            /usr
+            /sw
+            /opt/local
+            /opt/csw
+            /opt
+            "C:/Program Files/OpenSceneGraph"
+            /usr/freeware/lib64
+        PATH_SUFFIXES
+            lib
+            .
     )
     FIND_LIBRARY( ${MYLIBRARY}_debug
-        NAMES ${MYLIBRARYNAME}d
+        NAMES
+            ${MYLIBRARYNAME}d
         PATHS
-        $ENV{OSG_DIR}/lib
-        $ENV{OSG_DIR}/Build/lib
-        $ENV{OSG_DIR}
-        $ENV{OSGDIR}/lib
-        $ENV{OSGDIR}
-        $ENV{OSG_ROOT}/lib
-        $ENV{OSG_ROOT}/Build/lib
-        ~/Library/Frameworks
-        /Library/Frameworks
-        /usr/local/lib
-        /usr/lib
-        /sw/lib
-        /opt/local/lib
-        /opt/csw/lib
-        /opt/lib
-        "C:/Program Files/OpenSceneGraph/lib"
-        [HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session\ Manager\\Environment;OSG_ROOT]/lib
-        /usr/freeware/lib64
+            ${OSG_ROOT}
+            $ENV{OSG_ROOT}
+            ${OSG_BUILD_DIR}
+            $ENV{OSG_BUILD_DIR}
+            ~/Library/Frameworks
+            /Library/Frameworks
+            /usr/local
+            /usr
+            /sw
+            /opt/local
+            /opt/csw
+            /opt
+            "C:/Program Files/OpenSceneGraph"
+            /usr/freeware/lib64
+        PATH_SUFFIXES
+            lib
+            .
     )
 #    message( STATUS ${${MYLIBRARY}} ${${MYLIBRARY}_debug} )
 #    message( SEND_ERROR ${MYLIBRARYNAME} )
