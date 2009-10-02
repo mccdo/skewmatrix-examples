@@ -14,8 +14,8 @@
 # install OSG into a non-standard location, you can use the OSG_ROOT
 # variable (in environment or CMake) to specify the location.
 #
-# You can also use OSG out of a source tree by specifying OSGWORKS_SOURCE_DIR
-# and OSGWORKS_BUILD_DIR (in environment or CMake).
+# You can also use OSG out of a source tree by specifying OSG_SOURCE_DIR
+# and OSG_BUILD_DIR (in environment or CMake).
 
 
 SET( OSG_BUILD_DIR "" CACHE PATH "If using OSG out of a source tree, specify the build directory." )
