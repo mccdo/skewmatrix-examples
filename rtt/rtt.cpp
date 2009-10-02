@@ -39,6 +39,7 @@ postRender( osgViewer::Viewer& viewer )
     // Configure postRenderCamera to draw fullscreen textured quad
     osg::ref_ptr< osg::Camera > postRenderCamera( new osg::Camera );
     postRenderCamera->setClearColor( osg::Vec4( 0., 1., 0., 1. ) ); // should never see this.
+    postRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER, osg::Camera::FRAME_BUFFER );
 
     postRenderCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
     postRenderCamera->setRenderOrder( osg::Camera::POST_RENDER );
@@ -60,12 +61,15 @@ postRender( osgViewer::Viewer& viewer )
 int
 main( int argc, char** argv )
 {
+    osg::setNotifyLevel( osg::INFO );
+
     osg::ref_ptr< osg::Group > root( new osg::Group );
     root->addChild( osgDB::readNodeFile( "cow.osg" ) );
     if( root->getNumChildren() == 0 )
         return( 1 );
 
     osgViewer::Viewer viewer;
+    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setUpViewInWindow( 10, 30, winW, winH );
     viewer.setSceneData( root.get() );
     viewer.realize();
