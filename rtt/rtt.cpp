@@ -33,6 +33,7 @@ postRender( osgViewer::Viewer& viewer )
     // Internally, OSG allocates a multisampled renderbuffer, renders to it,
     // and at the end of the frame performs a BlitFramebuffer into our texture.
     rootCamera->attach( osg::Camera::COLOR_BUFFER0, tex, 0, 0, false, 8, 8 );
+    rootCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
 
 
     // Configure postRenderCamera to draw fullscreen textured quad
