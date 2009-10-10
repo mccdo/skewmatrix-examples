@@ -70,19 +70,16 @@ clipInstance( const in vec3 pos )
 mat3
 makeOrientMat( const in vec3 tC )
 {
-    const vec4 dir = texture3D( texDir, tC );
+    vec4 dir = texture3D( texDir, tC );
 
     // Compute a vector at a right angle to the direction.
     // First try projection direction into xy rotated -90 degrees.
-    // If that gives us almost the same vector we started with,
-    // then project into yz instead, rotated 90 degrees.
+    // If that gives us a very short vector,
+    // then project into yz instead, rotated -90 degrees.
     vec3 c = vec3( dir.y, -dir.x, 0.0 );
+    if( dot( c, c ) < 0.1 )
+        c = vec3( 0.0, dir.z, -dir.y );
     normalize( c );
-    if( abs( dot( c, dir ) ) > 0.9 )
-    {
-        vec3 c = vec3( 0.0, dir.z, -dir.y );
-        normalize( c );
-    }
 
     const vec3 up = cross( c.xyz, dir.xyz );
 
@@ -104,15 +101,15 @@ simpleLighting( const in vec4 color, const in vec3 normal, const in float diffCo
 void main()
 {
     // Get instance ID and discard entire arrow if this instance is not to be rendered.
-    const float fiid = gl_InstanceID;
+    float fiid = gl_InstanceID;
     if( discardInstance( fiid ) )
         return;
 
     // Generate stp texture coords from the instance ID.
-    const vec3 tC = generateTexCoord( fiid );
+    vec3 tC = generateTexCoord( fiid );
 
     // Sample (look up) position. Discard instance if clipped.
-    const vec4 pos = texture3D( texPos, tC );
+    vec4 pos = texture3D( texPos, tC );
     if( clipInstance( pos ) )
         return;
 
