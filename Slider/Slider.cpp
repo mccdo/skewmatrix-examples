@@ -7,13 +7,13 @@
 #include <osg/MatrixTransform>
 #include <osg/NodeCallback>
 
-#include <osgControls/SliderControl.h>
+#include <osgwControls/SliderControl.h>
 
 
 class SliderUpdate : public osg::NodeCallback
 {
 public:
-    SliderUpdate( osgControls::SliderControl* sc )
+    SliderUpdate( osgwControls::SliderControl* sc )
       : _sc( sc )
     {}
 
@@ -27,7 +27,7 @@ public:
     }
 
 protected:
-    osgControls::SliderControl* _sc;
+    osgwControls::SliderControl* _sc;
 };
 
 int
@@ -36,7 +36,7 @@ main( int argc,
 {
     osg::Group* root = new osg::Group;
 
-    osgControls::SliderControl* sc = new osgControls::SliderControl;
+    osgwControls::SliderControl* sc = new osgwControls::SliderControl;
     sc->setDisplayArea( 7. );
     sc->setValueRange( .5, 3. );
     sc->setTimeRange( 3. );
