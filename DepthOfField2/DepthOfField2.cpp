@@ -1,4 +1,4 @@
-// Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
+	// Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
 #include <osg/Node>
 #include <osg/Camera>
@@ -472,12 +472,12 @@ osg::Geode* DepthOfField::createBlurredXTexturedQuad( osg::Texture2D* colorTextu
 
             "fWeightSum += dot(vWeights3,vec3(1,1,1)); \n"
 
-            "s0 = texture2D(sample, gl_TexCoord[0].xy+offset[3]); \n"
-            "s1 = texture2D(sample, gl_TexCoord[0].xy+offset[4]); \n"
-            "s2 = texture2D(sample, gl_TexCoord[0].xy+offset[5]); \n"
-            "s3 = texture2D(sample, gl_TexCoord[0].xy-offset[3]); \n"
-            "s4 = texture2D(sample, gl_TexCoord[0].xy-offset[4]); \n"
-            "s5 = texture2D(sample, gl_TexCoord[0].xy-offset[5]); \n"
+            "s0 = texture2D(sample, gl_TexCoord[0].xy+offset[3].xy); \n"
+            "s1 = texture2D(sample, gl_TexCoord[0].xy+offset[4].xy); \n"
+            "s2 = texture2D(sample, gl_TexCoord[0].xy+offset[5].xy); \n"
+            "s3 = texture2D(sample, gl_TexCoord[0].xy-offset[3].xy); \n"
+            "s4 = texture2D(sample, gl_TexCoord[0].xy-offset[4].xy); \n"
+            "s5 = texture2D(sample, gl_TexCoord[0].xy-offset[5].xy); \n"
             
             "vWeights3.x = clamp(s0.a-vThresh1.x,0.0,1.0); \n"
             "vWeights3.y = clamp(s1.a-vThresh1.y,0.0,1.0); \n"
@@ -507,6 +507,7 @@ osg::Geode* DepthOfField::createBlurredXTexturedQuad( osg::Texture2D* colorTextu
     vertShader->setShaderSource(vertsource);
 
     osg::Shader* fragShader = new osg::Shader();
+    fragShader->setName( "blurx" );
     fragShader->setType(osg::Shader::FRAGMENT);
     fragShader->setShaderSource(fragsource);
 
@@ -590,12 +591,12 @@ osg::Geode* DepthOfField::createBlurredYTexturedQuad( osg::Texture2D* colorTextu
 
             "vColorWeightSum = s0 * vWeights0.w + (s1+s4)*vWeights0.x + (s2+s5)*vWeights0.y + (s3+s6)*vWeights0.z; \n"
 
-            "s0 = texture2D(sample, gl_TexCoord[0].xy+offset[3]); \n"
-            "s1 = texture2D(sample, gl_TexCoord[0].xy+offset[4]); \n"
-            "s2 = texture2D(sample, gl_TexCoord[0].xy+offset[5]); \n"
-            "s3 = texture2D(sample, gl_TexCoord[0].xy-offset[3]); \n"
-            "s4 = texture2D(sample, gl_TexCoord[0].xy-offset[4]); \n"
-            "s5 = texture2D(sample, gl_TexCoord[0].xy-offset[5]); \n"
+            "s0 = texture2D(sample, gl_TexCoord[0].xy+offset[3].xy); \n"
+            "s1 = texture2D(sample, gl_TexCoord[0].xy+offset[4].xy); \n"
+            "s2 = texture2D(sample, gl_TexCoord[0].xy+offset[5].xy); \n"
+            "s3 = texture2D(sample, gl_TexCoord[0].xy-offset[3].xy); \n"
+            "s4 = texture2D(sample, gl_TexCoord[0].xy-offset[4].xy); \n"
+            "s5 = texture2D(sample, gl_TexCoord[0].xy-offset[5].xy); \n"
             
             "s0.rgb = s0.rgb * s0.a; \n"
             "s1.rgb = s1.rgb * s1.a; \n"
@@ -615,6 +616,7 @@ osg::Geode* DepthOfField::createBlurredYTexturedQuad( osg::Texture2D* colorTextu
     vertShader->setShaderSource(vertsource);
 
     osg::Shader* fragShader = new osg::Shader();
+    fragShader->setName( "blury" );
     fragShader->setType(osg::Shader::FRAGMENT);
     fragShader->setShaderSource(fragsource);
 
@@ -660,8 +662,8 @@ osg::Geode* DepthOfField::createDepthOfFieldQuad( osg::Texture2D* texture,osg::T
             // The alpha chanel of the focused image contains the normalized
             // distance from the focal point in the range 0 to 1. Use this
             // to mix color values from the blurred image with the focused image.
-            "vec4 vBlurred = texture2D(blurred,gl_TexCoord[1]); \n"
-            "vec4 vFullRes = texture2D(texture,gl_TexCoord[0]); \n"
+            "vec4 vBlurred = texture2D(blurred,gl_TexCoord[1].xy); \n"
+            "vec4 vFullRes = texture2D(texture,gl_TexCoord[0].xy); \n"
             "gl_FragColor = mix(vFullRes,vBlurred,vFullRes.a); \n"
         "} \n";
     osg::Shader* vertShader = new osg::Shader();
@@ -669,6 +671,7 @@ osg::Geode* DepthOfField::createDepthOfFieldQuad( osg::Texture2D* texture,osg::T
     vertShader->setShaderSource(vertsource);
 
     osg::Shader* fragShader = new osg::Shader();
+    fragShader->setName( "dof" );
     fragShader->setType(osg::Shader::FRAGMENT);
     fragShader->setShaderSource(fragsource);
 
