@@ -137,7 +137,7 @@ protected:
         _texSizes = osg::Vec3s( s, t, p );
 
         // Allocate memory for data.
-        unsigned int size( getDataCount() );
+        unsigned int size( s*t*p );
         _pos = new float[ size * 3 ];
         _dir = new float[ size * 3 ];
         _scalar = new float[ size ];
@@ -282,7 +282,7 @@ protected:
         _texSizes = osg::Vec3s( s, t, p );
 
         // Allocate memory for data.
-        unsigned int size( getDataCount() );
+        unsigned int size( s*t*p );
         _pos = new float[ size * 3 ];
         _dir = new float[ size * 3 ];
         _scalar = new float[ size ];
