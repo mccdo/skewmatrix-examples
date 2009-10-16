@@ -415,11 +415,11 @@ osg::Geode* DepthOfField::createBlurredXTexturedQuad( osg::Texture2D* colorTextu
     osg::Geode* quadGeode = makeQuadGeode();
 
     osg::ref_ptr< osg::StateSet > stateset = new osg::StateSet();
-    stateset->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
     stateset->setTextureAttributeAndModes(
         0, colorTexture, osg::StateAttribute::ON );
+    stateset->addUniform(new osg::Uniform("sample",0));
 
-    float dx = 1/_maxWidth;
+    float dx = 1.f/_maxWidth;
     osg::Uniform* horzTapOffs = new osg::Uniform();
     horzTapOffs->setName("offset");
     horzTapOffs->setNumElements(6);
@@ -431,7 +431,6 @@ osg::Geode* DepthOfField::createBlurredXTexturedQuad( osg::Texture2D* colorTextu
     horzTapOffs->setElement(4, osg::Vec4(9.4436 * dx,0.,0.,0.));
     horzTapOffs->setElement(5, osg::Vec4(11.4401* dx,0.,0.,0.));
     stateset->addUniform(horzTapOffs);
-    stateset->addUniform(new osg::Uniform("sample",0));
     
     std::string vertsource =
         "uniform vec4 offset[6]; \n"
@@ -542,11 +541,11 @@ osg::Geode* DepthOfField::createBlurredYTexturedQuad( osg::Texture2D* colorTextu
     osg::Geode* quadGeode = makeQuadGeode();
 
     osg::ref_ptr< osg::StateSet > stateset = new osg::StateSet();
-    stateset->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
     stateset->setTextureAttributeAndModes(
         0, colorTexture, osg::StateAttribute::ON );
+    stateset->addUniform(new osg::Uniform("sample",0));
 
-    float dy = 1/_maxHeight;
+    float dy = 1.f/_maxHeight;
     osg::Uniform* vertTapOffs = new osg::Uniform();
     vertTapOffs->setName("offset");
     vertTapOffs->setNumElements(6);
@@ -558,7 +557,6 @@ osg::Geode* DepthOfField::createBlurredYTexturedQuad( osg::Texture2D* colorTextu
     vertTapOffs->setElement(4, osg::Vec4(0.,9.4436 * dy,0.,0.));
     vertTapOffs->setElement(5, osg::Vec4(0.,11.4401* dy,0.,0.));
     stateset->addUniform(vertTapOffs);
-    stateset->addUniform(new osg::Uniform("sample",0));
     
     std::string vertsource =
         "uniform vec4 offset[6]; \n"
@@ -679,9 +677,9 @@ osg::Geode* DepthOfField::createDepthOfFieldQuad( osg::Texture2D* texture,osg::T
             // The alpha chanel of the focused image contains the normalized
             // distance from the focal point in the range 0 to 1. Use this
             // to mix color values from the blurred image with the focused image.
-            "vec4 vBlurred = texture2D(blurred,gl_TexCoord[1].xy); \n"
             "vec4 vFullRes = texture2D(texture,gl_TexCoord[0].xy); \n"
-            "gl_FragColor = mix(vFullRes,vBlurred,vFullRes.a); \n"
+            "vec4 vBlurred = texture2D(blurred,gl_TexCoord[1].xy); \n"
+            "gl_FragColor = mix( vFullRes, vBlurred, vFullRes.a ); \n"
         "} \n";
     osg::Shader* vertShader = new osg::Shader();
     vertShader->setType(osg::Shader::VERTEX);
