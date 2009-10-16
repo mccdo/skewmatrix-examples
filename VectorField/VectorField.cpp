@@ -3,6 +3,8 @@
 // All rights reserved.
 //
 
+#include <osgDB/ReadFile>
+#include <osgDB/WriteFile>
 #include <osgDB/FileUtils>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
@@ -106,6 +108,41 @@ public:
     // You must override this to return a bounding box for your
     // vector field data.
     virtual osg::BoundingBox getBoundingBox() = 0;
+
+    void saveData( const std::string& baseName )
+    {
+        if( _texPos != NULL )
+            osgDB::writeObjectFile( *( _texPos->getImage() ), baseName + std::string( "-pos.ive" ) );
+
+        if( _texDir != NULL )
+            osgDB::writeObjectFile( *( _texDir->getImage() ), baseName + std::string( "-dir.ive" ) );
+
+        if( _texScalar != NULL )
+            osgDB::writeObjectFile( *( _texScalar->getImage() ), baseName + std::string( "-scalar.ive" ) );
+    }
+    void restoreData( const std::string& baseName )
+    {
+        std::string name( baseName + std::string( "-pos.ive" ) );
+        std::string fullName( osgDB::findDataFile( name ) );
+        if( !fullName.empty() )
+            _texPos->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
+        else
+            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
+
+        name = baseName + std::string( "-dir.ive" );
+        fullName = osgDB::findDataFile( name );
+        if( !fullName.empty() )
+            _texDir->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
+        else
+            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
+
+        name = baseName + std::string( "-scalar.ive" );
+        fullName = osgDB::findDataFile( name );
+        if( !fullName.empty() )
+            _texScalar->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
+        else
+            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
+    }
 
 protected:
     osg::ref_ptr< osg::Texture3D > _texPos, _texDir, _texScalar;
@@ -535,7 +572,8 @@ main( int argc,
       char ** argv )
 {
     _vectorField = new MyVectorFieldData;
-    _vectorField->loadData();
+    _vectorField->restoreData( "test" );
+    //_vectorField->loadData();
 
     unsigned int totalData( _vectorField->getDataCount() );
     osg::notify( osg::ALWAYS ) << totalData << " instances." << std::endl;

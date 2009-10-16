@@ -154,10 +154,12 @@ void DepthOfField::init( int argc, char** argv )
     _smallMap     = new osg::Texture2D();
     _blurxMap     = new osg::Texture2D();
     _bluryMap     = new osg::Texture2D();
+    const float smallWidth( _maxWidth*.5 );
+    const float smallHeight( _maxHeight*.5 );
     configureTexture( _texMap, _maxWidth, _maxHeight );
-    configureTexture( _smallMap, _maxWidth, _maxHeight );
-    configureTexture( _blurxMap, _maxWidth, _maxHeight );
-    configureTexture( _bluryMap, _maxWidth, _maxHeight );
+    configureTexture( _smallMap, smallWidth, smallHeight );
+    configureTexture( _blurxMap, smallWidth, smallHeight );
+    configureTexture( _bluryMap, smallWidth, smallHeight );
 
     _fboSmallMap = new osg::FrameBufferObject;
     _fboSmallMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
@@ -219,6 +221,9 @@ void DepthOfField::init( int argc, char** argv )
     // Heirarchically arrange all cameras and quad geometry
     osg::ref_ptr< osg::Group > smallQ = new osg::Group();
     smallQ->getOrCreateStateSet()->setAttribute( _fboSmallMap.get(),
+        osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
+    smallQ->getOrCreateStateSet()->setAttribute(
+        new osg::Viewport( 0, 0, smallWidth, smallHeight ),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
     smallQ->addChild( createSmallQuad( _texMap.get() ) );
     pseudoRoot->addChild( smallQ.get() );
@@ -333,8 +338,8 @@ void DepthOfField::configureTexture(osg::Texture2D* texture, int w, int h )
     texture->setTextureSize( w, h );
     texture->setSourceFormat( GL_RGBA );
     texture->setSourceType( GL_UNSIGNED_BYTE );
-    texture->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
-    texture->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+    texture->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR );
+    texture->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::LINEAR );
     texture->setWrap( osg::Texture2D::WRAP_S, osg::Texture2D::CLAMP_TO_EDGE );
     texture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::CLAMP_TO_EDGE );
 }
