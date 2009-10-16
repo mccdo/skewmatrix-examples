@@ -55,6 +55,7 @@ public:
 protected:
     void configureCamera(osg::Camera* camera, osg::Texture2D* texture, osg::Vec4 clearColor);
     void configureTexture( osg::Texture2D* texture, int w, int h );
+    osg::Node* postRenderPipe( const int index );
 
     osg::Geode* createSmallQuad( osg::Texture2D* colorTexture );
     osg::Geode* createBlurredXTexturedQuad( osg::Texture2D* colorTexture );
@@ -63,20 +64,11 @@ protected:
 
 
     osg::ref_ptr< osgViewer::CompositeViewer > _viewer;
-    osg::ref_ptr< osg::Camera > _rttCamera;
     osg::ref_ptr< osg::Group > _parent;
     osg::ref_ptr< osg::Node > _scene;
-
     osg::ref_ptr< osgGA::TrackballManipulator > _manipulator;
 
-    osg::ref_ptr< osg::Texture2D > _texMap;
-    osg::ref_ptr< osg::Texture2D > _smallMap;
-    osg::ref_ptr< osg::Texture2D > _blurxMap;
-    osg::ref_ptr< osg::Texture2D > _bluryMap;
-
-    osg::ref_ptr< osg::FrameBufferObject > _fboSmallMap;
-    osg::ref_ptr< osg::FrameBufferObject > _fboBlurxMap;
-    osg::ref_ptr< osg::FrameBufferObject > _fboBluryMap;
+    osg::ref_ptr< osg::Camera > _rttCamera[4];
 
     osg::ref_ptr< osg::Uniform > _focalDist;
     osg::ref_ptr< osg::Uniform > _focalRange;
@@ -110,85 +102,11 @@ void DepthOfField::setScene(osg::Node* scene)
 
 void DepthOfField::init( int argc, char** argv )
 {
- 
-    _viewer = new osgViewer::CompositeViewer;
-    int idxX, idxY;
-    for( idxX=0; idxX<2; idxX++ )
-    {
-        for( idxY=0; idxY<2; idxY++ )
-        {
-            osgViewer::View* view = new osgViewer::View;
-            view->setUpViewInWindow(
-                idxX*_maxWidth+10, idxY*_maxHeight+30, _maxWidth, _maxHeight);
-            view->getCamera()->setViewMatrix( osg::Matrix::identity() );
-            view->getCamera()->setProjectionMatrix( osg::Matrix::identity() );
-            view->getCamera()->setClearColor( osg::Vec4( 0., 0., 1., 1. ) ); // should never see this
-            _viewer->addView( view );
-        }
-    }
-
-
-    // Create and configure the textures.
-    // We do 5 render passes:
-    //   1. Render to a full-sized texture. This is a "focused image".
-    //   2. Render to a small texture. This will be the "blurry image".
-    //   3. Blur the small texture in x.
-    //   4. Blut the x-blurred texture in y.
-    //   5. Combine the y-blurred texture and focused texture based
-    //      on each pixel's depth/distance value.
-
-    //    osgViewer Cameras (4 total)
-    //             |
-    //         PseudoRoot
-    //       ______|___________________
-    //       |          |             |
-    // _rttCamera     smallQ         dofg
-    //   ->_texMap     ->_smallMap    ->window
-    //   |      |         |
-    // _parent lights   blurX
-    //   |               ->blurXMap
-    // _scene               |
-    //                    blurY
-    //                     ->blurYMap
-    _texMap       = new osg::Texture2D();
-    _smallMap     = new osg::Texture2D();
-    _blurxMap     = new osg::Texture2D();
-    _bluryMap     = new osg::Texture2D();
-    const float smallWidth( _maxWidth*.5 );
-    const float smallHeight( _maxHeight*.5 );
-    configureTexture( _texMap, _maxWidth, _maxHeight );
-    configureTexture( _smallMap, smallWidth, smallHeight );
-    configureTexture( _blurxMap, smallWidth, smallHeight );
-    configureTexture( _bluryMap, smallWidth, smallHeight );
-
-    _fboSmallMap = new osg::FrameBufferObject;
-    _fboSmallMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
-        osg::FrameBufferAttachment( _smallMap.get() ) );
-    _fboBlurxMap = new osg::FrameBufferObject;
-    _fboBlurxMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
-        osg::FrameBufferAttachment( _blurxMap.get() ) );
-    _fboBluryMap = new osg::FrameBufferObject;
-    _fboBluryMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
-        osg::FrameBufferAttachment( _bluryMap.get() ) );
-
-    osg::ref_ptr< osg::Group > pseudoRoot = new osg::Group;
-    unsigned int idx;
-    for( idx=0; idx<_viewer->getNumViews(); idx++ )
-        _viewer->getView( idx )->setSceneData( pseudoRoot.get() );
-
-
-    _rttCamera  = new osg::Camera;
-    configureCamera( _rttCamera.get(), _texMap.get(), _clearColor );
-    _rttCamera->setProjectionMatrixAsPerspective( _fov, (_maxWidth/_maxHeight), .1, 100. );
-    pseudoRoot->addChild( _rttCamera.get() );
-
     // Create the scene parent. The application can add and remove scene data to/from this node.
     _parent = new osg::Group;
     _parent->getOrCreateStateSet()->addUniform(_focalDist);
     _parent->getOrCreateStateSet()->addUniform(_focalRange);
-    
-    _rttCamera->addChild( _parent.get() );
-
+ 
     {
         // Render the quad in eye space. Use an ABSOLUTE_RF MatrixTransform and leave its matrix as identity.
         osg::MatrixTransform* eyeSpace = new osg::MatrixTransform;
@@ -218,6 +136,109 @@ void DepthOfField::init( int argc, char** argv )
         exit( 1 );
     }
 
+    // To manipulate the scene beneath the RTT Camera, attach the TB manipulator
+    // as a viewer event handler. In the update() function, called once per frame,
+    // set the RTT Camera with the manipulator's inverse matrix.
+    _manipulator = new osgGA::TrackballManipulator;
+
+    _viewer = new osgViewer::CompositeViewer;
+    int idxX, idxY;
+    for( idxX=0; idxX<2; idxX++ )
+    {
+        for( idxY=0; idxY<2; idxY++ )
+        {
+            osgViewer::View* view = new osgViewer::View;
+            view->setUpViewInWindow(
+                idxX*_maxWidth+10, idxY*_maxHeight+30, _maxWidth, _maxHeight);
+            view->getCamera()->setViewMatrix( osg::Matrix::identity() );
+            view->getCamera()->setProjectionMatrix( osg::Matrix::identity() );
+            view->getCamera()->setClearColor( osg::Vec4( 0., 0., 1., 1. ) ); // should never see this
+            view->addEventHandler( _manipulator.get() );
+            _viewer->addView( view );
+
+            view->setSceneData( postRenderPipe( idxX*2 + idxY ) );
+        }
+    }
+
+    // We want the home position (space bar) to be based on the elements of our
+    // scene -- just the stuff under _parent.
+    _manipulator->setNode( _parent.get() );
+    _manipulator->home( 0. );
+}
+
+osg::Node*
+DepthOfField::postRenderPipe( int index )
+{
+    osg::ref_ptr< osg::Texture2D > _texMap;
+    osg::ref_ptr< osg::Texture2D > _smallMap;
+    osg::ref_ptr< osg::Texture2D > _blurxMap;
+    osg::ref_ptr< osg::Texture2D > _bluryMap;
+
+    osg::ref_ptr< osg::FrameBufferObject > _fboSmallMap;
+    osg::ref_ptr< osg::FrameBufferObject > _fboBlurxMap;
+    osg::ref_ptr< osg::FrameBufferObject > _fboBluryMap;
+
+    // We do 5 render passes:
+    //   1. Render to a full-sized texture. This is a "focused image".
+    //   2. Render to a small texture. This will be the "blurry image".
+    //   3. Blur the small texture in x.
+    //   4. Blut the x-blurred texture in y.
+    //   5. Combine the y-blurred texture and focused texture based
+    //      on each pixel's depth/distance value.
+
+    // Graphically (with each pass number as a label):
+    //         View Camera
+    //             |
+    //         PseudoRoot
+    //       ______|___________________
+    //       |          |             |
+    // _rttCamera     smallQ         dofg
+    //   ->1,_texMap   ->2,smallMap   ->5,window
+    //       |            |
+    //    shared*       blurX
+    //                   ->3,blurXMap
+    //                      |
+    //                    blurY
+    //                     ->4,blurYMap
+    //    *shared
+    //    |      |
+    // _parent  lights
+    //   |
+    // _scene
+    //
+
+    // Create and configure the textures.
+    _texMap       = new osg::Texture2D();
+    _smallMap     = new osg::Texture2D();
+    _blurxMap     = new osg::Texture2D();
+    _bluryMap     = new osg::Texture2D();
+    const float smallWidth( _maxWidth*.5 );
+    const float smallHeight( _maxHeight*.5 );
+    configureTexture( _texMap, _maxWidth, _maxHeight );
+    configureTexture( _smallMap, smallWidth, smallHeight );
+    configureTexture( _blurxMap, smallWidth, smallHeight );
+    configureTexture( _bluryMap, smallWidth, smallHeight );
+
+    _fboSmallMap = new osg::FrameBufferObject;
+    _fboSmallMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
+        osg::FrameBufferAttachment( _smallMap.get() ) );
+    _fboBlurxMap = new osg::FrameBufferObject;
+    _fboBlurxMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
+        osg::FrameBufferAttachment( _blurxMap.get() ) );
+    _fboBluryMap = new osg::FrameBufferObject;
+    _fboBluryMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
+        osg::FrameBufferAttachment( _bluryMap.get() ) );
+
+    osg::ref_ptr< osg::Group > pseudoRoot = new osg::Group;
+
+    _rttCamera[ index ] = new osg::Camera;
+    configureCamera( _rttCamera[ index ].get(), _texMap.get(), _clearColor );
+    _rttCamera[ index ]->setProjectionMatrixAsPerspective( _fov, (_maxWidth/_maxHeight), .1, 100. );
+    pseudoRoot->addChild( _rttCamera[ index ].get() );
+
+    _rttCamera[ index ]->addChild( _parent.get() );
+
+
     // Heirarchically arrange all cameras and quad geometry
     osg::ref_ptr< osg::Group > smallQ = new osg::Group();
     smallQ->getOrCreateStateSet()->setAttribute( _fboSmallMap.get(),
@@ -244,18 +265,7 @@ void DepthOfField::init( int argc, char** argv )
     dofg->addChild( createDepthOfFieldQuad( _texMap.get(), _bluryMap.get() ) );
     pseudoRoot->addChild(dofg.get());
 
-
-    // To manipulate the scene beneath the RTT Camera, attach the TB manipulator
-    // as a viewer event handler. In the update() function, called once per frame,
-    // set the RTT Camera with the manipulator's inverse matrix.
-    _manipulator = new osgGA::TrackballManipulator;
-    for( idx=0; idx<_viewer->getNumViews(); idx++ )
-        _viewer->getView( idx )->addEventHandler( _manipulator.get() );
-
-    // We want the home position (space bar) to be based on the elements of our
-    // scene -- just the stuff under _parent.
-    _manipulator->setNode( _parent.get() );
-    _manipulator->home( 0. );
+    return( pseudoRoot.release() );
 }
 
 // This method must be called once per frame. It is responsible for modifying the RTT
@@ -266,7 +276,9 @@ void DepthOfField::init( int argc, char** argv )
 void DepthOfField::update()
 {
     // Set the RTT camera view from the manipulator.
-    _rttCamera->setViewMatrix( _manipulator->getInverseMatrix() );
+    unsigned int idx;
+    for( idx=0; idx<4; idx++ )
+        _rttCamera[ idx ]->setViewMatrix( _manipulator->getInverseMatrix() );
 }
 
 // This is the clear color of the scene.
