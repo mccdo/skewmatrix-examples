@@ -182,7 +182,7 @@ DepthOfField::postRenderPipe( int index )
     //   1. Render to a full-sized texture. This is a "focused image".
     //   2. Render to a small texture. This will be the "blurry image".
     //   3. Blur the small texture in x.
-    //   4. Blut the x-blurred texture in y.
+    //   4. Blur the x-blurred texture in y.
     //   5. Combine the y-blurred texture and focused texture based
     //      on each pixel's depth/distance value.
 
