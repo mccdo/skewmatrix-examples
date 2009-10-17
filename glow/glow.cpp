@@ -281,7 +281,7 @@ void GlowHelper::configureCamera(osg::Camera* camera, osg::Texture2D* texture0, 
     camera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT );
     camera->setClearColor( clearColor );
     camera->attach( osg::Camera::COLOR_BUFFER0, texture0 );
-    //camera->attach( osg::Camera::COLOR_BUFFER1, texture1 );
+    camera->attach( osg::Camera::COLOR_BUFFER1, texture1 );
 }
 
 // Configure the textures that the RTT camera will render into.
@@ -332,6 +332,53 @@ osg::Geode* makeQuadGeode()
     return( quadGeode.release() );
 }
 
+
+osg::Uniform*
+GlowHelper::glowUniform( bool onoff )
+{
+    osg::Vec3 glow( 0.2, 0.7, 1.0 );
+    osg::Vec3 noGlow( 0.0, 0.0, 0.0 );
+    return( new osg::Uniform( "glowColor", ( onoff ? glow : noGlow ) ) );
+}
+
+osg::Program* GlowHelper::createShader()
+{
+    // Shaders for initially rendering the image.
+    // Vertex shader is simple diffuse lighting
+    std::string vertsource = 
+        "void main() \n"
+        "{ \n"
+            "vec3 ecPosition = vec3(gl_ModelViewMatrix * gl_Vertex); \n"
+            "vec3 tnorm = normalize(gl_NormalMatrix * gl_Normal); \n"
+            "vec3 lightVec = normalize(gl_LightSource[0].position.xyz-ecPosition); \n"
+            "float li = max(dot(lightVec,tnorm),0.0); \n"
+            "gl_FrontColor = vec4(li, li, li, 1.0 ); \n"
+            "gl_Position = ftransform(); \n"
+        "} \n";
+
+    // Fragment shader stores plain color in color attachment 0,
+    // glow color in color attachment 1.
+    // TBD: Add texture mapping for the cow.
+    std::string fragsource = 
+        "uniform vec3 glowColor; \n"
+        "void main() \n"
+        "{ \n"
+            "gl_FragData[0] = gl_Color; \n"
+            "gl_FragData[1] = vec4( glowColor, 1.0 ); \n"
+        "} \n";
+    osg::Shader* vertShader = new osg::Shader();
+    vertShader->setType(osg::Shader::VERTEX);
+    vertShader->setShaderSource(vertsource);
+
+    osg::Shader* fragShader = new osg::Shader();
+    fragShader->setType(osg::Shader::FRAGMENT);
+    fragShader->setShaderSource(fragsource);
+
+    osg::Program* program = new osg::Program();
+    program->addShader(vertShader);
+    program->addShader(fragShader);
+    return program;
+}
 
 osg::Geode* GlowHelper::createBlurredXTexturedQuad( osg::Texture2D* colorTexture )
 {
@@ -439,6 +486,7 @@ osg::Geode* GlowHelper::createBlurredXTexturedQuad( osg::Texture2D* colorTexture
             "vColorSum = vColorSum / fWeightSum; \n"
 
             "gl_FragColor = vec4(vColorSum,fWeightSum);//*0.00390625; \n"
+            //"gl_FragColor = texture2D(sample, gl_TexCoord[0].xy); \n"
 
         "} \n";
     osg::Shader* vertShader = new osg::Shader();
@@ -547,6 +595,7 @@ osg::Geode* GlowHelper::createBlurredYTexturedQuad( osg::Texture2D* colorTexture
             "vColorWeightSum.rgb = vColorWeightSum.rgb / vColorWeightSum.a; \n"
 
             "gl_FragColor = vColorWeightSum;//*256.0; \n"
+            //"gl_FragColor = texture2D(sample, gl_TexCoord[0].xy); \n"
 
         "} \n";
     osg::Shader* vertShader = new osg::Shader();
@@ -586,7 +635,7 @@ osg::Geode* GlowHelper::createFinalQuad( osg::Texture2D* texture,osg::Texture2D*
         "uniform vec4 offset[6]; \n"
         "void main() \n"
             "{ \n"
-                "gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex; \n"
+                "gl_Position = ftransform(); \n"
                 "gl_TexCoord[0] = gl_MultiTexCoord0; \n"
                 //HACK, Isaac says offset the tex coord based on the window size.
                 //  otherwise blur is shifted.
@@ -618,54 +667,6 @@ osg::Geode* GlowHelper::createFinalQuad( osg::Texture2D* texture,osg::Texture2D*
     quadGeode->setStateSet( stateset.get() );
 
     return quadGeode;
-}
-
-
-osg::Uniform*
-GlowHelper::glowUniform( bool onoff )
-{
-    osg::Vec4 glow( 1.0, 1.0, 1.0, 1.0 );
-    osg::Vec4 noGlow( 0.0, 0.0, 0.0, 1.0 );
-    return( new osg::Uniform( "glowColor", ( onoff ? glow : noGlow ) ) );
-}
-
-osg::Program* GlowHelper::createShader()
-{
-    // Shaders for initially rendering the image.
-    // Vertex shader is simple diffuse lighting
-    std::string vertsource = 
-        "void main() \n"
-        "{ \n"
-            "vec3 ecPosition = vec3(gl_ModelViewMatrix * gl_Vertex); \n"
-            "vec3 tnorm = normalize(gl_NormalMatrix * gl_Normal); \n"
-            "vec3 lightVec = normalize(gl_LightSource[0].position.xyz-ecPosition); \n"
-            "float li = max(dot(lightVec,tnorm),0.0); \n"
-            "gl_FrontColor = vec4(li, li, li, 1.0 ); \n"
-            "gl_Position = ftransform(); \n"
-        "} \n";
-
-    // Fragment shader stores plain color in color attachment 0,
-    // glow color in color attachment 1.
-    // TBD: Add texture mapping for the cow.
-    std::string fragsource = 
-        "uniform vec3 glowColor; \n"
-        "void main() \n"
-        "{ \n"
-            "gl_FragData[0] = gl_Color; \n"
-            "gl_FragData[1] = vec4( glowColor, 1.0 ); \n"
-        "} \n";
-    osg::Shader* vertShader = new osg::Shader();
-    vertShader->setType(osg::Shader::VERTEX);
-    vertShader->setShaderSource(vertsource);
-
-    osg::Shader* fragShader = new osg::Shader();
-    fragShader->setType(osg::Shader::FRAGMENT);
-    fragShader->setShaderSource(fragsource);
-
-    osg::Program* program = new osg::Program();
-    program->addShader(vertShader);
-    program->addShader(fragShader);
-    return program;
 }
 
 
