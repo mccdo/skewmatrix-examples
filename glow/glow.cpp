@@ -336,7 +336,7 @@ osg::Geode* makeQuadGeode()
 osg::Uniform*
 GlowHelper::glowUniform( bool onoff )
 {
-    osg::Vec3 glow( 0.2, 0.7, 1.0 );
+    osg::Vec3 glow( 0.2, 0.6, 0.6 );
     osg::Vec3 noGlow( 0.0, 0.0, 0.0 );
     return( new osg::Uniform( "glowColor", ( onoff ? glow : noGlow ) ) );
 }
@@ -351,7 +351,7 @@ osg::Program* GlowHelper::createShader()
             "vec3 ecPosition = vec3(gl_ModelViewMatrix * gl_Vertex); \n"
             "vec3 tnorm = normalize(gl_NormalMatrix * gl_Normal); \n"
             "vec3 lightVec = normalize(gl_LightSource[0].position.xyz-ecPosition); \n"
-            "float li = max(dot(lightVec,tnorm),0.0); \n"
+            "float li = max(dot(lightVec,tnorm),0.0) * .7 + .2; \n"
             "gl_FrontColor = vec4(li, li, li, 1.0 ); \n"
             "gl_Position = ftransform(); \n"
         "} \n";
