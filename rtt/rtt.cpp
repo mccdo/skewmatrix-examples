@@ -61,8 +61,6 @@ postRender( osgViewer::Viewer& viewer )
 int
 main( int argc, char** argv )
 {
-    osg::setNotifyLevel( osg::INFO );
-
     osg::ref_ptr< osg::Group > root( new osg::Group );
     root->addChild( osgDB::readNodeFile( "cow.osg" ) );
     if( root->getNumChildren() == 0 )

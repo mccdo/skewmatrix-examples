@@ -760,13 +760,12 @@ int main( int argc, char** argv )
     osg::Group* group = new osg::Group;
     group->getOrCreateStateSet()->setAttribute(dof.createShader(),osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
 
-    osg::ref_ptr< osg::Node > model = osgDB::readNodeFile( "cow.osg" );
-    group->addChild(model);
-
-    osg::Node* model2 = osgDB::readNodeFile("dumptruck.osg");
-    osg::MatrixTransform* mt = new osg::MatrixTransform(osg::Matrix::translate(osg::Vec3(0.0,10.0,0.0)));
-    mt->addChild(model2);
-    group->addChild(mt);
+    std::vector< std::string > files;
+    files.push_back( "dumptruck.osg" );
+    files.push_back( "cow.osg.-4,-18,0.trans" );
+    group->addChild( osgDB::readNodeFiles( files ) );
+    if( group->getNumChildren() == 0 )
+        return( 1 );
 
     dof.setScene(group);
     dof.setFocalPoint(-20,10);
