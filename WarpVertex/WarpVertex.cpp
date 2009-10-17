@@ -11,7 +11,7 @@
 
 #include <osg/Geometry>
 #include <osg/io_utils>
-#include <osg/math>
+#include <osg/Math>
 
 #include <sstream>
 #include <math.h>

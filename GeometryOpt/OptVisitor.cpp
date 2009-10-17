@@ -3,7 +3,7 @@
 // All rights reserved.
 //
 
-#include "optVisitor.h"
+#include "OptVisitor.h"
 #include <osg/Geode>
 #include <osg/Geometry>
 
