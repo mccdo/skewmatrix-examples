@@ -1,7 +1,4 @@
-//
-// Copyright (c) 2008 Skew Matrix  Software LLC.
-// All rights reserved.
-//
+// Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
 #include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
@@ -14,6 +11,8 @@
 #include <osg/Texture1D>
 #include <osg/Uniform>
 #include <osg/ClipPlane>
+
+#include <osg/io_utils>
 
 
 // (Some of the) GL 3 enums not defined by OSG.
@@ -68,6 +67,82 @@ private:
 };
 
 
+class FindVectorDataVisitor : public osg::NodeVisitor
+{
+public:
+    std::string _texSizeName;
+
+    FindVectorDataVisitor()
+      : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
+        _dataSize( 0 )
+    {
+        _texSizeName = std::string( "sizes" );
+    }
+
+    void apply( osg::Node& node )
+    {
+        parse( node.getStateSet() );
+        traverse( node );
+    }
+    void apply( osg::Geode& node )
+    {
+        parse( node.getStateSet() );
+        parse( node.getDrawableList() );
+        traverse( node );
+    }
+
+    osg::ref_ptr< osg::Texture3D > _tex0;
+    osg::ref_ptr< osg::Texture3D > _tex1;
+    osg::ref_ptr< osg::Texture3D > _tex2;
+    unsigned int _dataSize;
+    osg::Vec3 _texSizes;
+    osg::BoundingBox _bb;
+
+protected:
+    void parse( osg::StateSet* ss )
+    {
+        if( ss == NULL )
+            return;
+
+        if( _tex0 == NULL )
+            _tex0 = dynamic_cast< osg::Texture3D* >(
+                ss->getTextureAttribute( 0, osg::StateAttribute::TEXTURE ) );
+        if( _tex1 == NULL )
+            _tex1 = dynamic_cast< osg::Texture3D* >(
+                ss->getTextureAttribute( 1, osg::StateAttribute::TEXTURE ) );
+        if( _tex2 == NULL )
+            _tex2 = dynamic_cast< osg::Texture3D* >(
+                ss->getTextureAttribute( 2, osg::StateAttribute::TEXTURE ) );
+
+        osg::Uniform* uniform = ss->getUniform( _texSizeName );
+        if( uniform != NULL )
+            uniform->get( _texSizes );
+    }
+    void parse( const osg::Geode::DrawableList& dl )
+    {
+        if( _dataSize > 1 )
+            return;
+
+        osg::Geode::DrawableList::const_iterator dlItr;
+        for( dlItr = dl.begin(); dlItr != dl.end(); dlItr++ )
+        {
+            const osg::Geometry* geom = dynamic_cast< const osg::Geometry* >( (*dlItr).get() );
+            if( geom == NULL )
+                continue;
+
+            _bb = geom->getBound();
+
+            const osg::PrimitiveSet* ps = geom->getPrimitiveSet( 0 );
+            if( ps == NULL )
+                return;
+
+            _dataSize = ps->getNumInstances();
+            if( _dataSize > 1 )
+                break;
+        }
+    }
+};
+
 // Base class for abstracting vector field data storage
 class VectorFieldData : public osg::Referenced
 {
@@ -105,43 +180,31 @@ public:
         return( _dataSize );
     }
 
-    // You must override this to return a bounding box for your
-    // vector field data.
-    virtual osg::BoundingBox getBoundingBox() = 0;
-
-    void saveData( const std::string& baseName )
+    // Make sure you set the bounding box when you load your data.
+    osg::BoundingBox getBoundingBox()
     {
-        if( _texPos != NULL )
-            osgDB::writeObjectFile( *( _texPos->getImage() ), baseName + std::string( "-pos.ive" ) );
-
-        if( _texDir != NULL )
-            osgDB::writeObjectFile( *( _texDir->getImage() ), baseName + std::string( "-dir.ive" ) );
-
-        if( _texScalar != NULL )
-            osgDB::writeObjectFile( *( _texScalar->getImage() ), baseName + std::string( "-scalar.ive" ) );
+        return( _bb );
     }
-    void restoreData( const std::string& baseName )
+
+    // Call this to restore from file, OR call loadData to
+    // generate or load raw data.
+    void restoreData( const std::string& fileName )
     {
-        std::string name( baseName + std::string( "-pos.ive" ) );
-        std::string fullName( osgDB::findDataFile( name ) );
-        if( !fullName.empty() )
-            _texPos->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
-        else
-            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
+        osg::ref_ptr< osg::Node > node( osgDB::readNodeFile( fileName ) );
+        if( node == NULL )
+        {
+            osg::notify( osg::ALWAYS ) << "Can't find dile " << fileName << std::endl;
+            return;
+        }
 
-        name = baseName + std::string( "-dir.ive" );
-        fullName = osgDB::findDataFile( name );
-        if( !fullName.empty() )
-            _texDir->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
-        else
-            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
-
-        name = baseName + std::string( "-scalar.ive" );
-        fullName = osgDB::findDataFile( name );
-        if( !fullName.empty() )
-            _texScalar->setImage( static_cast< osg::Image* >( osgDB::readObjectFile( fullName ) ) );
-        else
-            osg::notify( osg::WARN ) << "Can't find texture file \"" << fullName << "\"." << std::endl;
+        FindVectorDataVisitor fvdv;
+        node->accept( fvdv );
+        _texPos = fvdv._tex0;
+        _texDir = fvdv._tex1;
+        _texScalar = fvdv._tex2;
+        _dataSize = fvdv._dataSize;
+        _texSizes = osg::Vec3s( fvdv._texSizes.x(), fvdv._texSizes.y(), fvdv._texSizes.z() );
+        _bb = fvdv._bb;
     }
 
 protected:
@@ -152,6 +215,8 @@ protected:
     float* _pos;
     float* _dir;
     float* _scalar;
+
+    osg::BoundingBox _bb;
 
     virtual ~VectorFieldData()
     {
@@ -290,15 +355,6 @@ public:
         */
     }
 
-    virtual osg::BoundingBox getBoundingBox()
-    {
-        float x0, y0, z0;
-        getPosition( 0, 0, 0, x0, y0, z0 );
-        float x1, y1, z1;
-        getPosition( _sizes.x(), _sizes.y(), _sizes.z(), x1, y1, z1 );
-        return( osg::BoundingBox( x0, y0, z0, x1, y1, z1 ) );
-    }
-
 protected:
     osg::Vec3 _sizes;
 
@@ -331,6 +387,16 @@ protected:
         _texPos = makeFloatTexture( (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
         _texDir = makeFloatTexture( (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
         _texScalar = makeFloatTexture( (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
+
+        // Must set the bounding box.
+        {
+            float x0, y0, z0;
+            getPosition( 0, 0, 0, x0, y0, z0 );
+            float x1, y1, z1;
+            getPosition( _sizes.x(), _sizes.y(), _sizes.z(), x1, y1, z1 );
+            _bb = osg::BoundingBox( x0, y0, z0, x1, y1, z1 );
+        }
+
     }
 
     void getPosition( int m, int n, int o, float& x, float& y, float& z )
@@ -571,15 +637,32 @@ int
 main( int argc,
       char ** argv )
 {
+    osg::ref_ptr< osg::Node > root;
     _vectorField = new MyVectorFieldData;
-    _vectorField->restoreData( "test" );
-    //_vectorField->loadData();
+
+    if( argc == 2 )
+    {
+        // Restore from file
+        const std::string fileName( argv[ 1 ] );
+        osg::notify( osg::ALWAYS ) << "Restoring: " << fileName << std::endl;
+        _vectorField->restoreData( fileName );
+    }
+    else
+    {
+        // generate data
+        _vectorField->loadData();
+    }
+
+    root = createInstanced( *_vectorField );
+
+    // We generated data; save it to file.
+    if( argc == 1 )
+        osgDB::writeNodeFile( *root, "out.ive" );
 
     unsigned int totalData( _vectorField->getDataCount() );
     osg::notify( osg::ALWAYS ) << totalData << " instances." << std::endl;
     osg::notify( osg::ALWAYS ) << totalData * nVerts << " total vertices." << std::endl;
 
-    osg::ref_ptr< osg::Node > root = createInstanced( *_vectorField );
 
     osg::ref_ptr< osg::Uniform > uModulo( new osg::Uniform( "modulo", 1.0f ) );
     uModulo->setDataVariance( osg::Object::DYNAMIC );
