@@ -130,6 +130,8 @@ protected:
             if( geom == NULL )
                 continue;
 
+            parse( const_cast< osg::StateSet* >( geom->getStateSet() ) );
+
             _bb = geom->getBound();
 
             const osg::PrimitiveSet* ps = geom->getPrimitiveSet( 0 );
@@ -200,11 +202,18 @@ public:
         FindVectorDataVisitor fvdv;
         node->accept( fvdv );
         _texPos = fvdv._tex0;
+        osg::notify( osg::ALWAYS ) << "  " << std::hex << _texPos << std::endl;
         _texDir = fvdv._tex1;
+        osg::notify( osg::ALWAYS ) << "  " << _texDir << std::endl;
         _texScalar = fvdv._tex2;
+        osg::notify( osg::ALWAYS ) << "  " << _texScalar << std::endl;
         _dataSize = fvdv._dataSize;
+        osg::notify( osg::ALWAYS ) << "  " << std::dec << _dataSize << std::endl;
         _texSizes = osg::Vec3s( fvdv._texSizes.x(), fvdv._texSizes.y(), fvdv._texSizes.z() );
+        osg::notify( osg::ALWAYS ) << "  " << _texSizes << std::endl;
         _bb = fvdv._bb;
+        osg::notify( osg::ALWAYS ) << "  " << _bb._min << std::endl;
+        osg::notify( osg::ALWAYS ) << "  " << _bb._max << std::endl;
     }
 
 protected:
@@ -610,6 +619,7 @@ createInstanced( MyVectorFieldData& vf )
     osg::Texture1D* texCS = new osg::Texture1D( iColorScale );
     texCS->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::LINEAR);
     texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
+    texCS->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
 
     ss->setTextureAttribute( 3, texCS );
     osg::ref_ptr< osg::Uniform > texCSUniform =
