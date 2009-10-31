@@ -190,15 +190,8 @@ public:
 
     // Call this to restore from file, OR call loadData to
     // generate or load raw data.
-    void restoreData( const std::string& fileName )
+    void restoreData( osg::Node* node )
     {
-        osg::ref_ptr< osg::Node > node( osgDB::readNodeFile( fileName ) );
-        if( node == NULL )
-        {
-            osg::notify( osg::ALWAYS ) << "Can't find dile " << fileName << std::endl;
-            return;
-        }
-
         FindVectorDataVisitor fvdv;
         node->accept( fvdv );
         _texPos = fvdv._tex0;
@@ -647,27 +640,31 @@ int
 main( int argc,
       char ** argv )
 {
+    osg::ArgumentParser arguments(&argc,argv);
+
     osg::ref_ptr< osg::Node > root;
     _vectorField = new MyVectorFieldData;
 
-    if( argc == 2 )
     {
-        // Restore from file
-        const std::string fileName( argv[ 1 ] );
-        osg::notify( osg::ALWAYS ) << "Restoring: " << fileName << std::endl;
-        _vectorField->restoreData( fileName );
-    }
-    else
-    {
-        // generate data
-        _vectorField->loadData();
-    }
+        osg::ref_ptr< osg::Node > node( osgDB::readNodeFiles( arguments ) );
+        if( node != NULL )
+        {
+            // Restore from file
+            osg::notify( osg::ALWAYS ) << "Restoring..." << std::endl;
+            _vectorField->restoreData( node.get() );
+        }
+        else
+        {
+            // generate data
+            _vectorField->loadData();
+        }
 
-    root = createInstanced( *_vectorField );
+        root = createInstanced( *_vectorField );
 
-    // We generated data; save it to file.
-    if( argc == 1 )
-        osgDB::writeNodeFile( *root, "out.ive" );
+        // We generated data; save it to file.
+        if( node == NULL )
+            osgDB::writeNodeFile( *root, "out.ive" );
+    }
 
     unsigned int totalData( _vectorField->getDataCount() );
     osg::notify( osg::ALWAYS ) << totalData << " instances." << std::endl;
@@ -698,6 +695,10 @@ main( int argc,
     viewer.addEventHandler( new osgViewer::StatsHandler );
     viewer.addEventHandler( kh );
     viewer.setSceneData( root.get() );
+
+    std::string pathfile;
+    if( arguments.read( "-p", pathfile ) )
+        viewer.setCameraManipulator( new osgGA::AnimationPathManipulator( pathfile ) );
 
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.realize();

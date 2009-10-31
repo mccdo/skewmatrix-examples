@@ -123,7 +123,11 @@ void main()
     const vec3 norm = normalize( gl_NormalMatrix * orientMat * gl_Normal );
 
     // Compute color and lighting.
+#if 0
     const vec4 scalarV = texture3D( scalar, tC );
     const vec4 oColor = texture1D( texCS, scalarV.a );
+#else
+    const vec4 oColor = texture3D( scalar, tC );
+#endif
     gl_FrontColor = simpleLighting( oColor, norm, 0.7, 0.3 );
 }
