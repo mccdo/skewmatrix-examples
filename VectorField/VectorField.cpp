@@ -447,7 +447,88 @@ protected:
         }
     }
 };
-osg::ref_ptr< MyVectorFieldData > _vectorField;
+class DebugVectorFieldData : public VectorFieldData
+{
+public:
+    DebugVectorFieldData()
+      : VectorFieldData()
+    {}
+
+protected:
+    virtual ~DebugVectorFieldData()
+    {}
+
+    virtual void internalLoad()
+    {
+        _dataSize = 12;
+
+        int s, t, p;
+        compute3DTextureSize( getDataCount(), s, t, p );
+        _texSizes = osg::Vec3s( s, t, p );
+
+        // Allocate memory for data.
+        unsigned int size( 16 );
+        _pos = new float[ size * 3 ];
+        _dir = new float[ size * 3 ];
+        _scalar = new float[ size ];
+
+        createDataArrays( _pos, _dir, _scalar );
+
+        _texPos = makeFloatTexture( (unsigned char*)_pos, 3, osg::Texture2D::NEAREST );
+        _texDir = makeFloatTexture( (unsigned char*)_dir, 3, osg::Texture2D::NEAREST );
+        _texScalar = makeFloatTexture( (unsigned char*)_scalar, 1, osg::Texture2D::NEAREST );
+
+        // Must set the bounding box.
+        {
+            _bb = osg::BoundingBox( -6, -6, -6, 6, 6, 6 );
+        }
+
+    }
+
+    void createDataArrays( float* pos, float* dir, float* scalar )
+    {
+        float* posI = pos;
+        float* dirI = dir;
+        float* scalarI = scalar;
+
+        int idx;
+        for( idx=0; idx<12; idx++ )
+        {
+            float bias( idx>=6 ? 3.f : -3.f );
+            *posI++ = 0.f;
+            *posI++ = bias;
+            *posI++ = 0.f;
+
+            *scalarI++ = (float)idx / 11.f;
+        }
+
+        for( idx=0; idx<2; idx++ )
+        {
+            float len( idx==0 ? 1.f : 2.f );
+
+            *dirI++ = 1.f * len; // x
+            *dirI++ = 0.f * len;
+            *dirI++ = 0.f * len;
+            *dirI++ = -1.f * len; // -x
+            *dirI++ = 0.f * len;
+            *dirI++ = 0.f * len;
+            *dirI++ = 0.f * len; // y
+            *dirI++ = 1.f * len;
+            *dirI++ = 0.f * len;
+            *dirI++ = 0.f * len; // -y
+            *dirI++ = -1.f * len;
+            *dirI++ = 0.f * len;
+            *dirI++ = 0.f * len; // z
+            *dirI++ = 0.f * len;
+            *dirI++ = 1.f * len;
+            *dirI++ = 0.f * len; // -z
+            *dirI++ = 0.f * len;
+            *dirI++ = -1.f * len;
+        }
+    }
+};
+//osg::ref_ptr< MyVectorFieldData > _vectorField;
+osg::ref_ptr< DebugVectorFieldData > _vectorField;
 
 
 // Number of vertices in arrow
@@ -549,7 +630,7 @@ float colorScale[] = {
 };
 
 osg::Node*
-createInstanced( MyVectorFieldData& vf )
+createInstanced( DebugVectorFieldData& vf )
 {
     osg::Group* grp = new osg::Group;
 
@@ -578,7 +659,7 @@ createInstanced( MyVectorFieldData& vf )
 
 
 
-    // Posidion array.
+    // Position array.
     ss->setTextureAttribute( 0, vf.getPositionTexture() );
     osg::ref_ptr< osg::Uniform > texPosUniform =
         new osg::Uniform( "texPos", 0 );
@@ -643,7 +724,7 @@ main( int argc,
     osg::ArgumentParser arguments(&argc,argv);
 
     osg::ref_ptr< osg::Node > root;
-    _vectorField = new MyVectorFieldData;
+    _vectorField = new DebugVectorFieldData;
 
     {
         osg::ref_ptr< osg::Node > node( osgDB::readNodeFiles( arguments ) );

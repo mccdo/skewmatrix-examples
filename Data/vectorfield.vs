@@ -70,7 +70,7 @@ clipInstance( const in vec3 pos )
 mat3
 makeOrientMat( const in vec3 tC )
 {
-    vec4 dir = texture3D( texDir, tC );
+    vec4 dir = normalize( texture3D( texDir, tC ) );
 
     // Compute a vector at a right angle to the direction.
     // First try projection direction into xy rotated -90 degrees.
@@ -81,7 +81,7 @@ makeOrientMat( const in vec3 tC )
         c = vec3( 0.0, dir.z, -dir.y );
     normalize( c );
 
-    const vec3 up = cross( c.xyz, dir.xyz );
+    const vec3 up = normalize( cross( c.xyz, dir.xyz ) );
 
     // Orientation uses the cross product vector as x,
     // the up vector as y, and the direction vector as z.
@@ -123,10 +123,12 @@ void main()
     const vec3 norm = normalize( gl_NormalMatrix * orientMat * gl_Normal );
 
     // Compute color and lighting.
-#if 0
+#if 1
+    // Scalar texture containg key to color table.
     const vec4 scalarV = texture3D( scalar, tC );
     const vec4 oColor = texture1D( texCS, scalarV.a );
 #else
+    // Scalat texture contains rgb values.
     const vec4 oColor = texture3D( scalar, tC );
 #endif
     gl_FrontColor = simpleLighting( oColor, norm, 0.7, 0.3 );
