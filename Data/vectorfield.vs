@@ -68,7 +68,7 @@ clipInstance( const in vec3 pos )
 }
 
 mat3
-makeOrientMat( const in vec4 dir )
+makeOrientMat( const in vec3 dir )
 {
     // Compute a vector at a right angle to the direction.
     // First try projection direction into xy rotated -90 degrees.
@@ -77,13 +77,17 @@ makeOrientMat( const in vec4 dir )
     vec3 c = vec3( dir.y, -dir.x, 0.0 );
     if( dot( c, c ) < 0.1 )
         c = vec3( 0.0, dir.z, -dir.y );
-    normalize( c );
+        
+    // Appears to be a bug in normalize when z==0
+    //normalize( c.xyz );
+    float l = length( c );
+    c /= l;
 
-    const vec3 up = normalize( cross( c.xyz, dir.xyz ) );
+    vec3 up = normalize( cross( dir, c ) );
 
     // Orientation uses the cross product vector as x,
     // the up vector as y, and the direction vector as z.
-    return( mat3( c, up, dir.xyz ) );
+    return( mat3( c, up, dir ) );
 }
 
 vec4
@@ -108,27 +112,27 @@ void main()
 
     // Sample (look up) position. Discard instance if clipped.
     vec4 pos = texture3D( texPos, tC );
-    if( clipInstance( pos ) )
+    if( clipInstance( pos.xyz ) )
         return;
 
     // Sample (look up) direction vector and obtain the scale factor
     vec4 dir = texture3D( texDir, tC );
-    float scale = length( dir );
+    float scale = length( dir.xyz );
 
     // Create an orientation matrix. Orient/transform the arrow.
-    const mat3 orientMat = makeOrientMat( normalize( dir ) );
-    const vec3 oVec = orientMat * (scale * gl_Vertex.xyz);
-    vec4 hoVec = vec4( oVec + pos, 1.0 );
+    mat3 orientMat = makeOrientMat( normalize( dir.xyz ) );
+    vec3 oVec = orientMat * (scale * gl_Vertex.xyz);
+    vec4 hoVec = vec4( oVec + pos.xyz, 1.0 );
     gl_Position = gl_ModelViewProjectionMatrix * hoVec;
 
     // Orient the normal.
-    const vec3 norm = normalize( gl_NormalMatrix * orientMat * gl_Normal );
+    vec3 norm = normalize( gl_NormalMatrix * orientMat * gl_Normal );
 
     // Compute color and lighting.
 #if 1
     // Scalar texture containg key to color table.
-    const vec4 scalarV = texture3D( scalar, tC );
-    const vec4 oColor = texture1D( texCS, scalarV.a );
+    vec4 scalarV = texture3D( scalar, tC );
+    vec4 oColor = texture1D( texCS, scalarV.a );
 #else
     // Scalat texture contains rgb values.
     const vec4 oColor = texture3D( scalar, tC );

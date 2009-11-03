@@ -506,9 +506,9 @@ protected:
         {
             float len( idx==0 ? 1.f : 2.f );
 
-            *dirI++ = 1.f * len; // x
-            *dirI++ = 0.f * len;
-            *dirI++ = 0.f * len;
+            *dirI++ = 0.436436f * len; // x
+            *dirI++ = 0.218218f * len;
+            *dirI++ = 0.872872f * len;
             *dirI++ = -1.f * len; // -x
             *dirI++ = 0.f * len;
             *dirI++ = 0.f * len;
@@ -723,6 +723,12 @@ main( int argc,
 {
     osg::ArgumentParser arguments(&argc,argv);
 
+    std::string pathfile;
+    arguments.read( "-p", pathfile );
+
+    std::string outfile;
+    arguments.read( "-o", outfile );
+
     osg::ref_ptr< osg::Node > root;
     _vectorField = new DebugVectorFieldData;
 
@@ -741,11 +747,10 @@ main( int argc,
         }
 
         root = createInstanced( *_vectorField );
-
-        // We generated data; save it to file.
-        if( node == NULL )
-            osgDB::writeNodeFile( *root, "out.ive" );
     }
+
+    if( !outfile.empty() )
+        osgDB::writeNodeFile( *root, outfile );
 
     unsigned int totalData( _vectorField->getDataCount() );
     osg::notify( osg::ALWAYS ) << totalData << " instances." << std::endl;
@@ -777,8 +782,7 @@ main( int argc,
     viewer.addEventHandler( kh );
     viewer.setSceneData( root.get() );
 
-    std::string pathfile;
-    if( arguments.read( "-p", pathfile ) )
+    if( !pathfile.empty() )
         viewer.setCameraManipulator( new osgGA::AnimationPathManipulator( pathfile ) );
 
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
