@@ -68,10 +68,8 @@ clipInstance( const in vec3 pos )
 }
 
 mat3
-makeOrientMat( const in vec3 tC )
+makeOrientMat( const in vec4 dir )
 {
-    vec4 dir = normalize( texture3D( texDir, tC ) );
-
     // Compute a vector at a right angle to the direction.
     // First try projection direction into xy rotated -90 degrees.
     // If that gives us a very short vector,
@@ -113,9 +111,13 @@ void main()
     if( clipInstance( pos ) )
         return;
 
+    // Sample (look up) direction vector and obtain the scale factor
+    vec4 dir = texture3D( texDir, tC );
+    float scale = length( dir );
+
     // Create an orientation matrix. Orient/transform the arrow.
-    const mat3 orientMat = makeOrientMat( tC );
-    const vec3 oVec = orientMat * gl_Vertex.xyz;
+    const mat3 orientMat = makeOrientMat( normalize( dir ) );
+    const vec3 oVec = orientMat * (scale * gl_Vertex.xyz);
     vec4 hoVec = vec4( oVec + pos, 1.0 );
     gl_Position = gl_ModelViewProjectionMatrix * hoVec;
 
