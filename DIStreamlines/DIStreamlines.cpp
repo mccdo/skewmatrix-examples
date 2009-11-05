@@ -102,8 +102,8 @@ private:
 // m and n are the dimensions of the texture that store the position values.
 // m * n is the total number of point instances that will be rendered to
 // create the streamline.
-const int m( 1 );
-const int n( 256 );
+const int m( 256 );
+const int n( 1 );
 
 // Distance between points. Smaller values look better at near distances,
 // larger values look better at far distances. Could possible vary this
@@ -169,7 +169,7 @@ createPositionArray( int m, int n )
     {
         *posI++ = iIdx*dX;
         *posI++ = 0.;
-        *posI++ = 4. * sin( iIdx * .03 );
+        *posI++ = 4. * sin( (float)iIdx / (float)(m*n) * osg::PI * 2. );
     }
 
     return pos;
@@ -193,7 +193,7 @@ createInstanced( const int m, const int n )
     // display lists and use buffer objects instead.
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
-    osg::Vec3 loc( -3., 0., 0. );
+    osg::Vec3 loc( 0., 0., 0. );
     createSLPoint( *geom, m*n, loc, osg::Vec4( .6, .7, 1., 1. ) );
     geode->addDrawable( geom );
 
@@ -207,7 +207,7 @@ createInstanced( const int m, const int n )
     geom = new osg::Geometry;
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
-    loc.set( 0., -3., 1. );
+    loc.set( 1., -3., 0.5 );
     createSLPoint( *geom, m*n, loc, osg::Vec4( 1., .7, .5, 1. ) );
     geode->addDrawable( geom );
 
@@ -218,7 +218,7 @@ createInstanced( const int m, const int n )
     geom = new osg::Geometry;
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
-    loc.set( 2., 4.5, 1.5 );
+    loc.set( -0.5, 2., -0.5 );
     createSLPoint( *geom, m*n, loc, osg::Vec4( .5, 1., .6, 1. ) );
     geode->addDrawable( geom );
 
@@ -326,12 +326,12 @@ createOpaque()
     osg::Geode* geode = new osg::Geode;
     grp->addChild( geode );
 
-    osg::Box* box = new osg::Box( osg::Vec3( 14., 0., -.5 ), 4., 3., 2. );
+    osg::Box* box = new osg::Box( osg::Vec3( 16., 0., 0. ), 4., 4., 6. );
     osg::ShapeDrawable* shape = new osg::ShapeDrawable( box );
     shape->setColor( osg::Vec4( .2, .2, 1., 1. ) );
     geode->addDrawable( shape );
 
-    box = new osg::Box( osg::Vec3( 36., 0., 1. ), 2., 6., 3. );
+    box = new osg::Box( osg::Vec3( 48., 0., 0. ), 4., 4., 6. );
     shape = new osg::ShapeDrawable( box );
     shape->setColor( osg::Vec4( .2, .8, .2, 1. ) );
     geode->addDrawable( shape );

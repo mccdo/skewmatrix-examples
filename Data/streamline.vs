@@ -16,7 +16,7 @@ void main()
 
     // Get position from the texture.
     vec4 pos = texture2D( texPos, tC );
-    pos.x *= 2.; // Huh? x seems to be half the value I expect...
+    pos.w = 0.; // w is 1.0 after lookup; do NOT add 1.0 to gl_Vertex.w
     vec4 v = gl_ModelViewMatrix * ( gl_Vertex + pos );
     gl_Position = gl_ProjectionMatrix * v;
 
@@ -31,5 +31,4 @@ void main()
     vec4 color = gl_Color;
     color.a *= alpha;
     gl_FrontColor = color;
-
 }
