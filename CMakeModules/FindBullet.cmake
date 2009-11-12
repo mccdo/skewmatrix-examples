@@ -28,6 +28,7 @@ FIND_PATH( BULLET_INCLUDE_DIR btBulletCollisionCommon.h
         $ENV{BULLET_ROOT}
         ${BULLET_SOURCE_DIR}
         $ENV{BULLET_SOURCE_DIR}
+        "C:/Program Files/BULLET_PHYSICS"
     PATH_SUFFIXES
         /src
         /include
@@ -48,6 +49,7 @@ MACRO( FIND_BULLET_LIBRARY_DIRNAME LIBNAME DIRNAME )
             $ENV{BULLET_ROOT}
             ${BULLET_BUILD_DIR}
             $ENV{BULLET_BUILD_DIR}
+            "C:/Program Files/BULLET_PHYSICS"
         PATH_SUFFIXES
             ./src/${DIRNAME}
             ./Extras/${DIRNAME}
@@ -67,6 +69,7 @@ MACRO( FIND_BULLET_LIBRARY_DIRNAME LIBNAME DIRNAME )
             $ENV{BULLET_ROOT}
             ${BULLET_BUILD_DIR}
             $ENV{BULLET_BUILD_DIR}
+            "C:/Program Files/BULLET_PHYSICS"
         PATH_SUFFIXES
             ./src/${DIRNAME}
             ./Extras/${DIRNAME}
@@ -80,13 +83,15 @@ MACRO( FIND_BULLET_LIBRARY_DIRNAME LIBNAME DIRNAME )
         )
 #    message( STATUS ${BULLET_${LIBNAME}_LIBRARY} ${BULLET_${LIBNAME}_LIBRARY_debug} )
 #    message( SEND_ERROR ${LIBNAME} )
-    IF( BULLET_${LIBNAME}_LIBRARY_debug )
+    IF( BULLET_${LIBNAME}_LIBRARY )
         SET( BULLET_LIBRARIES ${BULLET_LIBRARIES}
             "optimized" ${BULLET_${LIBNAME}_LIBRARY}
+        )
+    ENDIF( BULLET_${LIBNAME}_LIBRARY )
+    IF( BULLET_${LIBNAME}_LIBRARY_debug )
+        SET( BULLET_LIBRARIES ${BULLET_LIBRARIES}
             "debug" ${BULLET_${LIBNAME}_LIBRARY_debug}
         )
-    ELSE( BULLET_${LIBNAME}_LIBRARY_debug )
-        SET( BULLET_LIBRARIES ${BULLET_LIBRARIES} ${BULLET_${LIBNAME}_LIBRARY} )
     ENDIF( BULLET_${LIBNAME}_LIBRARY_debug )
 ENDMACRO( FIND_BULLET_LIBRARY_DIRNAME LIBNAME )
 
