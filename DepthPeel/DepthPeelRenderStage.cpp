@@ -109,8 +109,6 @@ DepthPeelRenderStage::PerContextInfo::init( GLuint unit, const osg::Viewport* vp
 
     GLint maxUnits;
     glGetIntegerv( GL_MAX_TEXTURE_IMAGE_UNITS, &maxUnits );
-    // HACK. Shader with a uniform array of >16 ssmplers doesn't work.
-    maxUnits = 16; // end HACK.
     _maximumPasses = (unsigned int)( maxUnits );
 
     GLsizei winW( osg::maximum< int >( vp->x(), 0 ) + vp->width() );
@@ -190,6 +188,10 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
 
     osg::notify( osg::DEBUG_FP ) << "DepthPeelRenderStage::draw" << std::endl;
 
+
+    //
+    // Initialization
+
     osg::State& state( *renderInfo.getState() );
     const unsigned int contextID( state.getContextID() );
     osg::FBOExtensions* fboExt( osg::FBOExtensions::instance( contextID, true ) );
@@ -252,21 +254,17 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         errorCheck( "in DPRS initialization" );
     }
 
+    // End initialization
+    //
 
+
+    //
+    // Layer creation
 
     // Count the number of actual passes. If numPasses > 0, then
     // passCount will equal numPasses. But if numPasses == 0, then
     // passCount will equal the actual number of passes rendered.
     unsigned int passCount( 0 );
-
-    {
-        peelBegin( passCount, ctxInfo, state, fboExt, gl2Ext );
-
-        drawImplementation( renderInfo, previous );
-
-        peelEnd( passCount );
-        passCount++;
-    }
 
     while( passCount < minPasses )
     {
@@ -304,6 +302,12 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         ", maxPasses " << maxPasses <<
         ", requestedPasses " << requestedPasses << std::endl;
 
+    // End layer creation
+    //
+
+
+    //
+    // Composite layers
 
     // Final render pass, accumulating all depth peel layers
     // and displaying on the specified FBO.
@@ -315,45 +319,46 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
 #else
         fboExt->glBindFramebufferEXT( GL_DRAW_FRAMEBUFFER_EXT, 0 );
 #endif
-        glDrawBuffer( GL_BACK ); // HACK should use _drawBuffer, and _drawBuffer needs to be set properly.
+        glDrawBuffer( GL_BACK ); // HACK TBD should use _drawBuffer, and _drawBuffer needs to be set properly.
     }
     else
         _fbo->apply( state, osg::FrameBufferObject::DRAW_FRAMEBUFFER );
 
-    unsigned int idx;
-    for( idx=0; idx<maxPasses; idx++ )
-    {
-        state.setActiveTextureUnit( idx );
-        glBindTexture( GL_TEXTURE_2D, ctxInfo._layersList[ idx ]._colorTex );
-    }
+    state.applyAttribute( getViewport() );
+    glClear( GL_COLOR_BUFFER_BIT );
+
+    state.applyAttribute( _dpg->getFinalQuad().getStateSet()->getAttribute( osg::StateAttribute::PROGRAM ) );
+    _dpg->getFinalQuad().getStateSet()->getUniform( "depthPeelLayerMap" )->apply( gl2Ext, 0 );
 
     {
-        // Save depth state
+        // Save depth and blend state
         const bool depthEnabled( state.getLastAppliedMode( GL_DEPTH_TEST ) );
         const osg::StateAttribute* depthAttr( state.getLastAppliedAttribute( osg::StateAttribute::DEPTH ) );
-
         glDisable( GL_DEPTH_TEST );
         glDepthMask( GL_FALSE );
+        const bool blendEnabled( state.getLastAppliedMode( GL_BLEND ) );
+        const osg::StateAttribute* blendAttr( state.getLastAppliedAttribute( osg::StateAttribute::BLENDFUNC ) );
+        glEnable( GL_BLEND );
+        glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
-        // Final render pass
-        state.applyAttribute( getViewport() );
-        state.applyAttribute( _dpg->getFinalQuad().getStateSet()->getAttribute( osg::StateAttribute::PROGRAM ) );
-        _dpg->getFinalQuad().getStateSet()->getUniform( "layer" )->apply( gl2Ext, 0 );
-        gl2Ext->glUniform1i( 16, (GLint)( passCount ) );
-        //_dpg->getFinalQuad().getStateSet()->getUniform( "numLayers" )->apply( gl2Ext, 16 ); // TBD slot numbers are a HACK.
-        _dpg->getFinalQuad().draw( renderInfo );
+        int idx;
+        for( idx=passCount-1; idx>=0; idx-- )
+        {
+            glBindTexture( GL_TEXTURE_2D, ctxInfo._layersList[ idx ]._colorTex );
+            _dpg->getFinalQuad().draw( renderInfo );
+        }
 
-        // Restore depth state
+        // Restore depth and blend state
         state.applyMode( GL_DEPTH_TEST, depthEnabled );
         if( depthAttr != NULL )
             state.applyAttribute( depthAttr );
+        state.applyMode( GL_BLEND, blendEnabled );
+        if( blendAttr != NULL )
+            state.applyAttribute( blendAttr );
     }
 
-    for( idx=0; idx<maxPasses; idx++ )
-    {
-        state.setActiveTextureUnit( idx );
-        glBindTexture( GL_TEXTURE_2D, 0 );
-    }
+    // End composite layers
+    //
 
 
     if( state.getCheckForGLErrors() != osg::State::NEVER_CHECK_GL_ERRORS )

@@ -78,14 +78,11 @@ DepthPeelGroup::internalInit()
         osg::Vec3( -1,-1,0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2,0 ) );
     _finalQuad->setUseDisplayList( false );
     _finalQuad->setUseVertexBufferObjects( true );
-    osg::BoundingBox bb( osg::Vec3( -1., -1., -1. ), osg::Vec3( 1., 1., 1. ) );
-    _finalQuad->setInitialBound( bb );
 
     osg::StateSet* ss( _finalQuad->getOrCreateStateSet() );
 
     osg::Shader* vertShader = new osg::Shader( osg::Shader::VERTEX );
     vertShader->loadShaderSourceFromFile( osgDB::findDataFile( "DepthPeelFinal.vs" ) );
-
     osg::Shader* fragShader = new osg::Shader( osg::Shader::FRAGMENT );
     fragShader->loadShaderSourceFromFile( osgDB::findDataFile( "DepthPeelFinal.fs" ) );
 
@@ -94,12 +91,7 @@ DepthPeelGroup::internalInit()
     program->addShader(fragShader);
     ss->setAttribute( program, osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
 
-    ss->addUniform( new osg::Uniform( "numLayers", (int)( _numPasses ) ) );
-
-    osg::Uniform* layer = new osg::Uniform( osg::Uniform::INT_SAMPLER_2D_ARRAY, "layer", 16 ); // TBD hardcoded maximum
-    for( GLint idx=0; idx<16; idx++ ) // TBD hardcoded maximum
-        layer->setElement( idx, idx );
-    ss->addUniform( layer );
+    ss->addUniform( new osg::Uniform( "depthPeelLayerMap", (int)( _textureUnit ) ) );
 }
 
 void
@@ -120,15 +112,6 @@ DepthPeelGroup::traverse( osg::NodeVisitor& nv )
     //
     // Basic idea of what follows was derived from CullVisitor::apply( Camera& ).
     //
-
-    // Push application-assigned state
-    // ALREADY DONE in CullVisitor::apply(Group&)
-    //osg::StateSet* nodeState( getStateSet() );
-    //if( nodeState != NULL )
-    //    cv->pushStateSet( nodeState );
-
-    // Push our private state, if any
-    // TBD
 
     osgUtil::RenderStage* previousStage = cv->getCurrentRenderBin()->getStage();
     osg::Camera* camera = previousStage->getCamera();
@@ -179,14 +162,6 @@ DepthPeelGroup::traverse( osg::NodeVisitor& nv )
     // Hook our RenderStage into the render graph.
     // TBD Might need to support RenderOrder a la Camera node. For now, pre-render.
     cv->getCurrentRenderBin()->getStage()->addPreRenderStage( dprs.get(), camera->getRenderOrderNum() );
-
-    // Pop our private state, if any
-    // TBD
-
-    // Pop application-assigned state
-    // ALREADY DONE in CullVisitor::apply(Group&)
-    //if( nodeState != NULL )
-    //    cv->popStateSet();
 }
 
 
@@ -227,7 +202,12 @@ DepthPeelGroup::getDestination() const
 void
 DepthPeelGroup::setTextureUnit( unsigned int unit )
 {
-    _textureUnit = unit;
+    if( _textureUnit != unit )
+    {
+        _textureUnit = unit;
+        osg::StateSet* ss( _finalQuad->getOrCreateStateSet() );
+        ss->getUniform( "depthPeelLayerMap" )->set( (int)( unit ) );
+    }
 }
 
 unsigned int
