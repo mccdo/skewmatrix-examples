@@ -7,6 +7,7 @@
 #include <osg/Texture2D>
 #include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
+#include <osgwTools/Version.h>
 
 #include <string>
 
@@ -34,6 +35,11 @@ postRender( osgViewer::Viewer& viewer )
     // and at the end of the frame performs a BlitFramebuffer into our texture.
     rootCamera->attach( osg::Camera::COLOR_BUFFER0, tex, 0, 0, false, 8, 8 );
     rootCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
+#if( OSGWORKS_OSG_VERSION >= 20906 )
+    rootCamera->setImplicitBufferAttachmentMask(
+        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT|osg::Camera::IMPLICIT_DEPTH_BUFFER_ATTACHMENT,
+        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT );
+#endif
 
 
     // Configure postRenderCamera to draw fullscreen textured quad
