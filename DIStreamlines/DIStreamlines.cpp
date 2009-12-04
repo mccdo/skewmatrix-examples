@@ -16,6 +16,16 @@
 #include <osg/Point>
 #include <osg/PointSprite>
 #include <osg/AlphaFunc>
+#include <osg/Version>
+
+
+#undef OSG280
+#if ( OSG_MAJOR_VERSION >= 2 )
+#  if ( OSG_MINOR_VERSION >= 8 )
+#    define OSG280 1
+#  endif
+#endif
+
 
 
 // Allows you to change the animation play rate:
@@ -132,7 +142,9 @@ createSLPoint( osg::Geometry& geom, int nInstances, const osg::Vec3 position, co
     geom.setColorBinding( osg::Geometry::BIND_OVERALL );
     (*c)[ 0 ] = color;
 
+#ifdef OSG280
     geom.addPrimitiveSet( new osg::DrawArrays( GL_POINTS, 0, 1, nInstances ) );
+#endif
 
 
     osg::StateSet* ss = geom.getOrCreateStateSet();
@@ -342,6 +354,12 @@ createOpaque()
 int
 main( int argc,
       char ** argv )
+#ifndef OSG280
+{
+    osg::notify( osg::ALWAYS ) << "Requires OSG version 2.8 or higher." << std::endl;
+    return( 1 );
+}
+#else
 {
     osg::ref_ptr< osg::Group > root = new osg::Group;
     root->addChild( createInstanced( m, n ) );
@@ -368,4 +386,4 @@ main( int argc,
 
     return( 0 );
 }
-
+#endif

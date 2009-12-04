@@ -11,8 +11,17 @@
 #include <osg/Texture1D>
 #include <osg/Uniform>
 #include <osg/ClipPlane>
+#include <osg/Version>
 
 #include <osg/io_utils>
+
+
+#undef OSG280
+#if ( OSG_MAJOR_VERSION >= 2 )
+#  if ( OSG_MINOR_VERSION >= 8 )
+#    define OSG280 1
+#  endif
+#endif
 
 
 // (Some of the) GL 3 enums not defined by OSG.
@@ -138,7 +147,9 @@ protected:
             if( ps == NULL )
                 return;
 
+#ifdef OSG280
             _dataSize = ps->getNumInstances();
+#endif
             if( _dataSize > 1 )
                 break;
         }
@@ -195,11 +206,11 @@ public:
         FindVectorDataVisitor fvdv;
         node->accept( fvdv );
         _texPos = fvdv._tex0;
-        osg::notify( osg::ALWAYS ) << "  " << std::hex << _texPos << std::endl;
+        osg::notify( osg::ALWAYS ) << "  " << std::hex << _texPos.get() << std::endl;
         _texDir = fvdv._tex1;
-        osg::notify( osg::ALWAYS ) << "  " << _texDir << std::endl;
+        osg::notify( osg::ALWAYS ) << "  " << _texDir.get() << std::endl;
         _texScalar = fvdv._tex2;
-        osg::notify( osg::ALWAYS ) << "  " << _texScalar << std::endl;
+        osg::notify( osg::ALWAYS ) << "  " << _texScalar.get() << std::endl;
         _dataSize = fvdv._dataSize;
         osg::notify( osg::ALWAYS ) << "  " << std::dec << _dataSize << std::endl;
         _texSizes = osg::Vec3s( fvdv._texSizes.x(), fvdv._texSizes.y(), fvdv._texSizes.z() );
@@ -335,7 +346,12 @@ protected:
         osg::Image* image = new osg::Image;
         image->setImage( s, t, p, intFormat, pixFormat, GL_FLOAT,
             data, osg::Image::USE_NEW_DELETE );
+#ifdef OSG280
         osg::Texture3D* texture = new osg::Texture3D( image );
+#else
+        osg::Texture3D* texture = new osg::Texture3D;
+        texture->setImage( image );
+#endif
         texture->setFilter( osg::Texture::MIN_FILTER, filter );
         texture->setFilter( osg::Texture::MAG_FILTER, filter );
         return( texture );
@@ -575,8 +591,10 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 8 ] = osg::Vec3( 1., 0., 0. );
     (*n)[ 9 ] = osg::Vec3( 1., 0., 0. );
 
+#ifdef OSG280
     // TBD tri strip
     geom.addPrimitiveSet( new osg::DrawArrays( GL_QUAD_STRIP, 0, 10, nInstances ) );
+#endif
 
     // Head
     (*v)[ 10 ] = osg::Vec3( hD, -hD, sh );
@@ -615,7 +633,9 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 20 ] = norm;
     (*n)[ 21 ] = norm;
 
+#ifdef OSG280
     geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12, nInstances ) );
+#endif
 }
 
 float colorScale[] = {
@@ -690,7 +710,12 @@ createInstanced( DebugVectorFieldData& vf )
     osg::Image* iColorScale = new osg::Image;
     iColorScale->setImage( 8, 1, 1, GL_RGBA, GL_RGB, GL_FLOAT,
         (unsigned char*)colorScale, osg::Image::NO_DELETE );
+#ifdef OSG280
     osg::Texture1D* texCS = new osg::Texture1D( iColorScale );
+#else
+    osg::Texture1D* texCS = new osg::Texture1D;
+    texCS->setImage( iColorScale );
+#endif
     texCS->setFilter( osg::Texture::MIN_FILTER, osg::Texture2D::LINEAR);
     texCS->setFilter( osg::Texture::MAG_FILTER, osg::Texture2D::LINEAR );
     texCS->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
@@ -720,6 +745,12 @@ osg::Vec4 planeEquations[] = {
 int
 main( int argc,
       char ** argv )
+#ifndef OSG280
+{
+    osg::notify( osg::ALWAYS ) << "Requires OSG version 2.8 or higher." << std::endl;
+    return( 1 );
+}
+#else
 {
     osg::ArgumentParser arguments(&argc,argv);
 
@@ -797,4 +828,4 @@ main( int argc,
 
     return( viewer.run() );
 }
-
+#endif

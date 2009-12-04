@@ -110,9 +110,9 @@ void GlowHelper::init( int argc, char** argv )
         eyeSpace->addChild( ls.get() );
         _parent->addChild( eyeSpace );
     }
-    if(_scene)
+    if( _scene.valid() )
     {
-        _parent->addChild(_scene);
+        _parent->addChild( _scene.get() );
     }
     else
     {
@@ -190,10 +190,10 @@ GlowHelper::postRenderPipe( int index )
     _glowMap      = new osg::Texture2D();
     _blurxMap     = new osg::Texture2D();
     _bluryMap     = new osg::Texture2D();
-    configureTexture( _texMap, _maxWidth, _maxHeight );
-    configureTexture( _glowMap, _maxWidth, _maxHeight );
-    configureTexture( _blurxMap, _maxWidth, _maxHeight );
-    configureTexture( _bluryMap, _maxWidth, _maxHeight );
+    configureTexture( _texMap.get(), _maxWidth, _maxHeight );
+    configureTexture( _glowMap.get(), _maxWidth, _maxHeight );
+    configureTexture( _blurxMap.get(), _maxWidth, _maxHeight );
+    configureTexture( _bluryMap.get(), _maxWidth, _maxHeight );
 
     _fboBlurxMap = new osg::FrameBufferObject;
     _fboBlurxMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER ),
@@ -218,13 +218,13 @@ GlowHelper::postRenderPipe( int index )
     blurX->addChild( createBlurredXTexturedQuad( _glowMap.get() ) );
     blurX->getOrCreateStateSet()->setAttribute( _fboBlurxMap.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
-    pseudoRoot->addChild( blurX );
+    pseudoRoot->addChild( blurX.get() );
 
     osg::ref_ptr< osg::Group > blurY = new osg::Group();
     blurY->addChild( createBlurredYTexturedQuad(_blurxMap.get()) );
     blurY->getOrCreateStateSet()->setAttribute( _fboBluryMap.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
-    blurX->addChild( blurY );
+    blurX->addChild( blurY.get() );
 
     osg::ref_ptr< osg::Group > finalg = new osg::Group();
     finalg->addChild( createFinalQuad( _texMap.get(), _bluryMap.get() ) );

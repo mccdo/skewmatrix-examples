@@ -194,12 +194,12 @@ void DepthOfField::init( int argc, char** argv )
     _blurxMap     = new osg::Texture2D();
     _bluryMap     = new osg::Texture2D();
     _dofMap     = new osg::Texture2D();
-    configureTexture(_dofMap);
-    configureTexture(_texMap);
-    configureTexture(_smallQuadMap);
-    configureTexture(_smallMap);
-    configureTexture(_blurxMap);
-    configureTexture(_bluryMap);
+    configureTexture( _dofMap.get() );
+    configureTexture( _texMap.get() );
+    configureTexture( _smallQuadMap.get() );
+    configureTexture( _smallMap.get() );
+    configureTexture( _blurxMap.get() );
+    configureTexture( _bluryMap.get() );
     
     _rttCamera  = new osg::Camera;
     _rtsqCamera = new osg::Camera;
@@ -222,8 +222,8 @@ void DepthOfField::init( int argc, char** argv )
 
     // Create the scene parent. The application can add and remove scene data to/from this node.
     _parent = new osg::Group;
-    _parent->getOrCreateStateSet()->addUniform(_focalDist);
-    _parent->getOrCreateStateSet()->addUniform(_focalRange);
+    _parent->getOrCreateStateSet()->addUniform( _focalDist.get() );
+    _parent->getOrCreateStateSet()->addUniform( _focalRange.get() );
     
     _rttCamera->addChild( _parent.get() );
 
@@ -246,9 +246,9 @@ void DepthOfField::init( int argc, char** argv )
         eyeSpace->addChild( ls.get() );
         _parent->addChild( eyeSpace );
     }
-    if(_scene)
+    if( _scene.valid() )
     {
-        _parent->addChild(_scene);
+        _parent->addChild( _scene.get() );
     }
     else
         osg::notify( osg::FATAL ) << "No scene data. Exiting." << std::endl;
@@ -267,12 +267,12 @@ void DepthOfField::init( int argc, char** argv )
     osg::ref_ptr< osg::Group > blurX = new osg::Group();
     blurX->addChild(_rtsCamera.get() );
     blurX->addChild(createDownsampleTexturedQuad( _smallMap.get() ) );
-    _rtbxCamera->addChild(blurX);
+    _rtbxCamera->addChild( blurX.get() );
 
     osg::ref_ptr< osg::Group > blurY = new osg::Group();
     blurY->addChild(_rtbxCamera.get());
     blurY->addChild(createBlurredXTexturedQuad(_blurxMap.get()));
-    _rtbyCamera->addChild(blurY);
+    _rtbyCamera->addChild( blurY.get() );
 
     osg::ref_ptr< osg::Group > dofg = new osg::Group();
     dofg->addChild(_rtbyCamera.get());

@@ -196,7 +196,7 @@ DepthPeelGroup::setDestination( osg::FrameBufferObject* dest )
 osg::FrameBufferObject*
 DepthPeelGroup::getDestination() const
 {
-    return( _destination );
+    return( _destination.get() );
 }
 
 void

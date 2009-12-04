@@ -44,7 +44,7 @@ public:
     virtual void draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous );
 
     void setDepthPeelGroup( DepthPeelGroup* dpg ) { _dpg = dpg; }
-    DepthPeelGroup* getDepthPeelGroup() const { return _dpg; }
+    DepthPeelGroup* getDepthPeelGroup() const { return( _dpg.get() ); }
 
 protected:
     ~DepthPeelRenderStage();

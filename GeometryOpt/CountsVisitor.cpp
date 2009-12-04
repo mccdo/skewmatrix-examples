@@ -285,7 +285,7 @@ CountsVisitor::apply( osg::Geode& node )
                 osg::Geometry::PrimitiveSetList::const_iterator pslit;
                 for( pslit = psl.begin(); pslit != psl.end(); pslit++ )
                 {
-                    osg::ref_ptr<osg::Object> rpps = (osg::Object*)( *pslit );
+                    osg::ref_ptr<osg::Object> rpps = (osg::Object*)( pslit->get() );
                     _uPrimitiveSets.insert( rpps );
                     const osg::DrawArrays* da = dynamic_cast< const osg::DrawArrays* >( pslit->get() );
                     if( da )

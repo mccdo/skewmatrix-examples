@@ -104,8 +104,8 @@ void DepthOfField::init( int argc, char** argv )
 {
     // Create the scene parent. The application can add and remove scene data to/from this node.
     _parent = new osg::Group;
-    _parent->getOrCreateStateSet()->addUniform(_focalDist);
-    _parent->getOrCreateStateSet()->addUniform(_focalRange);
+    _parent->getOrCreateStateSet()->addUniform( _focalDist.get() );
+    _parent->getOrCreateStateSet()->addUniform( _focalRange.get() );
  
     {
         // Render the quad in eye space. Use an ABSOLUTE_RF MatrixTransform and leave its matrix as identity.
@@ -126,9 +126,9 @@ void DepthOfField::init( int argc, char** argv )
         eyeSpace->addChild( ls.get() );
         _parent->addChild( eyeSpace );
     }
-    if(_scene)
+    if( _scene.valid() )
     {
-        _parent->addChild(_scene);
+        _parent->addChild( _scene.get() );
     }
     else
     {
@@ -214,10 +214,10 @@ DepthOfField::postRenderPipe( int index )
     _bluryMap     = new osg::Texture2D();
     const float smallWidth( _maxWidth*.5 );
     const float smallHeight( _maxHeight*.5 );
-    configureTexture( _texMap, _maxWidth, _maxHeight );
-    configureTexture( _smallMap, smallWidth, smallHeight );
-    configureTexture( _blurxMap, smallWidth, smallHeight );
-    configureTexture( _bluryMap, smallWidth, smallHeight );
+    configureTexture( _texMap.get(), _maxWidth, _maxHeight );
+    configureTexture( _smallMap.get(), smallWidth, smallHeight );
+    configureTexture( _blurxMap.get(), smallWidth, smallHeight );
+    configureTexture( _bluryMap.get(), smallWidth, smallHeight );
 
     _fboSmallMap = new osg::FrameBufferObject;
     _fboSmallMap->setAttachment( osg::Camera::BufferComponent( osg::Camera::COLOR_BUFFER0 ),
@@ -253,13 +253,13 @@ DepthOfField::postRenderPipe( int index )
     blurX->addChild( createBlurredXTexturedQuad( _smallMap.get() ) );
     blurX->getOrCreateStateSet()->setAttribute( _fboBlurxMap.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
-    smallQ->addChild( blurX );
+    smallQ->addChild( blurX.get() );
 
     osg::ref_ptr< osg::Group > blurY = new osg::Group();
     blurY->addChild( createBlurredYTexturedQuad(_blurxMap.get()) );
     blurY->getOrCreateStateSet()->setAttribute( _fboBluryMap.get(),
         osg::StateAttribute::ON | osg::StateAttribute::PROTECTED );
-    blurX->addChild( blurY );
+    blurX->addChild( blurY.get() );
 
     osg::ref_ptr< osg::Group > dofg = new osg::Group();
     dofg->addChild( createDepthOfFieldQuad( _texMap.get(), _bluryMap.get() ) );

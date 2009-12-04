@@ -10,6 +10,15 @@
 #include <osg/NodeVisitor>
 #include <osg/Geometry>
 #include <iostream>
+#include <osg/version>
+
+
+#undef OSG280
+#if ( OSG_MAJOR_VERSION >= 2 )
+#  if ( OSG_MINOR_VERSION >= 8 )
+#    define OSG280 1
+#  endif
+#endif
 
 
 class OptVisitor : public osg::NodeVisitor
@@ -18,7 +27,9 @@ public:
     OptVisitor();
     ~OptVisitor();
 
+#ifdef OSG280
     META_NodeVisitor(osgBullet,OptVisitor)
+#endif
 
     virtual void apply( osg::Node& node );
     virtual void apply( osg::Geode& geode );

@@ -50,6 +50,6 @@ int main()
 
     osgViewer::Viewer viewer;
     viewer.addEventHandler( new osgViewer::StatsHandler );
-    viewer.setSceneData( root );
+    viewer.setSceneData( root.get() );
     viewer.run();
 }

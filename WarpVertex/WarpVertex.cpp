@@ -269,8 +269,8 @@ void makeDataSet()
     }
 
     geom = new osg::Geometry;
-    geom->setVertexArray( vecs );
-    geom->setNormalArray( norms );
+    geom->setVertexArray( vecs.get() );
+    geom->setNormalArray( norms.get() );
     geom->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
 
     // Encode the data width and height in the Geometry object name.
