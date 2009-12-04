@@ -11,17 +11,10 @@
 #include <osg/Texture1D>
 #include <osg/Uniform>
 #include <osg/ClipPlane>
-#include <osg/Version>
+#include <osgwTools/Version.h>
 
 #include <osg/io_utils>
 
-
-#undef OSG280
-#if ( OSG_MAJOR_VERSION >= 2 )
-#  if ( OSG_MINOR_VERSION >= 8 )
-#    define OSG280 1
-#  endif
-#endif
 
 
 // (Some of the) GL 3 enums not defined by OSG.
@@ -147,7 +140,7 @@ protected:
             if( ps == NULL )
                 return;
 
-#ifdef OSG280
+#if (OSGWORKS_OSG_VERSION >= 20800 )
             _dataSize = ps->getNumInstances();
 #endif
             if( _dataSize > 1 )
@@ -346,7 +339,7 @@ protected:
         osg::Image* image = new osg::Image;
         image->setImage( s, t, p, intFormat, pixFormat, GL_FLOAT,
             data, osg::Image::USE_NEW_DELETE );
-#ifdef OSG280
+#if (OSGWORKS_OSG_VERSION >= 20800 )
         osg::Texture3D* texture = new osg::Texture3D( image );
 #else
         osg::Texture3D* texture = new osg::Texture3D;
@@ -591,7 +584,7 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 8 ] = osg::Vec3( 1., 0., 0. );
     (*n)[ 9 ] = osg::Vec3( 1., 0., 0. );
 
-#ifdef OSG280
+#if (OSGWORKS_OSG_VERSION >= 20800 )
     // TBD tri strip
     geom.addPrimitiveSet( new osg::DrawArrays( GL_QUAD_STRIP, 0, 10, nInstances ) );
 #endif
@@ -633,7 +626,7 @@ createArrow( osg::Geometry& geom, int nInstances=1 )
     (*n)[ 20 ] = norm;
     (*n)[ 21 ] = norm;
 
-#ifdef OSG280
+#if (OSGWORKS_OSG_VERSION >= 20800 )
     geom.addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 10, 12, nInstances ) );
 #endif
 }
@@ -710,7 +703,7 @@ createInstanced( DebugVectorFieldData& vf )
     osg::Image* iColorScale = new osg::Image;
     iColorScale->setImage( 8, 1, 1, GL_RGBA, GL_RGB, GL_FLOAT,
         (unsigned char*)colorScale, osg::Image::NO_DELETE );
-#ifdef OSG280
+#if (OSGWORKS_OSG_VERSION >= 20800 )
     osg::Texture1D* texCS = new osg::Texture1D( iColorScale );
 #else
     osg::Texture1D* texCS = new osg::Texture1D;
@@ -745,7 +738,7 @@ osg::Vec4 planeEquations[] = {
 int
 main( int argc,
       char ** argv )
-#ifndef OSG280
+#if (OSGWORKS_OSG_VERSION < 20800 )
 {
     osg::notify( osg::ALWAYS ) << "Requires OSG version 2.8 or higher." << std::endl;
     return( 1 );
