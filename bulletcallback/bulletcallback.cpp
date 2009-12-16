@@ -20,15 +20,77 @@
 #include <iostream>
 
 
-btDynamicsWorld * initPhysics()
+#ifdef WIN32
+#  define USE_WIN32_BEEP 1
+#endif
+
+void triggerSounds( btDynamicsWorld* world )
 {
-    btDefaultCollisionConfiguration * collisionConfiguration = new btDefaultCollisionConfiguration();
-    btCollisionDispatcher * dispatcher = new btCollisionDispatcher( collisionConfiguration );
-    btConstraintSolver * solver = new btSequentialImpulseConstraintSolver;
+    btDispatcher* dispatch = world->getDispatcher();
+    const int numManifolds( dispatch->getNumManifolds() );
+
+    int idx;
+	for( idx=0; idx < numManifolds; idx++ )
+	{
+		btPersistentManifold* contactManifold( dispatch->getManifoldByIndexInternal( idx ) );
+		btCollisionObject* obA( static_cast< btCollisionObject* >( contactManifold->getBody0() ) );
+		btCollisionObject* obB( static_cast< btCollisionObject* >( contactManifold->getBody1() ) );
+	
+		const int numContacts( contactManifold->getNumContacts() );
+        int jdx;
+		for( jdx=0; jdx < numContacts; jdx++ )
+		{
+			const btManifoldPoint& pt( contactManifold->getContactPoint( jdx) );
+            if( pt.m_lifeTime < 3 )
+            {
+                if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
+                {
+#ifdef USE_WIN32_BEEP
+                    Beep( 800, 40 );
+#else
+                    osg::notify( osg::ALWAYS ) << "  osgAudio: Initial contact placeholder" << std::endl;
+#endif
+                }
+            }
+            else
+            {
+                osg::Vec3 vA( osgbBullet::asOsgVec3( obA->getInterpolationLinearVelocity() ) );
+                osg::Vec3 vB( osgbBullet::asOsgVec3( obB->getInterpolationLinearVelocity() ) );
+                //osg::notify( osg::ALWAYS ) <<
+                //    "    linvelA: " << vA <<
+                //    ", linvelB: " << vB << std::endl;
+                if( (vA-vB).length2() > .1 )
+                {
+#ifdef USE_WIN32_BEEP
+                    Beep( 400, 30 );
+#else
+                    osg::notify( osg::ALWAYS ) << "  osgAudio: Scraping placeholder" << std::endl;
+#endif
+                }
+            }
+/*
+            if (pt.getDistance()<0.f)
+			{
+				const btVector3& ptA = pt.getPositionWorldOnA();
+				const btVector3& ptB = pt.getPositionWorldOnB();
+				const btVector3& normalOnB = pt.m_normalWorldOnB;
+			}
+            */
+		}
+	}
+}
+
+
+btDynamicsWorld* initPhysics()
+{
+    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+    btCollisionDispatcher* dispatcher = new btCollisionDispatcher( collisionConfiguration );
+    btConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
     btVector3 worldAabbMin( -10000, -10000, -10000 );
     btVector3 worldAabbMax( 10000, 10000, 10000 );
-    btBroadphaseInterface * inter = new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 );
+    btAxisSweep3* as3( new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 ) );
+    btBroadphaseInterface* inter = as3;
 
     btDynamicsWorld * dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
 
@@ -37,20 +99,6 @@ btDynamicsWorld * initPhysics()
     return( dynamicsWorld );
 }
 
-
-struct MyCallback : public osgbBullet::MotionStateCallback
-{
-    unsigned int _count;
-
-    MyCallback()
-        : _count( 0 )
-    {}
-
-    virtual void operator()( const btTransform& worldTrans )
-    {
-        osg::notify( osg::ALWAYS ) << "Callback has been called " << ++_count << " times. Current x: " << worldTrans.getOrigin()[0] << std::endl;
-    }
-};
 
 
 void
@@ -88,9 +136,6 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDynamicsWorld* bw
 
     btRigidBody* rb = converter.getRigidBody();
     osgbBullet::MotionState* motion = new osgbBullet::MotionState;
-
-    // Test callback
-    motion->getCallbackList().push_back( new MyCallback );
 
     motion->setTransform( model.get() );
     if( bs.center() != osg::Vec3( 0., 0., 0. ) )
@@ -243,6 +288,8 @@ int main( int argc,
 
     while( !viewer.done() )
     {
+        triggerSounds( bw );
+
         currSimTime = viewer.getFrameStamp()->getSimulationTime();
         bw->stepSimulation( currSimTime - prevSimTime );
         prevSimTime = currSimTime;
