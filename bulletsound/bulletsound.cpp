@@ -20,21 +20,24 @@
 #include <iostream>
 
 
+
+
 #ifdef WIN32
+   // Make noise, on Windows at least, until we have osgAudio.
 #  define USE_WIN32_BEEP 1
 #endif
 
-void triggerSounds( btDynamicsWorld* world )
+void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 {
-    btDispatcher* dispatch = world->getDispatcher();
+    const btCollisionDispatcher* dispatch( static_cast< const btCollisionDispatcher* >( world->getDispatcher() ) );
     const int numManifolds( dispatch->getNumManifolds() );
 
     int idx;
 	for( idx=0; idx < numManifolds; idx++ )
 	{
-		btPersistentManifold* contactManifold( dispatch->getManifoldByIndexInternal( idx ) );
-		btCollisionObject* obA( static_cast< btCollisionObject* >( contactManifold->getBody0() ) );
-		btCollisionObject* obB( static_cast< btCollisionObject* >( contactManifold->getBody1() ) );
+		const btPersistentManifold* contactManifold( dispatch->getManifoldByIndexInternal( idx ) );
+		const btCollisionObject* obA( static_cast< const btCollisionObject* >( contactManifold->getBody0() ) );
+		const btCollisionObject* obB( static_cast< const btCollisionObject* >( contactManifold->getBody1() ) );
 	
 		const int numContacts( contactManifold->getNumContacts() );
         int jdx;
@@ -92,9 +95,10 @@ btDynamicsWorld* initPhysics()
     btAxisSweep3* as3( new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 ) );
     btBroadphaseInterface* inter = as3;
 
-    btDynamicsWorld * dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
-
+    btDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
     dynamicsWorld->setGravity( btVector3( 0, 0, -10 ) );
+
+    dynamicsWorld->setInternalTickCallback( (btInternalTickCallback) triggerSounds);
 
     return( dynamicsWorld );
 }
@@ -288,8 +292,6 @@ int main( int argc,
 
     while( !viewer.done() )
     {
-        triggerSounds( bw );
-
         currSimTime = viewer.getFrameStamp()->getSimulationTime();
         bw->stepSimulation( currSimTime - prevSimTime );
         prevSimTime = currSimTime;
