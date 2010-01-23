@@ -11,6 +11,8 @@
 #include <osgbBullet/CollisionShapes.h>
 #include <osgbBullet/Utils.h>
 
+#include <osgAudio/SoundManager>
+
 #include <osgwTools/FindNamedNode.h>
 #include <osgwTools/InsertRemove.h>
 
@@ -258,6 +260,11 @@ protected:
 int main( int argc,
           char * argv[] )
 {
+    int num_hw_soundsources = 10;
+    osgAudio::SoundManager::instance()->init(num_hw_soundsources);
+    osgAudio::SoundManager::instance()->getEnvironment()->setDistanceModel(osgAudio::InverseDistance);
+    osgAudio::SoundManager::instance()->getEnvironment()->setDopplerFactor(1);
+
     osg::ref_ptr< osg::Group > root = new osg::Group();
     btDynamicsWorld* bw = initPhysics();
 
