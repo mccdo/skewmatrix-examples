@@ -11,7 +11,9 @@
 #include <osgbBullet/CollisionShapes.h>
 #include <osgbBullet/Utils.h>
 
-#include <osgAudio/SoundManager>
+#include <osgAudio/SoundManager.h>
+#include <osgAudio/SoundRoot.h>
+#include <osgAudio/SoundNode.h>
 
 #include <osgwTools/FindNamedNode.h>
 #include <osgwTools/InsertRemove.h>
@@ -257,18 +259,60 @@ protected:
 };
 
 
+void
+addSound( osg::Group* grp, const std::string& fileName )
+{
+    const bool addToCache( true );
+    osg::ref_ptr< osgAudio::Sample > sample( osgAudio::SoundManager::instance()->getSample( fileName, addToCache ) );
+    osg::notify( osg::WARN ) << "Loading sample: " << fileName << std::endl;
+
+    // Create a new soundstate, give it the name of the file we loaded.
+    osg::ref_ptr< osgAudio::SoundState > soundState( new osgAudio::SoundState( fileName ) );
+    soundState->setSample( sample.get() );
+    soundState->setGain( 1.0f );
+    soundState->setReferenceDistance( 60 );
+    soundState->setRolloffFactor( 3 );
+    soundState->setPlay( true );
+    soundState->setLooping( true );
+
+    // Allocate a hardware soundsource to this soundstate (priority 10)
+    soundState->allocateSource( 10, false );
+
+    // Add the soundstate to the sound manager, so we can find it later on if we want to
+    osgAudio::SoundManager::instance()->addSoundState( soundState.get() );
+
+    soundState->apply();
+
+    osg::ref_ptr< osgAudio::SoundNode > soundNode( new osgAudio::SoundNode );
+    soundNode->setSoundState( soundState );
+    grp->addChild( soundNode.get() );
+}
+
+
 int main( int argc,
           char * argv[] )
 {
+    osgViewer::Viewer viewer;
+    viewer.setUpViewInWindow( 10, 30, 800, 600 );
+    osgGA::TrackballManipulator * tb = new osgGA::TrackballManipulator();
+    tb->setHomePosition( osg::Vec3( 10, -55, 13 ),
+                        osg::Vec3( 0, 0, -4 ),
+                        osg::Vec3( 0, 0, 1 ) );
+    viewer.setCameraManipulator( tb );
+
     int num_hw_soundsources = 10;
-    osgAudio::SoundManager::instance()->init(num_hw_soundsources);
-    osgAudio::SoundManager::instance()->getEnvironment()->setDistanceModel(osgAudio::InverseDistance);
-    osgAudio::SoundManager::instance()->getEnvironment()->setDopplerFactor(1);
+    osgAudio::SoundManager::instance()->init( num_hw_soundsources );
+    osgAudio::SoundManager::instance()->getEnvironment()->setDistanceModel( osgAudio::InverseDistance );
+    osgAudio::SoundManager::instance()->getEnvironment()->setDopplerFactor( 1 );
 
     osg::ref_ptr< osg::Group > root = new osg::Group();
+    osg::ref_ptr< osgAudio::SoundRoot > soundRoot( new osgAudio::SoundRoot );
+    root->addChild( soundRoot.get() );
+
     btDynamicsWorld* bw = initPhysics();
 
     InteractionManipulator* im = new InteractionManipulator( bw, root.get() );
+    viewer.addEventHandler( im );
 
     root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -10.f ), bw ) );
 
@@ -280,22 +324,14 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
+    addSound( mt, "bee.wav" );
 
 
-    osgViewer::Viewer viewer;
-    viewer.setUpViewInWindow( 10, 30, 800, 600 );
-    viewer.addEventHandler( im );
-    osgGA::TrackballManipulator * tb = new osgGA::TrackballManipulator();
-    tb->setHomePosition( osg::Vec3( 10, -55, 13 ),
-                        osg::Vec3( 0, 0, -4 ),
-                        osg::Vec3( 0, 0, 1 ) );
-    viewer.setCameraManipulator( tb );
     viewer.setSceneData( root.get() );
+    viewer.realize();
 
     double currSimTime;
     double prevSimTime = viewer.getFrameStamp()->getSimulationTime();
-
-    viewer.realize();
 
     while( !viewer.done() )
     {
