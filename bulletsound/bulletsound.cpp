@@ -324,7 +324,7 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    addSound( mt, "bee.wav" );
+    addSound( block->getParent(0), "bee.wav" );
 
 
     viewer.setSceneData( root.get() );
