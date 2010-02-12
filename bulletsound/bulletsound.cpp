@@ -13,7 +13,7 @@
 
 #include <osgAudio/SoundManager.h>
 #include <osgAudio/SoundRoot.h>
-#include <osgAudio/SoundNode.h>
+#include <osgAudio/SoundUpdateCB.h>
 
 #include <osgwTools/FindNamedNode.h>
 #include <osgwTools/InsertRemove.h>
@@ -28,7 +28,7 @@
 
 #ifdef WIN32
    // Make noise, on Windows at least, until we have osgAudio.
-#  define USE_WIN32_BEEP 1
+//#  define USE_WIN32_BEEP 1
 #endif
 
 void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
@@ -48,6 +48,7 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 		for( jdx=0; jdx < numContacts; jdx++ )
 		{
 			const btManifoldPoint& pt( contactManifold->getContactPoint( jdx) );
+            const osg::Vec3 location( osgbBullet::asOsgVec3( pt.getPositionWorldOnA() ) );
             if( pt.m_lifeTime < 3 )
             {
                 if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
@@ -260,7 +261,7 @@ protected:
 
 
 void
-addSound( osg::Group* grp, const std::string& fileName )
+addSound( osg::Node* node, const std::string& fileName )
 {
     const bool addToCache( true );
     osg::ref_ptr< osgAudio::Sample > sample( osgAudio::SoundManager::instance()->getSample( fileName, addToCache ) );
@@ -283,9 +284,9 @@ addSound( osg::Group* grp, const std::string& fileName )
 
     soundState->apply();
 
-    osg::ref_ptr< osgAudio::SoundNode > soundNode( new osgAudio::SoundNode );
-    soundNode->setSoundState( soundState );
-    grp->addChild( soundNode.get() );
+    osg::ref_ptr< osgAudio::SoundUpdateCB > soundCB( new osgAudio::SoundUpdateCB );
+    soundCB->setSoundState( soundState );
+    node->setUpdateCallback( soundCB.get() );
 }
 
 
@@ -324,7 +325,7 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    addSound( block->getParent(0), "bee.wav" );
+    addSound( block, "bee.wav" );
 
 
     viewer.setSceneData( root.get() );
@@ -342,6 +343,8 @@ int main( int argc,
 
         im->updateView( viewer.getCamera() );
     }
+
+    osgAudio::SoundManager::instance()->shutdown();
 
     return( 0 );
 }
