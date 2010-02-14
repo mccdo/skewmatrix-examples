@@ -25,11 +25,47 @@
 
 
 
+//
+// Begin manage collision triggered sound
 
-#ifdef WIN32
-   // Make noise, on Windows at least, until we have osgAudio.
-//#  define USE_WIN32_BEEP 1
-#endif
+#include "SoundTable.h"
+
+struct MaterialCode
+{
+    typedef enum {
+        DEFAULT,
+        JELLO,
+        SILLY_PUTTY,
+        FLUBBER
+    } MaterialType;
+
+    MaterialCode( MaterialType mat=DEFAULT )
+      : _mat( mat )
+    {}
+    ~MaterialCode() {};
+
+    bool operator<( const MaterialCode& mat ) const
+    {
+        return( ((int)_mat) < ((int)mat._mat) );
+    }
+
+    MaterialType _mat;
+};
+
+SoundTable< MaterialCode > collideTable;
+SoundTable< MaterialCode > slideTable;
+
+void
+initTables()
+{
+    collideTable.addSound( MaterialCode( MaterialCode::DEFAULT ),
+        MaterialCode( MaterialCode::FLUBBER ), std::string("boing.wav") );
+    slideTable.addSound( MaterialCode( MaterialCode::DEFAULT ),
+        MaterialCode( MaterialCode::DEFAULT ), std::string("car_skid.wav") );
+}
+
+
+osg::ref_ptr< osgAudio::SoundState > soundState;
 
 void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 {
@@ -42,22 +78,20 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 		const btPersistentManifold* contactManifold( dispatch->getManifoldByIndexInternal( idx ) );
 		const btCollisionObject* obA( static_cast< const btCollisionObject* >( contactManifold->getBody0() ) );
 		const btCollisionObject* obB( static_cast< const btCollisionObject* >( contactManifold->getBody1() ) );
-	
+
+        std::string soundFileName;
+        osg::Vec3 location;
 		const int numContacts( contactManifold->getNumContacts() );
         int jdx;
 		for( jdx=0; jdx < numContacts; jdx++ )
 		{
 			const btManifoldPoint& pt( contactManifold->getContactPoint( jdx) );
-            const osg::Vec3 location( osgbBullet::asOsgVec3( pt.getPositionWorldOnA() ) );
+            location = osgbBullet::asOsgVec3( pt.getPositionWorldOnA() );
             if( pt.m_lifeTime < 3 )
             {
                 if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
                 {
-#ifdef USE_WIN32_BEEP
-                    Beep( 800, 40 );
-#else
-                    osg::notify( osg::ALWAYS ) << "  osgAudio: Initial contact placeholder" << std::endl;
-#endif
+                    soundFileName = "boing.wav";
                 }
             }
             else
@@ -69,24 +103,38 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
                 //    ", linvelB: " << vB << std::endl;
                 if( (vA-vB).length2() > .1 )
                 {
-#ifdef USE_WIN32_BEEP
-                    Beep( 400, 30 );
-#else
                     osg::notify( osg::ALWAYS ) << "  osgAudio: Scraping placeholder" << std::endl;
-#endif
                 }
             }
-/*
-            if (pt.getDistance()<0.f)
-			{
-				const btVector3& ptA = pt.getPositionWorldOnA();
-				const btVector3& ptB = pt.getPositionWorldOnB();
-				const btVector3& normalOnB = pt.m_normalWorldOnB;
-			}
-            */
 		}
+
+        // For now, only support one boing.
+        if( soundState.valid() && !soundState->isActive() )
+            soundState = NULL;
+        if( ( !soundFileName.empty() ) && ( !soundState.valid() ) )
+        {
+            const bool addToCache( true );
+            osg::ref_ptr< osgAudio::Sample > sample(
+                osgAudio::SoundManager::instance()->getSample( soundFileName, addToCache ) );
+
+            soundState = new osgAudio::SoundState( soundFileName );
+            soundState->setPosition( location );
+            soundState->setSample( sample.get() );
+            soundState->setGain( 1.0f );
+            soundState->setReferenceDistance( 60 );
+            soundState->setRolloffFactor( 3 );
+            soundState->setPlay( true );
+            soundState->setLooping( false );
+            soundState->allocateSource( 10, false );
+
+            osgAudio::SoundManager::instance()->addSoundState( soundState.get() );
+            soundState->apply();
+        }
 	}
 }
+
+// End manage collision triggered sound
+//
 
 
 btDynamicsWorld* initPhysics()
@@ -325,7 +373,7 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    addSound( block, "bee.wav" );
+    //addSound( block, "bee.wav" );
 
 
     viewer.setSceneData( root.get() );
