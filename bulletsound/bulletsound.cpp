@@ -72,6 +72,10 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
     const btCollisionDispatcher* dispatch( static_cast< const btCollisionDispatcher* >( world->getDispatcher() ) );
     const int numManifolds( dispatch->getNumManifolds() );
 
+    // For now, only support one boing.
+    if( soundState.valid() && !soundState->isActive() )
+        soundState = NULL;
+
     int idx;
 	for( idx=0; idx < numManifolds; idx++ )
 	{
@@ -108,9 +112,6 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             }
 		}
 
-        // For now, only support one boing.
-        if( soundState.valid() && !soundState->isActive() )
-            soundState = NULL;
         if( ( !soundFileName.empty() ) && ( !soundState.valid() ) )
         {
             const bool addToCache( true );
@@ -341,6 +342,8 @@ addSound( osg::Node* node, const std::string& fileName )
 int main( int argc,
           char * argv[] )
 {
+    initTables();
+
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     osgGA::TrackballManipulator * tb = new osgGA::TrackballManipulator();
