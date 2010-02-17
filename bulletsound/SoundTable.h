@@ -19,16 +19,22 @@ public:
     SoundTable();
     ~SoundTable();
 
-    void addSound( const T& mat0, const T& mat1, std::string& soundFile );
     void setDefaultSound( std::string& soundFile );
 
+    // 2D table
+    void addSound( const T& mat0, const T& mat1, std::string& soundFile );
     osgAudio::Sample* getSound( const T& mat0, const T& mat1 );
+
+    // 1D map
+    void addSound( const T& mat, std::string& soundFile );
+    osgAudio::Sample* getSound( const T& mat );
 
 protected:
     typedef std::map< T, SoundData > SoundMap;
     typedef std::map< T, SoundMap > Table;
 
     Table _table;
+    SoundMap _map;
 
     osg::ref_ptr< osgAudio::Sample > _defaultSample;
 };
@@ -58,24 +64,6 @@ SoundTable< T >::~SoundTable()
 {
 }
 
-template< class T > void
-SoundTable< T >::addSound( const T& mat0, const T& mat1, std::string& soundFile )
-{
-    const bool addToCache( true );
-    osg::ref_ptr< osgAudio::Sample > sample(
-        osgAudio::SoundManager::instance()->getSample( soundFile, addToCache ) );
-
-    SoundData& sd( _table[ mat0 ][ mat1 ] );
-    sd._default = false;
-    sd._fileName = soundFile;
-    sd._sample = sample;
-
-    // Mirror
-    sd = _table[ mat1 ][ mat0 ];
-    sd._default = false;
-    sd._fileName = soundFile;
-    sd._sample = sample;
-}
 
 template< class T > void
 SoundTable< T >::setDefaultSound( std::string& soundFile )
@@ -85,10 +73,53 @@ SoundTable< T >::setDefaultSound( std::string& soundFile )
 }
 
 
+template< class T > void
+SoundTable< T >::addSound( const T& mat0, const T& mat1, std::string& soundFile )
+{
+    const bool addToCache( true );
+    osg::ref_ptr< osgAudio::Sample > sample(
+        osgAudio::SoundManager::instance()->getSample( soundFile, addToCache ) );
+
+    SoundData& sd0( _table[ mat0 ][ mat1 ] );
+    sd0._default = false;
+    sd0._fileName = soundFile;
+    sd0._sample = sample;
+
+    // Mirror
+    SoundData& sd1( _table[ mat1 ][ mat0 ] );
+    sd1._default = false;
+    sd1._fileName = soundFile;
+    sd1._sample = sample;
+}
+
 template< class T > osgAudio::Sample*
 SoundTable< T >::getSound( const T& mat0, const T& mat1 )
 {
     SoundData& sd( _table[ mat0 ][ mat1 ] );
+    if( sd._default )
+        return( _defaultSample.get() );
+    else
+        return( sd._sample.get() );
+}
+
+
+template< class T > void
+SoundTable< T >::addSound( const T& mat, std::string& soundFile )
+{
+    const bool addToCache( true );
+    osg::ref_ptr< osgAudio::Sample > sample(
+        osgAudio::SoundManager::instance()->getSample( soundFile, addToCache ) );
+
+    SoundData& sd( _map[ mat ] );
+    sd._default = false;
+    sd._fileName = soundFile;
+    sd._sample = sample;
+}
+
+template< class T > osgAudio::Sample*
+SoundTable< T >::getSound( const T& mat )
+{
+    SoundData& sd( _map[ mat ] );
     if( sd._default )
         return( _defaultSample.get() );
     else

@@ -34,9 +34,11 @@ struct MaterialCode
 {
     typedef enum {
         DEFAULT,
+        CEMENT,
         JELLO,
         SILLY_PUTTY,
-        FLUBBER
+        FLUBBER,
+        WOOD_DOOR
     } MaterialType;
 
     MaterialCode( MaterialType mat=DEFAULT )
@@ -52,16 +54,22 @@ struct MaterialCode
     MaterialType _mat;
 };
 
-SoundTable< MaterialCode > collideTable;
-SoundTable< MaterialCode > slideTable;
+// 2D tables to look up sounds by two materials, for colliding or sliding objects.
+SoundTable< MaterialCode::MaterialType > collideTable;
+SoundTable< MaterialCode::MaterialType > slideTable;
+// 1D map to look up sounds by one material, for moving objects.
+SoundTable< MaterialCode::MaterialType > moveTable;
 
 void
 initTables()
 {
-    collideTable.addSound( MaterialCode( MaterialCode::DEFAULT ),
-        MaterialCode( MaterialCode::FLUBBER ), std::string("boing.wav") );
-    slideTable.addSound( MaterialCode( MaterialCode::DEFAULT ),
-        MaterialCode( MaterialCode::DEFAULT ), std::string("car_skid.wav") );
+    collideTable.setDefaultSound( std::string("hit_with_frying_pan_y.wav") );
+    collideTable.addSound( MaterialCode::CEMENT,
+        MaterialCode::FLUBBER, std::string("metal_crunch.wav") );
+    collideTable.addSound( MaterialCode::CEMENT,
+        MaterialCode::SILLY_PUTTY, std::string("phasers3.wav") );
+
+    moveTable.addSound( MaterialCode::WOOD_DOOR, std::string("door_creak2.wav") );
 }
 
 
@@ -83,7 +91,8 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 		const btCollisionObject* obA( static_cast< const btCollisionObject* >( contactManifold->getBody0() ) );
 		const btCollisionObject* obB( static_cast< const btCollisionObject* >( contactManifold->getBody1() ) );
 
-        std::string soundFileName;
+        osg::ref_ptr< osgAudio::Sample > sample;
+
         osg::Vec3 location;
 		const int numContacts( contactManifold->getNumContacts() );
         int jdx;
@@ -95,7 +104,10 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             {
                 if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
                 {
-                    soundFileName = "boing.wav";
+                    MaterialCode* mcA = ( MaterialCode* )( obA->getUserPointer() );
+                    MaterialCode* mcB = ( MaterialCode* )( obB->getUserPointer() );
+                    if( ( mcA != NULL ) && ( mcB != NULL ) )
+                        sample = collideTable.getSound( mcA->_mat, mcB->_mat );
                 }
             }
             else
@@ -112,13 +124,9 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             }
 		}
 
-        if( ( !soundFileName.empty() ) && ( !soundState.valid() ) )
+        if( ( sample.valid() ) && ( !soundState.valid() ) )
         {
-            const bool addToCache( true );
-            osg::ref_ptr< osgAudio::Sample > sample(
-                osgAudio::SoundManager::instance()->getSample( soundFileName, addToCache ) );
-
-            soundState = new osgAudio::SoundState( soundFileName );
+            soundState = new osgAudio::SoundState();
             soundState->setPosition( location );
             soundState->setSample( sample.get() );
             soundState->setGain( 1.0f );
@@ -138,7 +146,8 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 //
 
 
-btDynamicsWorld* initPhysics()
+btDynamicsWorld*
+initPhysics()
 {
     btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
     btCollisionDispatcher* dispatcher = new btCollisionDispatcher( collisionConfiguration );
@@ -155,6 +164,19 @@ btDynamicsWorld* initPhysics()
     dynamicsWorld->setInternalTickCallback( (btInternalTickCallback) triggerSounds);
 
     return( dynamicsWorld );
+}
+
+void
+cleanupPhysics( btDynamicsWorld* bw )
+{
+    btCollisionObjectArray objs( bw->getCollisionObjectArray() );
+    int idx;
+    for( idx=0; idx<bw->getNumCollisionObjects(); idx++ )
+    {
+        MaterialCode* mc = ( MaterialCode* )( objs[ idx ]->getUserPointer() );
+        if( mc != NULL )
+            delete mc;
+    }
 }
 
 
@@ -194,6 +216,7 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDynamicsWorld* bw
 
     btRigidBody* rb = converter.getRigidBody();
     osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    rb->setUserPointer( new MaterialCode( MaterialCode::SILLY_PUTTY ) );
 
     motion->setTransform( model.get() );
     if( bs.center() != osg::Vec3( 0., 0., 0. ) )
@@ -304,6 +327,7 @@ protected:
         btRigidBody::btRigidBodyConstructionInfo rbinfo( mass, motion, collision, inertia );
         btRigidBody* body = new btRigidBody( rbinfo );
         body->setLinearVelocity( osgbBullet::asBtVector3( _viewDir * 50. ) );
+        body->setUserPointer( new MaterialCode( MaterialCode::FLUBBER ) );
         _world->addRigidBody( body );
     }
 };
@@ -366,7 +390,9 @@ int main( int argc,
     InteractionManipulator* im = new InteractionManipulator( bw, root.get() );
     viewer.addEventHandler( im );
 
-    root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -10.f ), bw ) );
+    btRigidBody* groundRB;
+    root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -10.f ), bw, &groundRB ) );
+    groundRB->setUserPointer( new MaterialCode( MaterialCode::CEMENT ) );
 
     osg::MatrixTransform* mt( new osg::MatrixTransform( osg::Matrix::translate( 0., 0., 10. ) ) );
     root->addChild( mt );
@@ -394,6 +420,8 @@ int main( int argc,
 
         im->updateView( viewer.getCamera() );
     }
+
+    cleanupPhysics( bw );
 
     osgAudio::SoundManager::instance()->shutdown();
 
