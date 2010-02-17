@@ -1,10 +1,9 @@
-// Copyright (c) 2009 Skew Matrix Software LLC. All rights reserved.
+// Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
 
 
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
-#include <osg/ShapeDrawable>
 
 #include <osgbBullet/OSGToCollada.h>
 #include <osgbBullet/MotionState.h>
@@ -17,72 +16,22 @@
 
 #include <osgwTools/FindNamedNode.h>
 #include <osgwTools/InsertRemove.h>
+#include <osgwTools/Shapes.h>
 
 #include <btBulletDynamicsCommon.h>
+
+#include "SoundUtilities.h"
+#include "Material.h"
 
 #include <osg/io_utils>
 #include <iostream>
 
 
 
-//
-// Begin manage collision triggered sound
-
-#include "SoundTable.h"
-
-struct MaterialCode
-{
-    typedef enum {
-        DEFAULT,
-        CEMENT,
-        JELLO,
-        SILLY_PUTTY,
-        FLUBBER,
-        WOOD_DOOR
-    } MaterialType;
-
-    MaterialCode( MaterialType mat=DEFAULT )
-      : _mat( mat )
-    {}
-    ~MaterialCode() {};
-
-    bool operator<( const MaterialCode& mat ) const
-    {
-        return( ((int)_mat) < ((int)mat._mat) );
-    }
-
-    MaterialType _mat;
-};
-
-// 2D tables to look up sounds by two materials, for colliding or sliding objects.
-SoundTable< MaterialCode::MaterialType > collideTable;
-SoundTable< MaterialCode::MaterialType > slideTable;
-// 1D map to look up sounds by one material, for moving objects.
-SoundTable< MaterialCode::MaterialType > moveTable;
-
-void
-initTables()
-{
-    collideTable.setDefaultSound( std::string("hit_with_frying_pan_y.wav") );
-    collideTable.addSound( MaterialCode::CEMENT,
-        MaterialCode::FLUBBER, std::string("metal_crunch.wav") );
-    collideTable.addSound( MaterialCode::CEMENT,
-        MaterialCode::SILLY_PUTTY, std::string("phasers3.wav") );
-
-    moveTable.addSound( MaterialCode::WOOD_DOOR, std::string("door_creak2.wav") );
-}
-
-
-osg::ref_ptr< osgAudio::SoundState > soundState;
-
 void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 {
     const btCollisionDispatcher* dispatch( static_cast< const btCollisionDispatcher* >( world->getDispatcher() ) );
     const int numManifolds( dispatch->getNumManifolds() );
-
-    // For now, only support one boing.
-    if( soundState.valid() && !soundState->isActive() )
-        soundState = NULL;
 
     int idx;
 	for( idx=0; idx < numManifolds; idx++ )
@@ -91,9 +40,9 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 		const btCollisionObject* obA( static_cast< const btCollisionObject* >( contactManifold->getBody0() ) );
 		const btCollisionObject* obB( static_cast< const btCollisionObject* >( contactManifold->getBody1() ) );
 
-        osg::ref_ptr< osgAudio::Sample > sample;
-
+        bool collide( false ), slide( false );
         osg::Vec3 location;
+
 		const int numContacts( contactManifold->getNumContacts() );
         int jdx;
 		for( jdx=0; jdx < numContacts; jdx++ )
@@ -103,47 +52,30 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             if( pt.m_lifeTime < 3 )
             {
                 if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
-                {
-                    MaterialCode* mcA = ( MaterialCode* )( obA->getUserPointer() );
-                    MaterialCode* mcB = ( MaterialCode* )( obB->getUserPointer() );
-                    if( ( mcA != NULL ) && ( mcB != NULL ) )
-                        sample = collideTable.getSound( mcA->_mat, mcB->_mat );
-                }
+                    collide = true;
             }
             else
             {
                 osg::Vec3 vA( osgbBullet::asOsgVec3( obA->getInterpolationLinearVelocity() ) );
                 osg::Vec3 vB( osgbBullet::asOsgVec3( obB->getInterpolationLinearVelocity() ) );
-                //osg::notify( osg::ALWAYS ) <<
-                //    "    linvelA: " << vA <<
-                //    ", linvelB: " << vB << std::endl;
                 if( (vA-vB).length2() > .1 )
-                {
-                    osg::notify( osg::ALWAYS ) << "  osgAudio: Scraping placeholder" << std::endl;
-                }
+                    slide = true;
             }
 		}
-
-        if( ( sample.valid() ) && ( !soundState.valid() ) )
+        if( collide || slide )
         {
-            soundState = new osgAudio::SoundState();
-            soundState->setPosition( location );
-            soundState->setSample( sample.get() );
-            soundState->setGain( 1.0f );
-            soundState->setReferenceDistance( 60 );
-            soundState->setRolloffFactor( 3 );
-            soundState->setPlay( true );
-            soundState->setLooping( false );
-            soundState->allocateSource( 10, false );
-
-            osgAudio::SoundManager::instance()->addSoundState( soundState.get() );
-            soundState->apply();
+            Material* mcA = ( Material* )( obA->getUserPointer() );
+            Material* mcB = ( Material* )( obB->getUserPointer() );
+            if( ( mcA != NULL ) && ( mcB != NULL ) )
+            {
+                if( collide )
+                    SoundUtilities::instance()->collide( mcA->_mat, mcB->_mat, location );
+                else
+                    SoundUtilities::instance()->slide( mcA->_mat, mcB->_mat, location );
+            }
         }
 	}
 }
-
-// End manage collision triggered sound
-//
 
 
 btDynamicsWorld*
@@ -173,7 +105,7 @@ cleanupPhysics( btDynamicsWorld* bw )
     int idx;
     for( idx=0; idx<bw->getNumCollisionObjects(); idx++ )
     {
-        MaterialCode* mc = ( MaterialCode* )( objs[ idx ]->getUserPointer() );
+        Material* mc = ( Material* )( objs[ idx ]->getUserPointer() );
         if( mc != NULL )
             delete mc;
     }
@@ -216,7 +148,7 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDynamicsWorld* bw
 
     btRigidBody* rb = converter.getRigidBody();
     osgbBullet::MotionState* motion = new osgbBullet::MotionState;
-    rb->setUserPointer( new MaterialCode( MaterialCode::SILLY_PUTTY ) );
+    rb->setUserPointer( new Material( Material::SILLY_PUTTY ) );
 
     motion->setTransform( model.get() );
     if( bs.center() != osg::Vec3( 0., 0., 0. ) )
@@ -306,10 +238,8 @@ protected:
 
     void fire()
     {
-        osg::Sphere* sp = new osg::Sphere( osg::Vec3( 0., 0., 0. ), .5 );
-        osg::ShapeDrawable* shape = new osg::ShapeDrawable( sp );
         osg::Geode* geode = new osg::Geode();
-        geode->addDrawable( shape );
+        geode->addDrawable( osgwTools::makeGeodesicSphere( .5 ) );
         osg::ref_ptr< osgwTools::AbsoluteModelTransform > amt = new osgwTools::AbsoluteModelTransform;
         amt->addChild( geode );
         _sg->addChild( amt.get() );
@@ -327,8 +257,10 @@ protected:
         btRigidBody::btRigidBodyConstructionInfo rbinfo( mass, motion, collision, inertia );
         btRigidBody* body = new btRigidBody( rbinfo );
         body->setLinearVelocity( osgbBullet::asBtVector3( _viewDir * 50. ) );
-        body->setUserPointer( new MaterialCode( MaterialCode::FLUBBER ) );
+        body->setUserPointer( new Material( Material::FLUBBER ) );
         _world->addRigidBody( body );
+
+        SoundUtilities::instance()->playSound( _viewPos, "phasers3.wav" );
     }
 };
 
@@ -366,8 +298,6 @@ addSound( osg::Node* node, const std::string& fileName )
 int main( int argc,
           char * argv[] )
 {
-    initTables();
-
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     osgGA::TrackballManipulator * tb = new osgGA::TrackballManipulator();
@@ -392,7 +322,7 @@ int main( int argc,
 
     btRigidBody* groundRB;
     root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -10.f ), bw, &groundRB ) );
-    groundRB->setUserPointer( new MaterialCode( MaterialCode::CEMENT ) );
+    groundRB->setUserPointer( new Material( Material::CEMENT ) );
 
     osg::MatrixTransform* mt( new osg::MatrixTransform( osg::Matrix::translate( 0., 0., 10. ) ) );
     root->addChild( mt );
@@ -422,6 +352,8 @@ int main( int argc,
     }
 
     cleanupPhysics( bw );
+
+    SoundUtilities::instance()->shutdown();
 
     osgAudio::SoundManager::instance()->shutdown();
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 Skew Matrix Software LLC. All rights reserved.
+// Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
 
 #ifndef __SOUND_TABLE_H__
 #define __SOUND_TABLE_H__ 1
