@@ -4,7 +4,7 @@
 #define __MATERIAL_H__ 1
 
 
-#include <osgAudio/SOundState.h>
+#include <osgAudio/SoundState.h>
 
 
 struct Material

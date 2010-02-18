@@ -332,7 +332,7 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    //addSound( block, "bee.wav" );
+    SoundUtilities::instance()->addSound( block, "engine.wav" );
 
 
     viewer.setSceneData( root.get() );
@@ -353,7 +353,7 @@ int main( int argc,
 
     cleanupPhysics( bw );
 
-    SoundUtilities::instance()->shutdown();
+    SoundUtilities::instance()->shutdown( root.get() );
 
     osgAudio::SoundManager::instance()->shutdown();
 

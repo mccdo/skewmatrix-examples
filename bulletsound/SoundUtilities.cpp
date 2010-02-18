@@ -4,12 +4,15 @@
 #include "SoundUtilities.h"
 #include "SoundTable.h"
 #include "Material.h"
+#include "RemoveSoundVisitor.h"
 
 #include <osgAudio/SoundManager.h>
 #include <osgAudio/SoundState.h>
+#include <osgAudio/SoundUpdateCB.h>
 #include <osgAudio/Sample.h>
 
 #include <osg/Notify>
+#include <osg/io_utils>
 
 
 SoundUtilities* SoundUtilities::_s_instance( NULL );
@@ -23,8 +26,11 @@ SoundUtilities::instance()
 }
 
 void
-SoundUtilities::shutdown()
+SoundUtilities::shutdown( osg::Node* root )
 {
+    RemoveSoundVisitor rsv;
+    root->accept( rsv );
+
     if( _s_instance != NULL )
     {
         delete _s_instance;
@@ -34,7 +40,6 @@ SoundUtilities::shutdown()
 
 
 SoundUtilities::SoundUtilities()
-  : _cacheSize( -1 )
 {
     init();
 }
@@ -45,17 +50,7 @@ SoundUtilities::~SoundUtilities()
 
 
 void
-SoundUtilities::setCacheSize( int size )
-{
-    if( _cacheSize != size )
-    {
-        _cacheSize = size;
-        allocateSoundState();
-    }
-}
-
-osgAudio::SoundState*
-SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile, bool loop )
+SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile )
 {
     const bool addToCache( true );
     osg::ref_ptr< osgAudio::Sample > sample(
@@ -63,44 +58,23 @@ SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile, b
     if( !sample.valid() )
     {
         osg::notify( osg::WARN ) << "SoundUtilities: Can't obtain sample for \"" << soundFile << "\"." << std::endl;
-        return( NULL );
+        return;
     }
 
-    return( playSound( pos, sample.get(), loop ) );
+    playSound( pos, sample.get() );
 }
 
-osgAudio::SoundState*
-SoundUtilities::playSound( const osg::Vec3& pos, osgAudio::Sample* sample, bool loop )
+void
+SoundUtilities::playSound( const osg::Vec3& pos, osgAudio::Sample* sample )
 {
-    osg::ref_ptr< osgAudio::SoundState > ss( findFreeSoundState() );
-    if( !ss.valid() )
-        return( NULL );
+    _soundState->setPosition( pos );
+    _soundState->setSample( sample );
+    _soundState->setPlay( true );
+	_soundState->setPitch( 1 );
 
-    ss->setPosition( pos );
-    ss->setSample( sample );
-    ss->setGain( 1.0f );
-    ss->setReferenceDistance( 60 );
-    ss->setRolloffFactor( 3 );
-    ss->setPlay( true );
-    ss->setLooping( loop );
-    ss->allocateSource( 10, false );
+	osgAudio::SoundManager::instance()->pushSoundEvent( _soundState.get() );
 
-    osgAudio::SoundManager::instance()->addSoundState( ss.get() );
-    ss->apply();
-
-    return( ss.get() );
-}
-
-bool
-SoundUtilities::stopSound( osgAudio::SoundState* ss )
-{
-    if( ss->isPlaying() )
-    {
-        ss->setPlay( false );
-        return( true );
-    }
-
-    return( false );
+    return;
 }
 
 void
@@ -113,8 +87,8 @@ SoundUtilities::collide( const Material::MaterialType& matA, const Material::Mat
 void
 SoundUtilities::slide( const Material::MaterialType& matA, const Material::MaterialType& matB, const osg::Vec3& pos )
 {
-    //osgAudio::Sample* sample( _slideTable.getSound( matA, matB ) );
-    //playSound( pos, sample );
+    osgAudio::Sample* sample( _slideTable.getSound( matA, matB ) );
+    playSound( pos, sample );
 }
 
 void
@@ -126,9 +100,72 @@ SoundUtilities::move( const Material::MaterialType& mat, const osg::Vec3& pos )
 
 
 void
+SoundUtilities::addSound( osg::Node* node, const std::string& soundFile )
+{
+    const bool addToCache( true );
+    osg::ref_ptr< osgAudio::Sample > sample(
+        osgAudio::SoundManager::instance()->getSample( soundFile, addToCache ) );
+    if( !sample.valid() )
+    {
+        osg::notify( osg::WARN ) << "SoundUtilities: Can't obtain sample for \"" << soundFile << "\"." << std::endl;
+        return;
+    }
+
+    addSound( node, sample.get() );
+}
+
+void
+SoundUtilities::addSound( osg::Node* node, osgAudio::Sample* sample )
+{
+    osg::ref_ptr< osgAudio::SoundState > ss( new osgAudio::SoundState );
+    if( !ss.valid() )
+    {
+        osg::notify( osg::WARN ) << "SoundUtilities: Can't allocate _soundState in addSound()." << std::endl;
+        return;
+    }
+    ss->setGain( .8f );
+    ss->setReferenceDistance( 60 );
+    ss->setRolloffFactor( 3 );
+    ss->setLooping( true );
+    ss->allocateSource( 0 );
+    ss->setSample( sample );
+    ss->setPlay( true );
+    osgAudio::SoundManager::instance()->addSoundState( ss.get() );
+
+    osg::ref_ptr< osgAudio::SoundUpdateCB > callback( new osgAudio::SoundUpdateCB( ss.get() ) );
+    node->setUpdateCallback( callback.get() );
+}
+
+bool
+SoundUtilities::removeSound( osg::Node* node )
+{
+    if( dynamic_cast< osgAudio::SoundUpdateCB* >( node->getUpdateCallback() ) )
+    {
+        node->setUpdateCallback( NULL );
+        return( true );
+    }
+    else
+        return( false );
+}
+
+
+
+void
 SoundUtilities::init()
 {
-    allocateSoundState();
+    _soundState = new osgAudio::SoundState;
+    if( !_soundState.valid() )
+    {
+        osg::notify( osg::WARN ) << "SoundUtilities: Can't allocate _soundState in init()." << std::endl;
+        return;
+    }
+    _soundState->setGain( .8f );
+    _soundState->setReferenceDistance( 60 );
+    _soundState->setRolloffFactor( 3 );
+    _soundState->setLooping( false );
+    _soundState->setPlay( false );
+    osgAudio::SoundManager::instance()->addSoundState( _soundState.get() );
+
 
     _collideTable.setDefaultSound( std::string("hit_with_frying_pan_y.wav") );
     _collideTable.addSound( Material::CEMENT,
@@ -139,62 +176,4 @@ SoundUtilities::init()
     _slideTable.setDefaultSound( std::string("car_skid.wav") );
 
     _moveTable.addSound( Material::WOOD_DOOR, std::string("door_creak2.wav") );
-}
-
-void
-SoundUtilities::allocateSoundState()
-{
-    unsigned int numSources;
-    if( _cacheSize >= 0 )
-        numSources = (unsigned int) _cacheSize;
-    else
-        numSources = osgAudio::SoundManager::instance()->getNumSources();
-
-    if( _ssList.size() < numSources )
-    {
-        while( _ssList.size() < numSources )
-            _ssList.push_front( new osgAudio::SoundState );
-    }
-    else
-    {
-        unsigned int limit( _ssList.size() );
-        while( ( _ssList.size() > numSources ) && ( --limit > 0 ) )
-        {
-            osg::ref_ptr< osgAudio::SoundState > ss = _ssList.front();
-            _ssList.pop_front();
-            if( ss->isPlaying() )
-                _ssList.push_back( ss );
-        }
-        if( _ssList.size() > numSources )
-        {
-            osg::notify( osg::WARN ) << "SoundUtilities: Unable to reduce cache size to " << numSources << "." << std::endl;
-            osg::notify( osg::WARN ) << "  Too many actively playing sounds." << std::endl;
-        }
-    }
-}
-
-osgAudio::SoundState*
-SoundUtilities::findFreeSoundState()
-{
-    unsigned int limit( _cacheSize );
-    osgAudio::SoundStateList::iterator it;
-    for( it=_ssList.begin();
-        ( it != _ssList.end() ) && ( --limit > 0 );
-        it++ )
-    {
-        osg::ref_ptr< osgAudio::SoundState > candidate = (*it).get();
-        if( !candidate->isPlaying() )
-        {
-            return( candidate.get() );
-        }
-        else if( candidate->getLooping() )
-        {
-            // Move looping sounds to the end if the list.
-            it = _ssList.erase( it );
-            _ssList.push_back( candidate );
-        }
-    }
-
-    osg::notify( osg::WARN ) << "SoundUtilities: Can't find a free SoundState." << std::endl;
-    return( NULL );
 }

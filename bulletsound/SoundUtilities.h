@@ -4,7 +4,7 @@
 #define __SOUND_UTILITIES_H__ 1
 
 
-#include <osgAudio/SOundState.h>
+#include <osgAudio/SoundState.h>
 
 #include "Material.h"
 #include "SoundTable.h"
@@ -14,23 +14,12 @@ class SoundUtilities
 {
 public:
     static SoundUtilities* instance();
-    void shutdown();
+    void shutdown( osg::Node* root );
     ~SoundUtilities();
 
-    // Number of SoundState objects to maintain. Default is -1, which means
-    // query the SoundManager and use the number of hardware sounds. Set to 0
-    // effectively disables all sound.
-    void setCacheSize( int size );
-
-    // Play the soundFile or sample at the fiven position. By default, play
-    // it once, or set loop to true.
-    osgAudio::SoundState* playSound( const osg::Vec3& pos, const std::string& soundFile, bool loop=false );
-    osgAudio::SoundState* playSound( const osg::Vec3& pos, osgAudio::Sample* sample, bool loop=false );
-
-    // Stop the given sound. This is the only way to stop looping sounds.
-    // Non-looping sounds stop at the end of the sample, but can also be stopped
-    // with this call.
-    bool stopSound( osgAudio::SoundState* ss );
+    // Play the soundFile or sample at the given position.
+    void playSound( const osg::Vec3& pos, const std::string& soundFile );
+    void playSound( const osg::Vec3& pos, osgAudio::Sample* sample );
 
     // Collision between two materials.
     void collide( const Material::MaterialType& matA, const Material::MaterialType& matB, const osg::Vec3& pos );
@@ -41,6 +30,14 @@ public:
     // One material moving.
     void move( const Material::MaterialType& mat, const osg::Vec3& pos );
 
+
+    // Add a sound to a Node. Sound will loop.
+    void addSound( osg::Node* node, const std::string& soundFile );
+    void addSound( osg::Node* node, osgAudio::Sample* sample );
+
+    // Remove a sound from a Node.
+    bool removeSound( osg::Node* node );
+
 protected:
     SoundUtilities();
 
@@ -48,15 +45,8 @@ protected:
 
     void init();
 
-    // Grow or shrink our list of managed SoundStates according to the cache size.
-    void allocateSoundState();
-
-    // Find a SoundState in our cache that is not playing and therefore available.
-    osgAudio::SoundState* findFreeSoundState();
-
-    int _cacheSize;
-
-    osgAudio::SoundStateList _ssList;
+    // For playing one-time sounds.
+    osg::ref_ptr< osgAudio::SoundState > _soundState;
 
 
     // 2D tables to look up sounds by two materials, for colliding or sliding objects.
