@@ -87,8 +87,10 @@ SoundUtilities::collide( const Material::MaterialType& matA, const Material::Mat
 void
 SoundUtilities::slide( const Material::MaterialType& matA, const Material::MaterialType& matB, const osg::Vec3& pos )
 {
-    osgAudio::Sample* sample( _slideTable.getSound( matA, matB ) );
-    playSound( pos, sample );
+    // TBD. Yuck. Don't have a good sound for this, and need to play just
+    // one sound per sliding pair.
+    //osgAudio::Sample* sample( _slideTable.getSound( matA, matB ) );
+    //playSound( pos, sample );
 }
 
 void
@@ -175,5 +177,6 @@ SoundUtilities::init()
 
     _slideTable.setDefaultSound( std::string("car_skid.wav") );
 
+    _moveTable.setDefaultSound( std::string( "" ) );
     _moveTable.addSound( Material::WOOD_DOOR, std::string("door_creak2.wav") );
 }

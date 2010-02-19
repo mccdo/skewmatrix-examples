@@ -8,6 +8,7 @@
 #include <osgbBullet/OSGToCollada.h>
 #include <osgbBullet/MotionState.h>
 #include <osgbBullet/CollisionShapes.h>
+#include <osgbBullet/ColladaUtils.h>
 #include <osgbBullet/Utils.h>
 
 #include <osgAudio/SoundManager.h>
@@ -27,13 +28,61 @@
 #include <iostream>
 
 
+// Collision flags, mainly so that the door doesn't collide with the doorframe.
+enum CollisionTypes {
+    COL_DOOR = 0x1 << 0,
+    COL_DOORFRAME = 0x1 << 1,
+    COL_DEFAULT = 0x1 << 2,
+};
+unsigned int doorCollidesWith( COL_DEFAULT );
+unsigned int doorFrameCollidesWith( COL_DEFAULT );
+unsigned int defaultCollidesWith( COL_DOOR | COL_DOORFRAME | COL_DEFAULT );
+
+
+typedef std::set< btCollisionObject* > BulletObjList;
+BulletObjList g_movingList;
 
 void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 {
+    // Loop over all collision ovjects and find the ones that are
+    // moving. Need this for door creak.
+    const btCollisionObjectArray& colObjs( world->getCollisionObjectArray() );
+    int idx( world->getNumCollisionObjects() );
+    while( idx-- )
+    {
+        btCollisionObject* co( colObjs[ idx ] );
+        btVector3 v( co->getInterpolationLinearVelocity() );
+        v[0] = osg::absolute< float >( v[0] );
+        v[1] = osg::absolute< float >( v[1] );
+        v[2] = osg::absolute< float >( v[2] );
+
+        BulletObjList::const_iterator it( g_movingList.find( co ) );
+        if( ( v[0] > .9f ) || ( v[1] > .9f ) || ( v[2] > .9f ) )
+        {
+            // It's moving.
+            if( it == g_movingList.end() )
+            {
+                g_movingList.insert( co );
+                osg::notify( osg::ALWAYS ) << osgbBullet::asOsgVec3( v ) << std::endl;
+                // We didn't already play a sound, so play one now.
+                Material* mc = ( Material* )( co->getUserPointer() );
+                if( mc != NULL )
+                    SoundUtilities::instance()->move( mc->_mat, osg::Vec3( 0, 0, 0 ) );
+            }
+        }
+        else
+        {
+            // it's not moving
+            if( it != g_movingList.end() )
+                g_movingList.erase( it );
+        }
+    }
+
+
+    // Loop over all collision points and find impacts.
     const btCollisionDispatcher* dispatch( static_cast< const btCollisionDispatcher* >( world->getDispatcher() ) );
     const int numManifolds( dispatch->getNumManifolds() );
 
-    int idx;
 	for( idx=0; idx < numManifolds; idx++ )
 	{
 		const btPersistentManifold* contactManifold( dispatch->getManifoldByIndexInternal( idx ) );
@@ -78,7 +127,7 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 }
 
 
-btDynamicsWorld*
+btDiscreteDynamicsWorld*
 initPhysics()
 {
     btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
@@ -90,7 +139,7 @@ initPhysics()
     btAxisSweep3* as3( new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 ) );
     btBroadphaseInterface* inter = as3;
 
-    btDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
+    btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
     dynamicsWorld->setGravity( btVector3( 0, 0, -10 ) );
 
     dynamicsWorld->setInternalTickCallback( (btInternalTickCallback) triggerSounds);
@@ -114,7 +163,7 @@ cleanupPhysics( btDynamicsWorld* bw )
 
 
 void
-enablePhysics( osg::Node* root, const std::string& nodeName, btDynamicsWorld* bw )
+enablePhysics( osg::Node* root, const std::string& nodeName, btDiscreteDynamicsWorld* bw )
 {
     osgwTools::FindNamedNode fnn( nodeName );
     root->accept( fnn );
@@ -163,14 +212,14 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDynamicsWorld* bw
     motion->setParentTransform( parentTrans );
     rb->setMotionState( motion );
     rb->setAngularVelocity( btVector3( 3., 5., 0. ) );
-    bw->addRigidBody( rb );
+    bw->addRigidBody( rb, COL_DEFAULT, defaultCollidesWith );
 }
 
 
 class InteractionManipulator : public osgGA::GUIEventHandler
 {
 public:
-    InteractionManipulator( btDynamicsWorld* world, osg::Group* sg )
+    InteractionManipulator( btDiscreteDynamicsWorld* world, osg::Group* sg )
       : _world( world ),
         _sg( sg )
     {}
@@ -214,7 +263,7 @@ public:
     }
 
 protected:
-    btDynamicsWorld* _world;
+    btDiscreteDynamicsWorld* _world;
     osg::ref_ptr< osg::Group > _sg;
 
     osg::Vec3 _viewPos, _viewDir;
@@ -258,42 +307,83 @@ protected:
         btRigidBody* body = new btRigidBody( rbinfo );
         body->setLinearVelocity( osgbBullet::asBtVector3( _viewDir * 50. ) );
         body->setUserPointer( new Material( Material::FLUBBER ) );
-        _world->addRigidBody( body );
+        _world->addRigidBody( body, COL_DEFAULT, defaultCollidesWith );
 
         SoundUtilities::instance()->playSound( _viewPos, "phasers3.wav" );
     }
 };
 
 
-void
-addSound( osg::Node* node, const std::string& fileName )
+btRigidBody* doorFrame;
+osg::BoundingSphere doorbb;
+
+osg::Transform*
+makeDoorFrame( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
 {
-    const bool addToCache( true );
-    osg::ref_ptr< osgAudio::Sample > sample( osgAudio::SoundManager::instance()->getSample( fileName, addToCache ) );
-    osg::notify( osg::WARN ) << "Loading sample: " << fileName << std::endl;
+    // Create the door frame scene graph, rooted at an AMT.
+    osgwTools::AbsoluteModelTransform* amt = new osgwTools::AbsoluteModelTransform;
 
-    // Create a new soundstate, give it the name of the file we loaded.
-    osg::ref_ptr< osgAudio::SoundState > soundState( new osgAudio::SoundState( fileName ) );
-    soundState->setSample( sample.get() );
-    soundState->setGain( 1.0f );
-    soundState->setReferenceDistance( 60 );
-    soundState->setRolloffFactor( 3 );
-    soundState->setPlay( true );
-    soundState->setLooping( true );
+    osg::Node* node = osgDB::readNodeFile( "USMC23_1019.ASM.ive" );
+    amt->addChild( node );
 
-    // Allocate a hardware soundsource to this soundstate (priority 10)
-    soundState->allocateSource( 10, false );
 
-    // Add the soundstate to the sound manager, so we can find it later on if we want to
-    osgAudio::SoundManager::instance()->addSoundState( soundState.get() );
+    // Create matrix transform to simulate an accumulated transformation in the hierarchy.
+    // Create a NodePath from it.
+    // In a real app, NodePath would come from visiting the parents.
+    osg::Matrix m( osg::Matrix::rotate( osg::PI, osg::Vec3( 1., 0., 0. ) ) *
+            osg::Matrix::translate( osg::Vec3( 0., 0., 7.1 ) ) );
+    osg::MatrixTransform* mt = new osg::MatrixTransform( m );
+    osg::NodePath np;
+    np.push_back( mt );
 
-    soundState->apply();
+    btRigidBody* rb = osgbBullet::loadDae( amt, np, "USMC23_1019.ASM1.dae" );
+    bw->addRigidBody( rb, COL_DOORFRAME, doorFrameCollidesWith );
+    rb->setActivationState( DISABLE_DEACTIVATION );
 
-    osg::ref_ptr< osgAudio::SoundUpdateCB > soundCB( new osgAudio::SoundUpdateCB );
-    soundCB->setSoundState( soundState );
-    node->setUpdateCallback( soundCB.get() );
+    // Save RB in global, and also record its initial position in the InteractionManipulator (for reset)
+    doorFrame=rb;
+
+    rb->setUserPointer( new Material( Material::WOOD_DOOR ) );
+
+    return( amt );
 }
 
+btRigidBody* door;
+osg::Transform*
+makeDoor( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
+{
+    // Create the door scene graph, rooted at an AMT.
+    osgwTools::AbsoluteModelTransform* amt = new osgwTools::AbsoluteModelTransform;
+    amt->setDataVariance( osg::Object::DYNAMIC );
+
+    osg::Node* node = osgDB::readNodeFile( "USMC23_1020.ASM.ive" );
+    amt->addChild( node );
+
+    // We'll use this later to position the debug axes.
+    doorbb = node->getBound();
+
+
+    // Create matrix transform to simulate an accumulated transformation in the hierarchy.
+    // Create a NodePath from it.
+    // In a real app, NodePath would come from visiting the parents.
+    osg::Matrix m( osg::Matrix::rotate( osg::PI_2, osg::Vec3( 0., 1., 0. ) ) * 
+        osg::Matrix::translate( osg::Vec3( -.26, -3.14, .2 ) ) );
+    osg::MatrixTransform* mt = new osg::MatrixTransform( m );
+    osg::NodePath np;
+    np.push_back( mt );
+
+    btRigidBody* rb = osgbBullet::loadDae( amt, np, "USMC23_1020.ASM1.dae" );
+    bw->addRigidBody( rb, COL_DOOR, doorCollidesWith );
+    rb->setActivationState( DISABLE_DEACTIVATION );
+
+    // Save RB in global, and also record its initial position in the InteractionManipulator (for reset)
+    door=rb;
+    im->setInitialTransform( rb, m );
+
+    rb->setUserPointer( new Material( Material::WOOD_DOOR ) );
+
+    return( amt );
+}
 
 int main( int argc,
           char * argv[] )
@@ -315,7 +405,7 @@ int main( int argc,
     osg::ref_ptr< osgAudio::SoundRoot > soundRoot( new osgAudio::SoundRoot );
     root->addChild( soundRoot.get() );
 
-    btDynamicsWorld* bw = initPhysics();
+    btDiscreteDynamicsWorld* bw = initPhysics();
 
     InteractionManipulator* im = new InteractionManipulator( bw, root.get() );
     viewer.addEventHandler( im );
@@ -333,6 +423,26 @@ int main( int argc,
     enablePhysics( root.get(), "block", bw );
 
     SoundUtilities::instance()->addSound( block, "engine.wav" );
+
+
+    // Add door
+    osg::Transform* doorRoot = makeDoor( bw, im );
+    root->addChild( doorRoot );
+
+    // Add doorframe
+    osg::Transform* doorFrameRoot = makeDoorFrame( bw, im );
+    root->addChild( doorFrameRoot );
+
+    // create hinge constraint
+    {
+        // creating a hinge constraint and adding to world
+        osg::Vec3 hingePivotPoint( 0.f, -1.5f, -.12f );
+        const btVector3 btPivot( hingePivotPoint.x(), hingePivotPoint.y(), hingePivotPoint.z() ); 
+        btVector3 btAxisA( 1., 0., 0. ); // rotation about the x axis
+        btHingeConstraint* hinge = new btHingeConstraint( *door, btPivot, btAxisA );
+        hinge->setLimit( -2.8f, 0.f );
+        bw->addConstraint(hinge, true);
+    }
 
 
     viewer.setSceneData( root.get() );
