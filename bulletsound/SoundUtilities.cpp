@@ -50,7 +50,7 @@ SoundUtilities::~SoundUtilities()
 
 
 void
-SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile )
+SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile, float gain )
 {
     const bool addToCache( true );
     osg::ref_ptr< osgAudio::Sample > sample(
@@ -65,12 +65,13 @@ SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile )
 }
 
 void
-SoundUtilities::playSound( const osg::Vec3& pos, osgAudio::Sample* sample )
+SoundUtilities::playSound( const osg::Vec3& pos, osgAudio::Sample* sample, float gain )
 {
     _soundState->setPosition( pos );
     _soundState->setSample( sample );
     _soundState->setPlay( true );
 	_soundState->setPitch( 1 );
+    _soundState->setGain( gain );
 
 	osgAudio::SoundManager::instance()->pushSoundEvent( _soundState.get() );
 
@@ -102,7 +103,7 @@ SoundUtilities::move( const Material::MaterialType& mat, const osg::Vec3& pos )
 
 
 void
-SoundUtilities::addSound( osg::Node* node, const std::string& soundFile )
+SoundUtilities::addSound( osg::Node* node, const std::string& soundFile, float gain )
 {
     const bool addToCache( true );
     osg::ref_ptr< osgAudio::Sample > sample(
@@ -117,7 +118,7 @@ SoundUtilities::addSound( osg::Node* node, const std::string& soundFile )
 }
 
 void
-SoundUtilities::addSound( osg::Node* node, osgAudio::Sample* sample )
+SoundUtilities::addSound( osg::Node* node, osgAudio::Sample* sample, float gain )
 {
     osg::ref_ptr< osgAudio::SoundState > ss( new osgAudio::SoundState );
     if( !ss.valid() )
@@ -132,6 +133,7 @@ SoundUtilities::addSound( osg::Node* node, osgAudio::Sample* sample )
     ss->allocateSource( 0 );
     ss->setSample( sample );
     ss->setPlay( true );
+    ss->setGain( gain );
     osgAudio::SoundManager::instance()->addSoundState( ss.get() );
 
     osg::ref_ptr< osgAudio::SoundUpdateCB > callback( new osgAudio::SoundUpdateCB( ss.get() ) );
@@ -150,6 +152,52 @@ SoundUtilities::removeSound( osg::Node* node )
         return( false );
 }
 
+void
+SoundUtilities::setAmbient( const std::string& soundFile, float gain )
+{
+    osgAudio::SoundState* ambientSoundState(
+        osgAudio::SoundManager::instance()->findSoundState( "ambient" ) );
+    if( ambientSoundState == NULL )
+    {
+        const bool addToCache( true );
+        osg::ref_ptr< osgAudio::Sample > sample(
+            osgAudio::SoundManager::instance()->getSample( soundFile, addToCache ) );
+        if( !sample.valid() )
+        {
+            osg::notify( osg::WARN ) << "SoundUtilities: Can't obtain ambient sample for \"" << soundFile << "\"." << std::endl;
+            return;
+        }
+
+        ambientSoundState = new osgAudio::SoundState( "ambient" );
+        ambientSoundState->allocateSource( 10 );
+        ambientSoundState->setSample( sample );
+        ambientSoundState->setAmbient( true );
+        ambientSoundState->setLooping( true );
+        ambientSoundState->setPlay( true );
+
+        osgAudio::SoundManager::instance()->addSoundState( ambientSoundState );
+    }
+
+    ambientSoundState->setGain( gain );
+}
+void
+SoundUtilities::setAmbient( bool ambientEnabled )
+{
+    osgAudio::SoundState* ambientSoundState(
+        osgAudio::SoundManager::instance()->findSoundState( "ambient" ) );
+    if( ambientSoundState != NULL )
+        ambientSoundState->setPlay( ambientEnabled );
+}
+bool
+SoundUtilities::getAmbient() const
+{
+    osgAudio::SoundState* ambientSoundState(
+        osgAudio::SoundManager::instance()->findSoundState( "ambient" ) );
+    if( ambientSoundState != NULL )
+        return( ambientSoundState->getPlay() );
+    else
+        return( false );
+}
 
 
 void
@@ -173,7 +221,7 @@ SoundUtilities::init()
     _collideTable.addSound( Material::CEMENT,
         Material::FLUBBER, std::string("metal_crunch.wav") );
     _collideTable.addSound( Material::CEMENT,
-        Material::SILLY_PUTTY, std::string("phasers3.wav") );
+        Material::SILLY_PUTTY, std::string("cannon_x.wav") );
 
     _slideTable.setDefaultSound( std::string("car_skid.wav") );
 

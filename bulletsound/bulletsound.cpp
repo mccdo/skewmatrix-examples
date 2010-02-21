@@ -28,6 +28,56 @@
 #include <iostream>
 
 
+class SoundManipulator : public osgGA::GUIEventHandler
+{
+public:
+    SoundManipulator( osg::Node* toggleNode )
+      : _toggleNode( toggleNode )
+    {
+        SoundUtilities::instance()->setAmbient( std::string( "cricket1.wav", 2.f ) );
+    }
+
+    bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& )
+    {
+        switch( ea.getEventType() )
+        {
+            case osgGA::GUIEventAdapter::KEYUP:
+            {
+                if( (ea.getKey()=='s') || (ea.getKey()=='S') )
+                {
+                    // Toggle sound the toggleNode.
+                    if( !_toggleNode.valid() )
+                        return( false );
+
+                    osgAudio::SoundUpdateCB* ucb = dynamic_cast<
+                        osgAudio::SoundUpdateCB* >( _toggleNode->getUpdateCallback() );
+                    osgAudio::SoundState* ss( ucb->getSoundState() );
+                    ss->setPlay( !( ss->getPlay() ) );
+
+                    return true;
+                }
+                else if( (ea.getKey()=='a') || (ea.getKey()=='A') )
+                {
+                    // Toggle ambient sound
+                    SoundUtilities::instance()->setAmbient( 
+                        !( SoundUtilities::instance()->getAmbient() ) );
+                    return true;
+                }
+
+                return false;
+            }
+
+            default:
+            break;
+        }
+        return false;
+    }
+
+protected:
+    osg::ref_ptr< osg::Node > _toggleNode;
+};
+
+
 // Collision flags, mainly so that the door doesn't collide with the doorframe.
 enum CollisionTypes {
     COL_DOOR = 0x1 << 0,
@@ -63,11 +113,11 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             if( it == g_movingList.end() )
             {
                 g_movingList.insert( co );
-                osg::notify( osg::ALWAYS ) << osgbBullet::asOsgVec3( v ) << std::endl;
                 // We didn't already play a sound, so play one now.
                 Material* mc = ( Material* )( co->getUserPointer() );
                 if( mc != NULL )
-                    SoundUtilities::instance()->move( mc->_mat, osg::Vec3( 0, 0, 0 ) );
+                    SoundUtilities::instance()->move( mc->_mat,
+                        osgbBullet::asOsgVec3( co->getWorldTransform().getOrigin() ) );
             }
         }
         else
@@ -309,7 +359,7 @@ protected:
         body->setUserPointer( new Material( Material::FLUBBER ) );
         _world->addRigidBody( body, COL_DEFAULT, defaultCollidesWith );
 
-        SoundUtilities::instance()->playSound( _viewPos, "phasers3.wav" );
+        SoundUtilities::instance()->playSound( _viewPos, "phasers3.wav", 1.5f );
     }
 };
 
@@ -422,7 +472,9 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    SoundUtilities::instance()->addSound( block, "engine.wav" );
+    SoundUtilities::instance()->addSound( block, "engine.wav", .1 );
+
+    viewer.addEventHandler( new SoundManipulator( block ) );
 
 
     // Add door
