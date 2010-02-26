@@ -61,7 +61,7 @@ SoundUtilities::playSound( const osg::Vec3& pos, const std::string& soundFile, f
         return;
     }
 
-    playSound( pos, sample.get() );
+    playSound( pos, sample.get(), gain );
 }
 
 void
@@ -114,7 +114,7 @@ SoundUtilities::addSound( osg::Node* node, const std::string& soundFile, float g
         return;
     }
 
-    addSound( node, sample.get() );
+    addSound( node, sample.get(), gain );
 }
 
 void
@@ -126,7 +126,6 @@ SoundUtilities::addSound( osg::Node* node, osgAudio::Sample* sample, float gain 
         osg::notify( osg::WARN ) << "SoundUtilities: Can't allocate _soundState in addSound()." << std::endl;
         return;
     }
-    ss->setGain( .8f );
     ss->setReferenceDistance( 60 );
     ss->setRolloffFactor( 3 );
     ss->setLooping( true );
@@ -219,9 +218,9 @@ SoundUtilities::init()
 
     _collideTable.setDefaultSound( std::string("hit_with_frying_pan_y.wav") );
     _collideTable.addSound( Material::CEMENT,
-        Material::FLUBBER, std::string("metal_crunch.wav") );
+        Material::FLUBBER, std::string("blip.wav") );
     _collideTable.addSound( Material::CEMENT,
-        Material::SILLY_PUTTY, std::string("cannon_x.wav") );
+        Material::SILLY_PUTTY, std::string("boing.wav") );
 
     _slideTable.setDefaultSound( std::string("car_skid.wav") );
 

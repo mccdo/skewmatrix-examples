@@ -34,7 +34,7 @@ public:
     SoundManipulator( osg::Node* toggleNode )
       : _toggleNode( toggleNode )
     {
-        SoundUtilities::instance()->setAmbient( std::string( "cricket1.wav", 2.f ) );
+        SoundUtilities::instance()->setAmbient( std::string( "cricket1.wav" ) );
     }
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& )
@@ -359,7 +359,7 @@ protected:
         body->setUserPointer( new Material( Material::FLUBBER ) );
         _world->addRigidBody( body, COL_DEFAULT, defaultCollidesWith );
 
-        SoundUtilities::instance()->playSound( _viewPos, "phasers3.wav", 1.5f );
+        SoundUtilities::instance()->playSound( _viewPos, "cannon_x.wav", 1.5f );
     }
 };
 
@@ -472,7 +472,7 @@ int main( int argc,
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
 
-    SoundUtilities::instance()->addSound( block, "engine.wav", .1 );
+    SoundUtilities::instance()->addSound( block, "engine.wav", .35 );
 
     viewer.addEventHandler( new SoundManipulator( block ) );
 
