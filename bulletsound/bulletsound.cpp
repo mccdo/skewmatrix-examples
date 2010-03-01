@@ -150,7 +150,7 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             location = osgbBullet::asOsgVec3( pt.getPositionWorldOnA() );
             if( pt.m_lifeTime < 3 )
             {
-                if( pt.m_appliedImpulse > 10. ) // Kind of a hack.
+                if( pt.m_appliedImpulse > 5. ) // Kind of a hack.
                     collide = true;
             }
             else
@@ -441,8 +441,8 @@ int main( int argc,
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 600 );
     osgGA::TrackballManipulator * tb = new osgGA::TrackballManipulator();
-    tb->setHomePosition( osg::Vec3( 10, -55, 13 ),
-                        osg::Vec3( 0, 0, -4 ),
+    tb->setHomePosition( osg::Vec3( 10, -45, 10 ),
+                        osg::Vec3( 0, 0, 2 ),
                         osg::Vec3( 0, 0, 1 ) );
     viewer.setCameraManipulator( tb );
 
@@ -461,13 +461,13 @@ int main( int argc,
     viewer.addEventHandler( im );
 
     btRigidBody* groundRB;
-    root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -10.f ), bw, &groundRB ) );
+    root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -1.f ), bw, &groundRB ) );
     groundRB->setUserPointer( new Material( Material::CEMENT ) );
 
-    osg::MatrixTransform* mt( new osg::MatrixTransform( osg::Matrix::translate( 0., 0., 10. ) ) );
+    osg::MatrixTransform* mt( new osg::MatrixTransform( osg::Matrix::translate( 0.5, 0., 14. ) ) );
     root->addChild( mt );
 
-    osg::Node* block = osgDB::readNodeFile( "block.osg" );
+    osg::Node* block = osgDB::readNodeFile( "C:/TestData/usmc34/osg/00top.ive" );
     block->setName( "block" );
     mt->addChild( block );
     enablePhysics( root.get(), "block", bw );
