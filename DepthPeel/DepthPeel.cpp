@@ -70,7 +70,8 @@ main( int argc, char** argv )
     dpg->setMinPasses( 9 );
 
     dpg->addChild( osgwTools::readNodeFiles(
-        "trteapot.osg.(.8).scale.(-1.3,-1.3,0.1).trans trdrawer.osg.90,0,0.rot pliers-big.osg.(.6).scale.-90,0,0.rot.(-.5,-1,0).trans" ) );
+        "trteapot.osg.(.8).scale.(-1.3,-1.3,0.1).trans trdrawer.osg.90,0,0.rot" ) );
+//        "trteapot.osg.(.8).scale.(-1.3,-1.3,0.1).trans trdrawer.osg.90,0,0.rot pliers-big.osg.(.6).scale.-90,0,0.rot.(-.5,-1,0).trans" ) );
 //        "trcow.osg.0,10,0.trans trteapot.osg.5.scale.0,-4,0.trans /Projects/temp2/drawer.ive plaincow.osg.10,5,0.trans" ) );
     if( dpg->getNumChildren() == 0 )
         return( 1 );
@@ -80,7 +81,7 @@ main( int argc, char** argv )
 
     osgViewer::Viewer viewer;
     viewer.addEventHandler( new osgViewer::StatsHandler );
-    //viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
+    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setSceneData( root.get() );
 
     // TBD

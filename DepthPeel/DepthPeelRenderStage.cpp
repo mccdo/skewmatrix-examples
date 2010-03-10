@@ -261,6 +261,8 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
     //
     // Layer creation
 
+    drawStart( renderInfo, previous );
+
     // Count the number of actual passes. If numPasses > 0, then
     // passCount will equal numPasses. But if numPasses == 0, then
     // passCount will equal the actual number of passes rendered.
@@ -270,7 +272,7 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
     {
         peelBegin( passCount, ctxInfo, state, fboExt, gl2Ext );
 
-        drawImplementation( renderInfo, previous );
+        RenderBin::drawImplementation( renderInfo, previous );
 
         peelEnd( passCount );
         passCount++;
@@ -283,7 +285,7 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         peelBegin( passCount, ctxInfo, state, fboExt, gl2Ext );
 
         ctxInfo._glBeginQuery( GL_SAMPLES_PASSED_ARB, ctxInfo._queryID );
-        drawImplementation( renderInfo, previous );
+        RenderBin::drawImplementation( renderInfo, previous );
         ctxInfo._glEndQuery( GL_SAMPLES_PASSED_ARB );
 
         GLint numPixels;
@@ -295,6 +297,8 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         peelEnd( passCount );
         passCount++;
     }
+
+    drawEnd( renderInfo, previous );
 
     osg::notify( osg::DEBUG_FP ) << "ctx " << contextID <<
         ", passCount " << passCount <<
@@ -341,6 +345,7 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         glEnable( GL_BLEND );
         glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
+        ctxInfo._glActiveTexture( GL_TEXTURE0 + _dpg->getTextureUnit() );
         int idx;
         for( idx=passCount-1; idx>=0; idx-- )
         {
@@ -368,6 +373,84 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
     }
 }
 
+void
+DepthPeelRenderStage::drawStart( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+{
+    osg::State& state = *renderInfo.getState();
+
+    if (!_viewport)
+    {
+        osg::notify( osg::FATAL ) << "Error: cannot draw stage due to undefined viewport."<< std::endl;
+        return;
+    }
+
+    // set up the back buffer.
+    state.applyAttribute(_viewport.get());
+
+    glScissor( static_cast<int>(_viewport->x()),
+               static_cast<int>(_viewport->y()),
+               static_cast<int>(_viewport->width()),
+               static_cast<int>(_viewport->height()) );
+    //cout << "    clearing "<<this<< "  "<<_viewport->x()<<","<< _viewport->y()<<","<< _viewport->width()<<","<< _viewport->height()<<std::endl;
+    state.applyMode( GL_SCISSOR_TEST, true );
+
+    // glEnable( GL_DEPTH_TEST );
+
+    // set which color planes to operate on.
+    if (_colorMask.valid()) _colorMask->apply(state);
+    else glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+
+    if (_clearMask & GL_COLOR_BUFFER_BIT)
+    {
+        glClearColor( _clearColor[0], _clearColor[1], _clearColor[2], _clearColor[3]);
+    }
+
+    if (_clearMask & GL_DEPTH_BUFFER_BIT)
+    {
+        glClearDepth( _clearDepth);
+        glDepthMask ( GL_TRUE );
+        state.haveAppliedAttribute( osg::StateAttribute::DEPTH );
+    }
+
+    if (_clearMask & GL_STENCIL_BUFFER_BIT)
+    {
+        glClearStencil( _clearStencil);
+        glStencilMask ( ~0u );
+        state.haveAppliedAttribute( osg::StateAttribute::STENCIL );
+    }
+
+    if (_clearMask & GL_ACCUM_BUFFER_BIT)
+    {
+        glClearAccum( _clearAccum[0], _clearAccum[1], _clearAccum[2], _clearAccum[3]);
+    }
+
+
+#ifdef USE_SCISSOR_TEST
+    glDisable( GL_SCISSOR_TEST );
+#endif
+
+    glMatrixMode( GL_MODELVIEW );
+    glLoadIdentity();
+
+    // apply the positional state.
+    if (_inheritedPositionalStateContainer.valid())
+    {
+        _inheritedPositionalStateContainer->draw(state, previous, &_inheritedPositionalStateContainerMatrix);
+    }
+
+    // apply the positional state.
+    if (_renderStageLighting.valid())
+    {
+        _renderStageLighting->draw(state, previous, 0);
+    }
+}
+void
+DepthPeelRenderStage::drawEnd( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+{
+    osg::State& state = *renderInfo.getState();
+    state.apply();
+}
+
 
 void
 DepthPeelRenderStage::peelBegin( unsigned int pass, PerContextInfo& ctxInfo, osg::State& state, osg::FBOExtensions* fboExt, osg::GL2Extensions* gl2Ext )
@@ -390,9 +473,12 @@ DepthPeelRenderStage::peelBegin( unsigned int pass, PerContextInfo& ctxInfo, osg
         PerLayerInfo prevLayerInfo( ctxInfo._layersList[ pass - 1 ] );
         depthTexID = prevLayerInfo._depthTex;
     }
+    ctxInfo._glActiveTexture( GL_TEXTURE0 + _dpg->getTextureUnit() );
     state.setActiveTextureUnit( _dpg->getTextureUnit() );
     glBindTexture( GL_TEXTURE_2D, depthTexID );
     state.haveAppliedTextureAttribute( _dpg->getTextureUnit(), osg::StateAttribute::TEXTURE );
+
+    glClear( _clearMask );
 
     errorCheck( "in DPRS peelBegin" );
 

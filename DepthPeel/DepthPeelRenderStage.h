@@ -49,6 +49,9 @@ public:
 protected:
     ~DepthPeelRenderStage();
 
+    void drawStart( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous );
+    void drawEnd( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous );
+
     void internalInit();
     void errorCheck( const std::string& msg );
     void checkFBOStatus( osg::FBOExtensions* fboExt );
