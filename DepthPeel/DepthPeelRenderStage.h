@@ -18,8 +18,9 @@
 #    define OSG297
 #  else
      // OSG_MIN_VERSION_REQUIRED didn't exist until svn head
-     // following the 2.9.6 release
-#    define OSG297
+     // following the 2.9.6 release, and 2.8 branch following 2.8.2.
+     // Either way, OSG297 is false (we're on an older rev).
+#    undef OSG297
 #  endif
 #else
 #  undef OSG297
