@@ -169,7 +169,7 @@ SoundUtilities::setAmbient( const std::string& soundFile, float gain )
 
         ambientSoundState = new osgAudio::SoundState( "ambient" );
         ambientSoundState->allocateSource( 10 );
-        ambientSoundState->setSample( sample );
+        ambientSoundState->setSample( sample.get() );
         ambientSoundState->setAmbient( true );
         ambientSoundState->setLooping( true );
         ambientSoundState->setPlay( true );
