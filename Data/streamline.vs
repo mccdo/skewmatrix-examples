@@ -27,7 +27,9 @@ void main()
     // emulate motion.
     float timeOffset = ( ((float)gl_InstanceID) / totalInstances ) * repeatTime;
     float repTimer = mod( ( osg_SimulationTime - timeOffset ), repeatTime );
-    float alpha = fadeTime - min( repTimer, fadeTime );
+    // Normalize by fadetime so that we actually get a long smooth
+    // alpha gradient across all of the streamline
+    float alpha = (fadeTime - min( repTimer, fadeTime ))/fadeTime;
     vec4 color = gl_Color;
     color.a *= alpha;
     gl_FrontColor = color;
