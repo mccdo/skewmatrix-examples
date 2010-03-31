@@ -1,6 +1,6 @@
 // Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
-#include <osg/Version>
+#include <osgwTools/Version.h>
 #include <osg/Node>
 #include <osg/Group>
 #include <osg/Camera>
@@ -19,20 +19,6 @@
 
 #include <string>
 
-
-// Define "OSG297" only if the OSG verion is at least v2.9.7.
-// This code will also compile on 2.8.2.
-#if defined( OSG_MIN_VERSION_REQUIRED )
-#  if OSG_MIN_VERSION_REQUIRED( 2,9,7 )
-#    define OSG297
-#  else
-     // OSG_MIN_VERSION_REQUIRED didn't exist until svn head
-     // following the 2.9.6 release
-#    define OSG297
-#  endif
-#else
-#  undef OSG297
-#endif
 
 
 osg::StateSet*
@@ -96,7 +82,7 @@ main( int argc, char** argv )
     // For now, must set clear mask to 0 so that top-level camera
     // doesn't clear after DPRS draws.
     viewer.getCamera()->setClearMask( 0 );
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
     // Version is 2.9.7 or greater; master camera clear mask shouls automatically
     // propogate down to slave cameras.
 #else

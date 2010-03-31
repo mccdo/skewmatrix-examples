@@ -1,6 +1,6 @@
 // Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
-#include <osg/Version>
+#include <osgwTools/Version.h>
 #include <osg/Node>
 #include <osg/Group>
 #include <osg/Camera>
@@ -37,7 +37,7 @@ DepthPeelRenderStage::PerLayerInfo::init( unsigned int pass, const osg::State& s
     const unsigned int contextID( state.getContextID() );
     osg::FBOExtensions* fboExt( osg::FBOExtensions::instance( contextID, true ) );
 
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
     fboExt->glGenFramebuffers( 1, &_fbo );
     fboExt->glBindFramebuffer( GL_DRAW_FRAMEBUFFER_EXT, _fbo );
 #else
@@ -67,7 +67,7 @@ DepthPeelRenderStage::PerLayerInfo::init( unsigned int pass, const osg::State& s
     _depthTex = ctxInfo._depthTex[ pass & 0x1 ];
     osg::notify( osg::DEBUG_FP ) << "DPRS: Pass " << pass << ", idx " << (pass & 0x1) << ", depthTex " << _depthTex << std::endl;
 
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
     fboExt->glFramebufferTexture2D( GL_DRAW_FRAMEBUFFER_EXT,
         GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, _colorTex, 0 );
     fboExt->glFramebufferTexture2D( GL_DRAW_FRAMEBUFFER_EXT,
@@ -318,7 +318,7 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
     osg::FrameBufferObject* destination = _dpg->getDestination();
     if( destination == NULL )
     {
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
         fboExt->glBindFramebuffer( GL_DRAW_FRAMEBUFFER_EXT, 0 );
 #else
         fboExt->glBindFramebufferEXT( GL_DRAW_FRAMEBUFFER_EXT, 0 );
@@ -456,7 +456,7 @@ void
 DepthPeelRenderStage::peelBegin( unsigned int pass, PerContextInfo& ctxInfo, osg::State& state, osg::FBOExtensions* fboExt, osg::GL2Extensions* gl2Ext )
 {
     PerLayerInfo layerInfo( ctxInfo._layersList[ pass ] );
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
     fboExt->glBindFramebuffer( GL_DRAW_FRAMEBUFFER_EXT, layerInfo._fbo );
 #else
     fboExt->glBindFramebufferEXT( GL_DRAW_FRAMEBUFFER_EXT, layerInfo._fbo );
@@ -535,7 +535,7 @@ DepthPeelRenderStage::errorCheck( const std::string& msg )
 void
 DepthPeelRenderStage::checkFBOStatus( osg::FBOExtensions* fboExt )
 {
-#ifdef OSG297
+#if( OSGWORKS_OSG_VERSION > 20907 )
     const GLenum fbStatus( fboExt->glCheckFramebufferStatus( GL_DRAW_FRAMEBUFFER_EXT ) );
 #else
     const GLenum fbStatus( fboExt->glCheckFramebufferStatusEXT( GL_DRAW_FRAMEBUFFER_EXT ) );
