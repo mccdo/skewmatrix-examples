@@ -216,14 +216,18 @@ SoundUtilities::init()
     osgAudio::SoundManager::instance()->addSoundState( _soundState.get() );
 
 
-    _collideTable.setDefaultSound( std::string("hit_with_frying_pan_y.wav") );
+    std::string sound("hit_with_frying_pan_y.wav");
+    _collideTable.setDefaultSound( sound );
+    sound = "blip.wav";
     _collideTable.addSound( Material::CEMENT,
-        Material::FLUBBER, std::string("blip.wav") );
+                           Material::FLUBBER, sound );
+    sound = "boing.wav";
     _collideTable.addSound( Material::CEMENT,
-        Material::SILLY_PUTTY, std::string("boing.wav") );
-
-    _slideTable.setDefaultSound( std::string("car_skid.wav") );
-
-    _moveTable.setDefaultSound( std::string( "" ) );
-    _moveTable.addSound( Material::WOOD_DOOR, std::string("door_creak2.wav") );
+                           Material::SILLY_PUTTY, sound );
+    sound = "car_skid.wav";
+    _slideTable.setDefaultSound( sound );
+    sound = "";
+    _moveTable.setDefaultSound( sound );
+    sound = "door_creak2.wav";
+    _moveTable.addSound( Material::WOOD_DOOR, sound );
 }
