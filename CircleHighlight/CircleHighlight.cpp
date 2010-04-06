@@ -43,20 +43,158 @@
 
 #include <iostream>
 
-int getCircleSubdivisions( double distanceOverRadius )
+
+// class to handle events with a pick
+class PickHandler : public osgGA::GUIEventHandler 
 {
-    // Subdivision segments is inversely proportional to distance/radius.
-    // If distance/radiue if halved, segments is doubled, and vice versa.
-    // Basis: subdivide circle with 60 segments at a distance/radius of 10 units.
-    int outSubdivision = (int)( 10.f / distanceOverRadius * 60.f );
+public: 
+    PickHandler( osg::Group* labelGroup )
+      : _labelGroup( labelGroup ),
+        _mx(0.0),
+        _my(0.0)
+    {}
+    ~PickHandler() {}
 
-    osg::notify( osg::DEBUG_FP ) << "  Using subdiv " << outSubdivision << std::endl;
+    bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+    {
+        osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
+        if (!viewer) return false;
 
-    return( outSubdivision );
-} // getCircleSubdivisions
+        switch(ea.getEventType())
+        {
+            case(osgGA::GUIEventAdapter::PUSH):
+            case(osgGA::GUIEventAdapter::MOVE):
+            {
+                _mx = ea.getX();
+                _my = ea.getY();
 
-osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
-                                 const osg::Node& pickedNode, const std::string& labelText )
+                // false: pass to camera manipulator.
+                return false;
+            } // PUSH/MOVE
+            case(osgGA::GUIEventAdapter::RELEASE):
+            {
+                if (_mx == ea.getX() && _my == ea.getY())
+                {
+                    // only do a pick if the mouse hasn't moved
+                    osg::ref_ptr< osg::Node > subgraph( pick( ea, viewer ) );
+                    if( (subgraph != NULL) && (_labelGroup != NULL) )
+                        _labelGroup->addChild( subgraph.get() );
+                } // if
+
+                // false: pass to camera manipulator.
+                return false;
+            } // RELEASE
+
+            case( osgGA::GUIEventAdapter::KEYDOWN ):
+            {
+                switch( ea.getKey() )
+                {
+                    case( osgGA::GUIEventAdapter::KEY_Delete ):
+                    {
+                        _labelGroup->removeChildren( 0, _labelGroup->getNumChildren() );
+                        return( true );
+                    }
+                    case( 't' ):
+                    case( 'T' ):
+                    {
+                        _labelGroup->setNodeMask( ~( _labelGroup->getNodeMask() ) );
+                        return( true );
+                    }
+                }
+                return( false );
+            }
+
+            default:
+                return false;
+        } // switch event type
+    } // handle
+
+
+    // App needs to explicitly set a text label, and the event handler
+    // will use it for the next pick. Alternatively, the event handler
+    // could be modified to support a callback, written by the app, to
+    // supply the text label.
+    void setLabelText( const std::string& labelText )
+    {
+        _labelText = labelText;
+    }
+
+    const std::string& getLabelText() const
+    {
+        return( _labelText );
+    }
+
+protected:
+    osg::Node* pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer );
+
+    osg::Node* createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
+        const osg::Node& pickedNode, const std::string& labelText );
+
+    float _mx,_my;
+
+    std::string _labelText;
+
+    osg::ref_ptr< osg::Group > _labelGroup;
+}; // PickHandler
+
+
+osg::Node*
+PickHandler::pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
+{
+    osg::notify( osg::DEBUG_FP )<<std::endl;
+
+    osg::Node* node = 0;
+    osg::Group* parent = 0;
+
+    osgUtil::PolytopeIntersector* picker;
+    double mx = ea.getXnormalized();
+    double my = ea.getYnormalized();
+    double w = 0.05;
+    double h = 0.05;
+    picker = new osgUtil::PolytopeIntersector( osgUtil::Intersector::PROJECTION, mx-w, my-h, mx+w, my+h );
+    osgUtil::IntersectionVisitor iv(picker);
+
+    viewer->getCamera()->accept(iv);
+
+    if (picker->containsIntersections())
+    {
+        osgUtil::PolytopeIntersector::Intersection intersection = picker->getFirstIntersection();
+
+        osg::notify( osg::DEBUG_FP )<<"Picked "<<intersection.localIntersectionPoint<<std::endl
+            <<"  Distance to ref. plane "<<intersection.distance
+            <<", max. dist "<<intersection.maxDistance
+            <<", primitive index "<<intersection.primitiveIndex
+            <<", numIntersectionPoints "
+            <<intersection.numIntersectionPoints
+            <<std::endl;
+
+        osg::NodePath& nodePath = intersection.nodePath;
+        node = (nodePath.size()>=1)?nodePath[nodePath.size()-1]:0;
+        parent = (nodePath.size()>=2)?dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]):0;
+
+        osg::Node* pickedNode( node );
+        if( (node->asGroup() == NULL) && (parent != NULL) )
+            pickedNode = parent;
+        if( pickedNode )
+        {
+            osg::notify( osg::DEBUG_FP ) <<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
+
+            osg::Vec3 eyepoint, center, up;
+            viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
+            osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(
+                eyepoint, nodePath, *pickedNode, _labelText );
+
+            return( highlightGraph.release() );
+        } // if
+    } // if intersections
+
+    return( NULL );
+} // pick
+
+
+osg::Node*
+PickHandler::createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
+                                   const osg::Node& pickedNode, const std::string& labelText )
 {
     const std::string textAnnotation( labelText );
 
@@ -65,7 +203,12 @@ osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& 
     const double radius( sphere.radius() );
     osg::Vec3 dVec( sphere.center() - eyePoint );
     const double distance( dVec.length() );
-    const int subdivisions( getCircleSubdivisions( distance / radius ) );
+
+    // Subdivision segments is inversely proportional to distance/radius.
+    // If distance/radiue if halved, segments is doubled, and vice versa.
+    // Basis: subdivide circle with 60 segments at a distance/radius of 10 units.
+    const int subdivisions( (int)( 10.f / ( distance / radius ) * 60.f ) );
+    osg::notify( osg::DEBUG_FP ) << "  Using subdiv " << subdivisions << std::endl;
 
     // Determine text pos and line segment endpoints.
     osg::Vec3 textDirection( 1., 1., 0. );
@@ -141,137 +284,16 @@ osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& 
     amt->getOrCreateStateSet()->setRenderBinDetails( 1000, "RenderBin" );
     amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
 
-    return ( amt.release() );
+    return( amt.release() );
 } // createCircleHighlight
 
-// class to handle events with a pick
-class PickHandler : public osgGA::GUIEventHandler 
-{
-public: 
 
-    PickHandler():
-        _mx(0.0),_my(0.0) {}
-
-    ~PickHandler() {}
-
-    bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
-    {
-        osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
-        if (!viewer) return false;
-
-        switch(ea.getEventType())
-        {
-            case(osgGA::GUIEventAdapter::PUSH):
-            case(osgGA::GUIEventAdapter::MOVE):
-            {
-                _mx = ea.getX();
-                _my = ea.getY();
-                return false;
-            } // PUSH/MOVE
-            case(osgGA::GUIEventAdapter::RELEASE):
-            {
-                if (_mx == ea.getX() && _my == ea.getY())
-                {
-                    // only do a pick if the mouse hasn't moved
-                    pick( ea, viewer );
-                } // if
-
-                // return false so that TrackballManipulator 'throw' works.
-                return false;
-            } // RELEASE
-
-            default:
-                return false;
-        } // switch event type
-    } // handle
-
-    void pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
-    {
-        osg::Node* scene = viewer->getSceneData();
-        if (!scene) return;
-
-        osg::notify( osg::DEBUG_FP )<<std::endl;
-
-        osg::Node* node = 0;
-        osg::Group* parent = 0;
-
-        osgUtil::PolytopeIntersector* picker;
-        double mx = ea.getXnormalized();
-        double my = ea.getYnormalized();
-        double w = 0.05;
-        double h = 0.05;
-        picker = new osgUtil::PolytopeIntersector( osgUtil::Intersector::PROJECTION, mx-w, my-h, mx+w, my+h );
-        osgUtil::IntersectionVisitor iv(picker);
-
-        viewer->getCamera()->accept(iv);
-
-        if (picker->containsIntersections())
-        {
-            osgUtil::PolytopeIntersector::Intersection intersection = picker->getFirstIntersection();
-
-            osg::notify( osg::DEBUG_FP )<<"Picked "<<intersection.localIntersectionPoint<<std::endl
-                <<"  Distance to ref. plane "<<intersection.distance
-                <<", max. dist "<<intersection.maxDistance
-                <<", primitive index "<<intersection.primitiveIndex
-                <<", numIntersectionPoints "
-                <<intersection.numIntersectionPoints
-                <<std::endl;
-
-            osg::NodePath& nodePath = intersection.nodePath;
-            node = (nodePath.size()>=1)?nodePath[nodePath.size()-1]:0;
-            parent = (nodePath.size()>=2)?dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]):0;
-
-            osg::Node* pickedNode( node );
-            if( (node->asGroup() == NULL) && (parent != NULL) )
-                pickedNode = parent;
-            if( pickedNode )
-            {
-                 osg::notify( osg::DEBUG_FP ) <<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
-
-                // highlighting
-                static osg::ref_ptr<osg::Node> currentHighlight;
-
-                // remove existing highlight if necessary
-                if(currentHighlight.valid())
-                {
-                    viewer->getSceneData()->asGroup()->removeChild(currentHighlight.get());
-                    currentHighlight = 0; // dispose of it
-                } // if
-
-                osg::Vec3 eyepoint, center, up;
-                viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
-                osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(
-                    eyepoint, nodePath, *pickedNode, _labelText );
-                if(viewer->getSceneData()->asGroup())
-                {
-                    viewer->getSceneData()->asGroup()->addChild(highlightGraph);
-                    currentHighlight = highlightGraph;
-                } // if
-            } // if
-
-        } // if intersections
-    } // pick
-
-    void setLabelText( const std::string& labelText )
-    {
-        _labelText = labelText;
-    }
-
-    const std::string& getLabelText() const
-    {
-        return( _labelText );
-    }
-
-protected:
-    float _mx,_my;
-
-    std::string _labelText;
-}; // PickHandler
 
 int main( int argc, char **argv )
 {
-    osg::ref_ptr<osg::Node> loadedModel( NULL );
-    
+    osg::ref_ptr< osg::Group > root( new osg::Group );
+
+    osg::ref_ptr< osg::Node > loadedModel( NULL );
     // load the scene.
     if (argc>1)
         loadedModel = osgDB::readNodeFile(argv[1]);
@@ -284,11 +306,15 @@ int main( int argc, char **argv )
         osg::notify( osg::FATAL ) << argv[0] <<": No data loaded." << std::endl;
         return 1;
     } // if
-    
+    root->addChild( loadedModel.get() );
+
+    osg::ref_ptr< osg::Group > labelGroup( new osg::Group );
+    root->addChild( labelGroup.get() );
+
     // create the view of the scene.
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 30, 30, 800, 600 );
-    viewer.setSceneData(loadedModel.get());
+    viewer.setSceneData( root.get() );
 
     // create a tracball manipulator to move the camera around in response to keyboard/mouse events
     viewer.setCameraManipulator( new osgGA::TrackballManipulator );
@@ -297,11 +323,15 @@ int main( int argc, char **argv )
     viewer.addEventHandler(statesetManipulator.get());
 
     // add the pick handler
-    PickHandler* ph = new PickHandler();
+    PickHandler* ph = new PickHandler( labelGroup.get() );
     viewer.addEventHandler( ph );
     ph->setLabelText( "test label 01234" );
 
     viewer.realize();
+
+    osg::notify( osg::ALWAYS ) << "Click on the model to highlight." << std::endl;
+    osg::notify( osg::ALWAYS ) << "\tT/t\ttoggle highlights on/off." << std::endl;
+    osg::notify( osg::ALWAYS ) << "\tDel\tClear all highlights." << std::endl;
 
     // main loop (note, window toolkits which take control over the main loop will require a window redraw callback containing the code below.)
     while(!viewer.done())
