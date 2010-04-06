@@ -43,20 +43,17 @@
 
 #include <iostream>
 
-bool configureCircleSettings(const osg::Vec3 eyePoint, const osg::Node& pickedNode, double &outSubdivision, double &outRadius)
+int getCircleSubdivisions( double distanceOverRadius )
 {
-    // <<<>>> Paul: Replace with code to actually calculate these
-    outSubdivision = 64;
-    outRadius = 10.0;
-    osg::BoundingSphere sphere;
-    sphere = pickedNode.getBound();
-    outRadius = sphere.radius();
+    // Subdivision segments is inversely proportional to distance/radius.
+    // If distance/radiue if halved, segments is doubled, and vice versa.
+    // Basis: subdivide circle with 60 segments at a distance/radius of 10 units.
+    int outSubdivision = (int)( 10.f / distanceOverRadius * 60.f );
 
-    osg::notify( osg::ALWAYS ) << "  Using radius " << outRadius << std::endl;
-    osg::notify( osg::ALWAYS ) << "  Using subdiv " << outSubdivision << std::endl;
+    osg::notify( osg::DEBUG_FP ) << "  Using subdiv " << outSubdivision << std::endl;
 
-    return true;
-} // configureCircleSettings
+    return( outSubdivision );
+} // getCircleSubdivisions
 
 osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
                                  const osg::Node& pickedNode, const std::string& labelText )
@@ -64,11 +61,21 @@ osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& 
     const std::string textAnnotation( labelText );
 
     // determine Subdivision and Radius settings for current viewpoint (stub for now)
-    double subdivision, radius;
-    configureCircleSettings(eyePoint, pickedNode, subdivision, radius);
+    osg::BoundingSphere sphere( pickedNode.getBound() );
+    const double radius( sphere.radius() );
+    osg::Vec3 dVec( sphere.center() - eyePoint );
+    const double distance( dVec.length() );
+    const int subdivisions( getCircleSubdivisions( distance / radius ) );
+
+    // Determine text pos and line segment endpoints.
+    osg::Vec3 textDirection( 1., 1., 0. );
+    textDirection.normalize();
+    osg::Vec3 lineEnd( textDirection * radius );
+    osg::Vec3 textPos( textDirection * radius * 1.4f );
 
     // Structure:
     //   AbsoluteModelTransform->AutoTransform->CircleGeode->Circle (Geometry)
+    //                                                   \-->Line segment (Geometry)
     //                                                   \-->Label (osgText::Text)
     osg::ref_ptr< osg::Geode > circlegeode;
     osg::ref_ptr< osg::AutoTransform > circleat;
@@ -80,7 +87,8 @@ osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& 
     position = nodePath[nodePath.size()-1]->getBound().center();
 
     circlegeode = new osg::Geode;
-    circlegeode->addDrawable( osgwTools::makeWireCircle( radius, subdivision) );
+    osg::Geometry* circleGeom( osgwTools::makeWireCircle( radius, subdivisions ) );
+    circlegeode->addDrawable( circleGeom );
     circleat = new osg::AutoTransform();
     circleat->addChild( circlegeode.get() );
     circleat->setAutoRotateMode( osg::AutoTransform::ROTATE_TO_CAMERA );
@@ -90,27 +98,48 @@ osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& 
     amt->addChild( circleat.get() );
     amt->setMatrix(matrix); // setup Absolute Model Transform to mimic transforms of nodepath
 
-    // turn off depth testing on our subgraph
-    amt->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-    amt->getOrCreateStateSet()->setRenderBinDetails(25, "RenderBin");
-    amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    // Add a line segment from the circle to the text.
+    {
+        osg::Geometry* lineGeom = new osg::Geometry;
+        circlegeode->addDrawable( lineGeom );
+
+        osg::Vec3Array* verts( new osg::Vec3Array );
+        verts->resize( 2 );
+        (*verts)[ 0 ] = lineEnd;
+        (*verts)[ 1 ] = textPos;
+        lineGeom->setVertexArray( verts );
+
+        lineGeom->setColorArray( circleGeom->getColorArray() );
+        lineGeom->setColorBinding( osg::Geometry::BIND_OVERALL );
+
+        lineGeom->addPrimitiveSet( new osg::DrawArrays( GL_LINES, 0, 2 ) );
+    }
 
     if(!textAnnotation.empty())
     {
         // Add text annotation
-        osg::Vec3 pos( osg::Vec3( 0.707, 0.707, 0. ) * radius * 1.4f );
-
         osg::ref_ptr<osgText::Text> text = new osgText::Text;
-        text->setPosition( pos );
+        text->setPosition( textPos );
         text->setFont( "arial.ttf" );
         text->setText( textAnnotation );
         text->setColor( osg::Vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
-        text->setCharacterSize( radius / 5.f ); // need to be variable? TBD
         text->setAlignment( osgText::Text::LEFT_BOTTOM );
         text->setAxisAlignment( osgText::Text::XY_PLANE );
 
+        // Character size goes up as a function of distance.
+        // Basis: Size is 0.1 for a distance of 10.0.
+        float size( 0.01f * distance );
+        osg::notify( osg::DEBUG_FP ) << "    Using char size " << size << std::endl;
+        text->setCharacterSize( size );
+
         circlegeode->addDrawable( text.get() );
     } // if
+
+    // TBD application responsibility?
+    // turn off depth testing on our subgraph
+    amt->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    amt->getOrCreateStateSet()->setRenderBinDetails( 1000, "RenderBin" );
+    amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
 
     return ( amt.release() );
 } // createCircleHighlight
@@ -144,7 +173,7 @@ public:
                 if (_mx == ea.getX() && _my == ea.getY())
                 {
                     // only do a pick if the mouse hasn't moved
-                    pick(ea,viewer);
+                    pick( ea, viewer );
                 } // if
 
                 // return false so that TrackballManipulator 'throw' works.
@@ -156,12 +185,12 @@ public:
         } // switch event type
     } // handle
 
-    void pick(const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer)
+    void pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
     {
         osg::Node* scene = viewer->getSceneData();
         if (!scene) return;
 
-        osg::notify(osg::NOTICE)<<std::endl;
+        osg::notify( osg::DEBUG_FP )<<std::endl;
 
         osg::Node* node = 0;
         osg::Group* parent = 0;
@@ -180,7 +209,7 @@ public:
         {
             osgUtil::PolytopeIntersector::Intersection intersection = picker->getFirstIntersection();
 
-            osg::notify(osg::NOTICE)<<"Picked "<<intersection.localIntersectionPoint<<std::endl
+            osg::notify( osg::DEBUG_FP )<<"Picked "<<intersection.localIntersectionPoint<<std::endl
                 <<"  Distance to ref. plane "<<intersection.distance
                 <<", max. dist "<<intersection.maxDistance
                 <<", primitive index "<<intersection.primitiveIndex
@@ -197,7 +226,7 @@ public:
                 pickedNode = parent;
             if( pickedNode )
             {
-                std::cout<<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
+                 osg::notify( osg::DEBUG_FP ) <<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
 
                 // highlighting
                 static osg::ref_ptr<osg::Node> currentHighlight;
@@ -209,8 +238,10 @@ public:
                     currentHighlight = 0; // dispose of it
                 } // if
 
-                osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(osg::Vec3(0., 0., 0.),
-                    nodePath, *pickedNode, _labelText );
+                osg::Vec3 eyepoint, center, up;
+                viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
+                osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(
+                    eyepoint, nodePath, *pickedNode, _labelText );
                 if(viewer->getSceneData()->asGroup())
                 {
                     viewer->getSceneData()->asGroup()->addChild(highlightGraph);
@@ -250,7 +281,7 @@ int main( int argc, char **argv )
         loadedModel = osgDB::readNodeFile( "cow.osg" );
     if (!loadedModel) 
     {
-        std::cout << argv[0] <<": No data loaded." << std::endl;
+        osg::notify( osg::FATAL ) << argv[0] <<": No data loaded." << std::endl;
         return 1;
     } // if
     
