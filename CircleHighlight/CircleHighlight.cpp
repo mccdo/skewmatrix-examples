@@ -23,9 +23,7 @@
 #include <osg/io_utils>
 
 #include <osg/AutoTransform>
-#include <osg/Quat>
 #include <osg/StateSet>
-#include <osg/PositionAttitudeTransform>
 
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/PolytopeIntersector>
@@ -45,87 +43,76 @@
 
 #include <iostream>
 
-bool configureCircleSettings(const osg::Vec3 eyePoint, const osg::NodePath& nodePath, double &outSubdivision, double &outRadius)
+bool configureCircleSettings(const osg::Vec3 eyePoint, const osg::Node& pickedNode, double &outSubdivision, double &outRadius)
 {
-	// <<<>>> Paul: Replace with code to actually calculate these
-	outSubdivision = 64;
-	outRadius = 10.0;
-	osg::BoundingSphere sphere;
-	osg::Node *node = nodePath[nodePath.size()-1];
-	if(node)
-	{
-		sphere = node->getBound();
-		outRadius = sphere.radius();
-	} // if
-	return true;
+    // <<<>>> Paul: Replace with code to actually calculate these
+    outSubdivision = 64;
+    outRadius = 10.0;
+    osg::BoundingSphere sphere;
+    sphere = pickedNode.getBound();
+    outRadius = sphere.radius();
+
+    osg::notify( osg::ALWAYS ) << "  Using radius " << outRadius << std::endl;
+    osg::notify( osg::ALWAYS ) << "  Using subdiv " << outSubdivision << std::endl;
+
+    return true;
 } // configureCircleSettings
 
-osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& nodePath, const std::string textAnnotation)
+osg::Node *createCircleHighlight(const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
+                                 const osg::Node& pickedNode, const std::string& labelText )
 {
-	double Subdivision, Radius;
+    const std::string textAnnotation( labelText );
 
-	// determine Subdivision and Radius settings for current viewpoint (stub for now)
-	configureCircleSettings(eyePoint, nodePath, Subdivision, Radius);
+    // determine Subdivision and Radius settings for current viewpoint (stub for now)
+    double subdivision, radius;
+    configureCircleSettings(eyePoint, pickedNode, subdivision, radius);
 
-	// Structure: AbsoluteModelTransform->AutoTransform->CirclePAT->CircleGeode->Circle
-	//                                \-->TextPAT->AutoTransform->TextGeode->Text
+    // Structure:
+    //   AbsoluteModelTransform->AutoTransform->CircleGeode->Circle (Geometry)
+    //                                                   \-->Label (osgText::Text)
     osg::ref_ptr< osg::Geode > circlegeode;
     osg::ref_ptr< osg::AutoTransform > circleat;
-	osg::ref_ptr< osg::PositionAttitudeTransform > circlepat;
     osg::ref_ptr< osgwTools::AbsoluteModelTransform > amt;
 
-	// determine position of highlight
-	osg::Vec3 position(0., 0., 0.);
-	osg::Matrix matrix = osg::computeLocalToWorld(nodePath);
-	position = nodePath[nodePath.size()-1]->getBound().center();
+    // determine position of highlight
+    osg::Vec3 position(0., 0., 0.);
+    osg::Matrix matrix = osg::computeLocalToWorld(nodePath);
+    position = nodePath[nodePath.size()-1]->getBound().center();
 
-	circlegeode = new osg::Geode;
-    circlegeode->addDrawable( osgwTools::makeWireCircle( Radius, Subdivision) );
+    circlegeode = new osg::Geode;
+    circlegeode->addDrawable( osgwTools::makeWireCircle( radius, subdivision) );
     circleat = new osg::AutoTransform();
-	circlepat = new osg::PositionAttitudeTransform;
-    circlepat->addChild( circlegeode.get() );
-    circleat->addChild( circlepat.get() );
-    circleat->setAutoRotateMode(osg::AutoTransform::ROTATE_TO_SCREEN);
+    circleat->addChild( circlegeode.get() );
+    circleat->setAutoRotateMode( osg::AutoTransform::ROTATE_TO_CAMERA );
     circleat->setAutoScaleToScreen(false);
     circleat->setPosition(position);
-	amt = new osgwTools::AbsoluteModelTransform;
-	amt->addChild( circleat.get() );
-	amt->setMatrix(matrix); // setup Absolute Model Transform to mimic transforms of nodepath
-	// deal with default orientation of osgwTools:Shape circle not being suitable for AutoTransform
-	circlepat->setAttitude(osg::Quat(90.0f, osg::Vec3d(1., 0., 0.)));
+    amt = new osgwTools::AbsoluteModelTransform;
+    amt->addChild( circleat.get() );
+    amt->setMatrix(matrix); // setup Absolute Model Transform to mimic transforms of nodepath
 
-	// turn off depth testing on our subgraph
-	amt->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-	amt->getOrCreateStateSet()->setRenderBinDetails(25, "RenderBin");
-	amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    // turn off depth testing on our subgraph
+    amt->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    amt->getOrCreateStateSet()->setRenderBinDetails(25, "RenderBin");
+    amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
 
-	if(!textAnnotation.empty())
-	{
-	    osg::ref_ptr< osg::AutoTransform > textat;
-		osg::ref_ptr< osg::PositionAttitudeTransform > textpat;
-	    osg::ref_ptr< osg::Geode > textgeode;
-		// Add text annotation
-	    textat = new osg::AutoTransform();
-		osg::ref_ptr<osgText::Text> text = new osgText::Text;
-		std::string timesFont("fonts/arial.ttf");
-		text->setCharacterSize(15); // need to be variable?
-		text->setText(textAnnotation);
-		text->setFont(timesFont);
-		text->setColor(osg::Vec4(1.0f,1.0f,1.0f,1.0f));
-		text->setAlignment(osgText::Text::CENTER_BASE_LINE);
-		textgeode = new osg::Geode;
-		textgeode->addDrawable( text.get() );
-		textpat = new osg::PositionAttitudeTransform;
-		textpat->addChild( textat.get() );
-		textpat->setPosition(osg::Vec3(0, Radius, 0));
-		amt->addChild( textpat.get() );
-		textat->addChild( textgeode.get() );
-		textat->setAutoRotateMode(osg::AutoTransform::ROTATE_TO_SCREEN);
-		textat->setAutoScaleToScreen(true);
-		textat->setPosition(position);
-	} // if
+    if(!textAnnotation.empty())
+    {
+        // Add text annotation
+        osg::Vec3 pos( osg::Vec3( 0.707, 0.707, 0. ) * radius * 1.4f );
 
-	return ( amt.release() );
+        osg::ref_ptr<osgText::Text> text = new osgText::Text;
+        text->setPosition( pos );
+        text->setFont( "arial.ttf" );
+        text->setText( textAnnotation );
+        text->setColor( osg::Vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
+        text->setCharacterSize( radius / 5.f ); // need to be variable? TBD
+        text->setAlignment( osgText::Text::LEFT_BOTTOM );
+        text->setAxisAlignment( osgText::Text::XY_PLANE );
+
+        circlegeode->addDrawable( text.get() );
+    } // if
+
+    return ( amt.release() );
 } // createCircleHighlight
 
 // class to handle events with a pick
@@ -159,7 +146,9 @@ public:
                     // only do a pick if the mouse hasn't moved
                     pick(ea,viewer);
                 } // if
-                return true;
+
+                // return false so that TrackballManipulator 'throw' works.
+                return false;
             } // RELEASE
 
             default:
@@ -203,77 +192,73 @@ public:
             node = (nodePath.size()>=1)?nodePath[nodePath.size()-1]:0;
             parent = (nodePath.size()>=2)?dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]):0;
 
-			if (node)
-			{
-				std::cout<<"  Hits "<<node->className()<< " named " << node->getName() << ". nodePath size "<<nodePath.size()<<std::endl;    
+            osg::Node* pickedNode( node );
+            if( (node->asGroup() == NULL) && (parent != NULL) )
+                pickedNode = parent;
+            if( pickedNode )
+            {
+                std::cout<<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
 
-				// highlighting
-				static osg::ref_ptr<osg::Node> currentHighlight;
+                // highlighting
+                static osg::ref_ptr<osg::Node> currentHighlight;
 
-				// remove existing highlight if necessary
-				if(currentHighlight.valid())
-				{
-					viewer->getSceneData()->asGroup()->removeChild(currentHighlight.get());
-					currentHighlight = 0; // dispose of it
-				} // if
+                // remove existing highlight if necessary
+                if(currentHighlight.valid())
+                {
+                    viewer->getSceneData()->asGroup()->removeChild(currentHighlight.get());
+                    currentHighlight = 0; // dispose of it
+                } // if
 
-				osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(osg::Vec3(0., 0., 0.), nodePath, node->getName());
-				if(viewer->getSceneData()->asGroup())
-				{
-					viewer->getSceneData()->asGroup()->addChild(highlightGraph);
-					currentHighlight = highlightGraph;
-				} // if
-			} // if
+                osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(osg::Vec3(0., 0., 0.),
+                    nodePath, *pickedNode, _labelText );
+                if(viewer->getSceneData()->asGroup())
+                {
+                    viewer->getSceneData()->asGroup()->addChild(highlightGraph);
+                    currentHighlight = highlightGraph;
+                } // if
+            } // if
 
         } // if intersections
     } // pick
 
-protected:
+    void setLabelText( const std::string& labelText )
+    {
+        _labelText = labelText;
+    }
 
+    const std::string& getLabelText() const
+    {
+        return( _labelText );
+    }
+
+protected:
     float _mx,_my;
+
+    std::string _labelText;
 }; // PickHandler
 
 int main( int argc, char **argv )
 {
-    osg::ref_ptr<osg::Node> loadedModel;
+    osg::ref_ptr<osg::Node> loadedModel( NULL );
     
     // load the scene.
-    if (argc>1) loadedModel = osgDB::readNodeFile(argv[1]);
-    
-    // if not loaded assume no arguments passed in, try use default mode instead.
-//    if (!loadedModel) loadedModel = osgDB::readNodeFile("dumptruck.osg");
-    if (!loadedModel) loadedModel = osgDB::readNodeFile("C:\\Users\\Xenon\\Documents\\AlphaPixel\\Documents\\Contracting\\Skew\\Training\\BallAero\\321893main_ISS-hi-res-lwo\\ISS models 2008\\15A-noanim.ive");
-    
+    if (argc>1)
+        loadedModel = osgDB::readNodeFile(argv[1]);
+    if (!loadedModel)
+        loadedModel = osgDB::readNodeFile("C:\\Users\\Xenon\\Documents\\AlphaPixel\\Documents\\Contracting\\Skew\\Training\\BallAero\\321893main_ISS-hi-res-lwo\\ISS models 2008\\15A-noanim.ive");
+    if (!loadedModel)
+        loadedModel = osgDB::readNodeFile( "cow.osg" );
     if (!loadedModel) 
     {
         std::cout << argv[0] <<": No data loaded." << std::endl;
         return 1;
     } // if
     
-    // create the window to draw to.
-    osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-    traits->x = 200;
-    traits->y = 200;
-    traits->width = 800;
-    traits->height = 600;
-    traits->windowDecoration = true;
-    traits->doubleBuffer = true;
-    traits->sharedContext = 0;
-
-    osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
-    osgViewer::GraphicsWindow* gw = dynamic_cast<osgViewer::GraphicsWindow*>(gc.get());
-    if (!gw)
-    {
-        osg::notify(osg::NOTICE)<<"Error: unable to create graphics window."<<std::endl;
-        return 1;
-    } // if
-
     // create the view of the scene.
     osgViewer::Viewer viewer;
-    viewer.getCamera()->setGraphicsContext(gc.get());
-    viewer.getCamera()->setViewport(0,0,800,600);
+    viewer.setUpViewInWindow( 30, 30, 800, 600 );
     viewer.setSceneData(loadedModel.get());
-    
+
     // create a tracball manipulator to move the camera around in response to keyboard/mouse events
     viewer.setCameraManipulator( new osgGA::TrackballManipulator );
 
@@ -281,7 +266,9 @@ int main( int argc, char **argv )
     viewer.addEventHandler(statesetManipulator.get());
 
     // add the pick handler
-    viewer.addEventHandler(new PickHandler());
+    PickHandler* ph = new PickHandler();
+    viewer.addEventHandler( ph );
+    ph->setLabelText( "test label 01234" );
 
     viewer.realize();
 
