@@ -34,6 +34,7 @@ LINK_DIRECTORIES(
 )
 
 
+ADD_SUBDIRECTORY( CircleHighlight )
 ADD_SUBDIRECTORY( DepthOfField )
 ADD_SUBDIRECTORY( DepthOfField2 )
 ADD_SUBDIRECTORY( depthpartition )
