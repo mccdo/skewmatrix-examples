@@ -10,7 +10,7 @@
 #include <osg/NodeVisitor>
 #include <osg/Geometry>
 #include <iostream>
-#include <osgwTools/version.h>
+#include <osgwTools/Version.h>
 
 
 
