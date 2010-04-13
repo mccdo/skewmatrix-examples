@@ -29,22 +29,22 @@ int main( int argc, char** argv )
     osg::Node* model( osgDB::readNodeFile( filename ) );
     if( model == NULL )
         return( 1 );
-    group->addChild( model );
 
     CharacterFixVisitor cfv;
 #ifdef USE_COW
     cfv.setTexturePathControl( false );
-    cfv.setScaleFactor( 0.5 );
     cfv.setReverseNormals( false );
 #else
     cfv.setTexturePathControl( true, "Images/" );
     // Use default scaling, cm->ft
     // Reverse the normals. For some reason, they are backwards.
 #endif
-    model->accept( cfv );
+    osg::Node* processedModel = cfv.process( *model );
+
+    group->addChild( processedModel );
 
     // Output to .osg.
-    osgDB::writeNodeFile( *model, ioPath + std::string( "/out.osg" ) );
+    osgDB::writeNodeFile( *processedModel, ioPath + std::string( "/out.osg" ) );
 
     // Add axes
     osg::Node* axes( osgDB::readNodeFile( "axes.osg" ) );

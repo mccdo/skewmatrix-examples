@@ -3,6 +3,7 @@
 #include "CharacterFixVisitor.h"
 
 #include <osgDB/FileNameUtils>
+#include <osg/MatrixTransform>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Texture>
@@ -21,6 +22,18 @@ CharacterFixVisitor::CharacterFixVisitor( osg::NodeVisitor::TraversalMode mode )
 {
 }
 
+osg::Node*
+CharacterFixVisitor::process( osg::Node& node )
+{
+    node.accept( *this );
+
+    osg::ref_ptr< osg::MatrixTransform > mt = new osg::MatrixTransform(
+        osg::Matrix::scale( _scale, _scale, _scale ) );
+    mt->addChild( &node );
+    return( mt.release() );
+}
+
+// Set/get the vertex scaling.
 void
 CharacterFixVisitor::setScaleFactor( double scale )
 {
@@ -31,6 +44,9 @@ CharacterFixVisitor::getScaleFactor() const
 {
     return( _scale );
 }
+// Set/get whether or not normals should be flipped, or
+// reversed, or nagated. The .fbx models seem to have them
+// pointing inwards for some reason.
 void
 CharacterFixVisitor::setReverseNormals( bool reverse )
 {
@@ -41,6 +57,9 @@ CharacterFixVisitor::getReverseNormals() const
 {
     return( _reverseNormals );
 }
+// Set how to handle texture paths. The paths can be stripped from
+// the names by setting strip=true. When stripping is on, the
+// prefex can be prepended to the bare file name.
 void
 CharacterFixVisitor::setTexturePathControl( bool strip, const std::string& prefix )
 {
@@ -54,9 +73,11 @@ CharacterFixVisitor::apply( osg::Group& node )
 {
     osg::notify( osg::DEBUG_INFO ) << "Group" << std::endl;
 
+    // Process the StateSet
     if( node.getStateSet() != NULL )
         applyStateSet( node.getStateSet() );
 
+    // Traverse
     preTraverse( node );
     traverse( node );
     postTraverse( node );
@@ -65,11 +86,15 @@ CharacterFixVisitor::apply( osg::Group& node )
 void
 CharacterFixVisitor::apply( osg::Node& node )
 {
-    osg::notify( osg::DEBUG_INFO ) << "Node" << std::endl;
+    // Something other than a Group or a Geode. This is unusual.
+    osg::notify( osg::WARN ) << "CharacterFixVisitor: Unsupported Node: " <<
+        node.className() << std::endl;
 
+    // Process the StateSet
     if( node.getStateSet() != NULL )
         applyStateSet( node.getStateSet() );
 
+    // no-op.
     traverse( node );
 }
 
@@ -78,9 +103,11 @@ CharacterFixVisitor::apply( osg::Geode& node )
 {
     osg::notify( osg::DEBUG_INFO ) << "Geode" << std::endl;
 
+    // Process the StateSet
     if( node.getStateSet() != NULL )
         applyStateSet( node.getStateSet() );
 
+    // Loop over Drawables and process any Geometry objects that we find.
     unsigned int idx;
     for( idx=0; idx<node.getNumDrawables(); idx++ )
     {
@@ -90,11 +117,14 @@ CharacterFixVisitor::apply( osg::Geode& node )
             applyGeometry( geom );
     }
 
+    // no-op.
     traverse( node );
 }
 
 
 
+// Before traversing further, remove children that we
+// know we don't want, such as LightSource and CameraView.
 void
 CharacterFixVisitor::preTraverse( osg::Group& grp )
 {
@@ -103,6 +133,8 @@ CharacterFixVisitor::preTraverse( osg::Group& grp )
     for( idx=0; idx<grp.getNumChildren(); idx++ )
     {
         osg::Node* node = grp.getChild( idx );
+        if( node->className() == std::string( "LightSource" ) )
+            removeList.push_back( node );
         if( node->className() == std::string( "CameraView" ) )
             removeList.push_back( node );
     }
@@ -115,6 +147,10 @@ CharacterFixVisitor::preTraverse( osg::Group& grp )
             ", class: " << (*it)->className() << std::endl;
     }
 }
+
+// After traversing, remove all children that meet the following
+// conditions: They are Groups, they have no children, and they
+// are not osgAnimation::Bone objects.
 void
 CharacterFixVisitor::postTraverse( osg::Group& grp )
 {
@@ -139,6 +175,8 @@ CharacterFixVisitor::postTraverse( osg::Group& grp )
     }
 }
 
+// Handle texture path control based on the strip and prefix settings.
+// Set a default material. Enable normal rescaling.
 void
 CharacterFixVisitor::applyStateSet( osg::StateSet* ss )
 {
@@ -162,9 +200,9 @@ CharacterFixVisitor::applyStateSet( osg::StateSet* ss )
             std::string texName( image->getFileName() );
             osg::notify( osg::DEBUG_INFO ) << "Input texture name: " << texName << std::endl;
 
-            std::string fileOnly( osgDB::getSimpleFileName( texName ) );
-            std::string outName( _texturePrefix + fileOnly );
+            const std::string outName( _texturePrefix + osgDB::getSimpleFileName( texName ) );
             osg::notify( osg::DEBUG_INFO ) << "  Output texture name: " << outName << std::endl;
+
             image->setFileName( outName );
         }
     }
@@ -177,10 +215,13 @@ CharacterFixVisitor::applyStateSet( osg::StateSet* ss )
 
     ss->setMode( GL_RESCALE_NORMAL, osg::StateAttribute::ON );
 
+    // This was used during debug. No longer needed.
     //ss->setMode( GL_CULL_FACE, osg::StateAttribute::ON );
     //ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
     //ss->setTextureMode( 0, GL_TEXTURE_2D, osg::StateAttribute::OFF );
 }
+
+// For normals, flip them if requested to do so.
 void
 CharacterFixVisitor::applyGeometry( osg::Geometry* geom )
 {

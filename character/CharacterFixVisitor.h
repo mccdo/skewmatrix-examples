@@ -12,6 +12,11 @@ class CharacterFixVisitor : public osg::NodeVisitor
 public:
     CharacterFixVisitor( osg::NodeVisitor::TraversalMode mode=osg::NodeVisitor::TRAVERSE_ALL_CHILDREN );
 
+    // Do not call node->accept(visitor).
+    // Instead call this: visitor.process(node) and use the returned
+    // value as the top of the model subgraph.
+    osg::Node* process( osg::Node& node );
+
     // Default: 0.032808 (converts centimaters to feet).
     void setScaleFactor( double scale );
     double getScaleFactor() const;
