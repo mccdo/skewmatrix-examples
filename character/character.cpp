@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
 
+#include <osgDB/FileNameUtils>
 #include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
 #include <osgViewer/Viewer>
@@ -13,38 +14,44 @@
 
 int main( int argc, char** argv )
 {
-    // Specific to my computer.
-    std::string ioPath( "C:/Projects/animation/US_A5_Walk_sideways" );
-    osgDB::Registry::instance()->getDataFilePathList().push_front( ioPath );
+    if( argc != 2 )
+    {
+        osg::notify( osg::FATAL ) << "Usage: character <filename>" << std::endl;
+        return( 1 );
+    }
 
-//#define USE_COW
-#ifdef USE_COW
-    std::string filename( "cow.osg" );
-#else
-    //std::string filename( "US_A5_Walk_sideways_Feet_Cross_over_v01.fbx" );
-    std::string filename( "US_A5_Walk_sideways_Foot_to_Foot_v01.fbx" );
-#endif
+    const std::string inFile( argv[ 1 ] );
+    const std::string filePath( osgDB::getFilePath( inFile ) );
+    const std::string baseName( osgDB::getStrippedName( inFile ) );
+    const std::string outFile( filePath + "/" + baseName + ".osg" );
+    osg::notify( osg::DEBUG_INFO ) << "In: " << inFile << std::endl;
+    osg::notify( osg::DEBUG_INFO ) << "Out: " << outFile << std::endl;
+
 
     osg::ref_ptr< osg::Group > group( new osg::Group );
-    osg::Node* model( osgDB::readNodeFile( filename ) );
+    osg::Node* model( osgDB::readNodeFile( inFile ) );
     if( model == NULL )
         return( 1 );
 
     CharacterFixVisitor cfv;
-#ifdef USE_COW
-    cfv.setTexturePathControl( false );
-    cfv.setReverseNormals( false );
-#else
-    cfv.setTexturePathControl( true, "Images/" );
-    // Use default scaling, cm->ft
-    // Reverse the normals. For some reason, they are backwards.
-#endif
+    const bool cowConfig = ( baseName == std::string( "cow" ) );
+    if( cowConfig ) // Just for testing.
+    {
+        cfv.setTexturePathControl( false );
+        cfv.setReverseNormals( false );
+    }
+    else
+    {
+        cfv.setTexturePathControl( true, "Images/" );
+        // Use default scaling, cm->ft
+        // Reverse the normals. For some reason, they're backwards.
+    }
     osg::Node* processedModel = cfv.process( *model );
-
     group->addChild( processedModel );
 
     // Output to .osg.
-    osgDB::writeNodeFile( *processedModel, ioPath + std::string( "/out.osg" ) );
+    osgDB::writeNodeFile( *processedModel, outFile );
+
 
     // Add axes
     osg::Node* axes( osgDB::readNodeFile( "axes.osg" ) );
