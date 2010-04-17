@@ -337,12 +337,11 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
     {
         // Save depth and blend state
         const bool depthEnabled( state.getLastAppliedMode( GL_DEPTH_TEST ) );
-        const osg::StateAttribute* depthAttr( state.getLastAppliedAttribute( osg::StateAttribute::DEPTH ) );
-        glDisable( GL_DEPTH_TEST );
+        state.applyMode( GL_DEPTH_TEST, false );
         glDepthMask( GL_FALSE );
         const bool blendEnabled( state.getLastAppliedMode( GL_BLEND ) );
         const osg::StateAttribute* blendAttr( state.getLastAppliedAttribute( osg::StateAttribute::BLENDFUNC ) );
-        glEnable( GL_BLEND );
+        state.applyMode( GL_BLEND, true );
         glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
         ctxInfo._glActiveTexture( GL_TEXTURE0 + _dpg->getTextureUnit() );
@@ -355,8 +354,7 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
 
         // Restore depth and blend state
         state.applyMode( GL_DEPTH_TEST, depthEnabled );
-        if( depthAttr != NULL )
-            state.applyAttribute( depthAttr );
+        glDepthMask( GL_TRUE );
         state.applyMode( GL_BLEND, blendEnabled );
         if( blendAttr != NULL )
             state.applyAttribute( blendAttr );
