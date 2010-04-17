@@ -36,11 +36,6 @@ void main( void )
     //    
     // Depth peel compare vertex code
     depthPeelTC = vec4( (cc.xyz + cc.w) * 0.5, cc.w );
-
-    // Offset slightly for depth compare.
-    // TBD this might suffer from accuracy. Actual offset
-    // value should be based on depth range.
-    depthPeelTC.z = depthPeelTC.z - 0.00001;
     // End depth peel compare vertex code
     //
 
