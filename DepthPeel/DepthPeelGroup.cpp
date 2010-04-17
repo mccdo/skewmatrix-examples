@@ -10,6 +10,7 @@
 #include <osgUtil/RenderStage>
 #include <osgUtil/CullVisitor>
 #include <osgDB/FileUtils>
+#include <osgwTools/Shapes.h>
 
 #include "DepthPeelRenderStage.h"
 #include "DepthPeelGroup.h"
@@ -74,8 +75,11 @@ DepthPeelGroup::~DepthPeelGroup()
 void
 DepthPeelGroup::internalInit()
 {
-    _finalQuad = osg::createTexturedQuadGeometry(
+    _finalQuad = osgwTools::makePlane(
         osg::Vec3( -1,-1,0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2,0 ) );
+    _finalQuad->setColorBinding( osg::Geometry::BIND_OFF );
+    _finalQuad->setNormalBinding( osg::Geometry::BIND_OFF );
+    _finalQuad->setTexCoordArray( 0, NULL );
     _finalQuad->setUseDisplayList( false );
     _finalQuad->setUseVertexBufferObjects( true );
 
