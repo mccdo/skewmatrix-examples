@@ -52,8 +52,8 @@ main( int argc, char** argv )
     osg::ref_ptr< DepthPeelGroup > dpg( new DepthPeelGroup );
     dpg->setTextureUnit( 3 );
     dpg->setStateSet( depthPeelState( dpg->getTextureUnit() ) );
-    dpg->setNumPasses( 14 );
-    dpg->setMinPasses( 9 );
+    dpg->setNumPasses( 16 );
+    dpg->setMinPasses( 16 );
 
     dpg->addChild( osgwTools::readNodeFiles(
 //        "trteapot.osg.(.8).scale.(-1.3,-1.3,0.1).trans trdrawer.osg.90,0,0.rot" ) );
@@ -67,7 +67,7 @@ main( int argc, char** argv )
 
     osgViewer::Viewer viewer;
     viewer.addEventHandler( new osgViewer::StatsHandler );
-    //viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
+    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setSceneData( root.get() );
 
     // TBD
