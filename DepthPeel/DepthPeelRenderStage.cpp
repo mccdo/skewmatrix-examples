@@ -329,7 +329,6 @@ DepthPeelRenderStage::draw( osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& p
         _fbo->apply( state, osg::FrameBufferObject::DRAW_FRAMEBUFFER );
 
     state.applyAttribute( getViewport() );
-    glClear( GL_COLOR_BUFFER_BIT );
 
     state.applyAttribute( _dpg->getFinalQuad().getStateSet()->getAttribute( osg::StateAttribute::PROGRAM ) );
     _dpg->getFinalQuad().getStateSet()->getUniform( "depthPeelLayerMap" )->apply( gl2Ext, 0 );
