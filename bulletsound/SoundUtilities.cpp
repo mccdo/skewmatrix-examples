@@ -82,7 +82,8 @@ void
 SoundUtilities::collide( const Material::MaterialType& matA, const Material::MaterialType& matB, const osg::Vec3& pos )
 {
     osgAudio::Sample* sample( _collideTable.getSound( matA, matB ) );
-    playSound( pos, sample );
+    if( sample != NULL )
+        playSound( pos, sample );
 }
 
 void
@@ -91,14 +92,16 @@ SoundUtilities::slide( const Material::MaterialType& matA, const Material::Mater
     // TBD. Yuck. Don't have a good sound for this, and need to play just
     // one sound per sliding pair.
     //osgAudio::Sample* sample( _slideTable.getSound( matA, matB ) );
-    //playSound( pos, sample );
+    //if( sample != NULL )
+    //    playSound( pos, sample );
 }
 
 void
 SoundUtilities::move( const Material::MaterialType& mat, const osg::Vec3& pos )
 {
     osgAudio::Sample* sample( _moveTable.getSound( mat ) );
-    playSound( pos, sample );
+    if( sample != NULL )
+        playSound( pos, sample );
 }
 
 

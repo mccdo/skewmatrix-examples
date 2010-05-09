@@ -477,6 +477,9 @@ int main( int argc,
     viewer.addEventHandler( new SoundManipulator( block ) );
 
 
+#if( BT_BULLET_VERSION < 276 )
+    // TBD currently uses loadDae which is broke with Bullet 2.76.
+
     // Add door
     osg::Transform* doorRoot = makeDoor( bw, im );
     root->addChild( doorRoot );
@@ -495,6 +498,7 @@ int main( int argc,
         hinge->setLimit( -2.8f, 0.f );
         bw->addConstraint(hinge, true);
     }
+#endif
 
 
     viewer.setSceneData( root.get() );
