@@ -453,6 +453,7 @@ int main( int argc,
 
     osg::ref_ptr< osg::Group > root = new osg::Group();
     osg::ref_ptr< osgAudio::SoundRoot > soundRoot( new osgAudio::SoundRoot );
+    soundRoot->setCamera( viewer.getCamera() );
     root->addChild( soundRoot.get() );
 
     btDiscreteDynamicsWorld* bw = initPhysics();
