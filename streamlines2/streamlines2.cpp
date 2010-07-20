@@ -264,11 +264,11 @@ createInstanced( const int m, const int n )
 
     // Specify the number of traces in the streamline set.
     osg::ref_ptr< osg::Uniform > numTracesUniform =
-        new osg::Uniform( "numTraces", 8 );
+        new osg::Uniform( "numTraces", 5 );
     ss->addUniform( numTracesUniform.get() );
 
-    // Speciy the trace interval in seconds. This is the time interval
-    // from a single streamline point being the head of trace N, to being
+    // Specify the trace interval in seconds. This is the time interval
+    // from a single sample point being the head of trace N, to being
     // the head of trace N+1.
     osg::ref_ptr< osg::Uniform > traceIntervalUniform =
         new osg::Uniform( "traceInterval", 1.f );
@@ -277,7 +277,7 @@ createInstanced( const int m, const int n )
     // Specify the trace length in number of sample points.
     // Alpha of rendered point fades linearly over the trace length.
     osg::ref_ptr< osg::Uniform > traceLengthUniform =
-        new osg::Uniform( "traceLength", 1 );
+        new osg::Uniform( "traceLength", 4 );
     ss->addUniform( traceLengthUniform.get() );
 
     // Note:
