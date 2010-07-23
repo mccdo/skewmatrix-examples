@@ -1,11 +1,43 @@
 // Copyright (c) 2008 Skew Matrix Software LLC. All rights reserved.
 
+/*
+This example demonstrates how to render to multiple multisampled render
+targets. Typically, apps require that all multisampled color buffers
+get resolved. However, OSG currently inhibits this because it uses a
+single glBlitFramebuffer call where multiple calls would be required, one
+for each attached color buffer.
+
+To fix this issue, we leverage the Camera post draw callback to execute a
+second glBlitFramebuffer call after OSG executes the first blit. The
+MSMRTCallback class, below, contains the post-draw callback. The code
+assumes two color buffers are attached, and assumes OSG has already resolved
+the first color buffer (attachment 0). The code saves the texture attached
+as attachment 0, sets it to NULL (leaving only attachment 1), sets the draw
+and read buffers to attachment 1, then performs a blit. This resolves
+the multisampling in attachment 1. The callback then restores attachment 0.
+
+During development, it was discovered that OSG unbinds the FBOs after it
+performs a blit but before it calls the post-draw callback. However, our
+callback requires that the FBOs be bound. OSG's RenderStage class can be
+configured to keep these FBOs bound, with setDisableFboAfterRender( false ).
+It is difficult to call directly into a RenderStage. The only way to execute
+this call is with a cull callback, which can query the RenderStage from
+the CullVisitor. The KeepFBOsBoundCallback class, below, is responsible
+for doing this. In theory, it needs to be done once per cull thread, during
+the first frame (for example), then the cull callback can be removed.
+However, osgViewer's threading models require this be done for at least
+two frames.
+*/
+
+
 #include <osg/Node>
 #include <osg/Camera>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Texture2D>
 #include <osg/GLExtensions>
+#include <osg/buffered_value>
+#include <osgGA/TrackballManipulator>
 #include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
 #include <osgwTools/Version.h>
@@ -16,6 +48,7 @@
 const int winW( 800 ), winH( 600 );
 
 
+// Define some OpenGL constants for FBOs that OSG doesn't define/use.
 #ifndef GL_READ_FRAMEBUFFER
 #define GL_READ_FRAMEBUFFER 0x8CA8
 #endif
@@ -41,16 +74,14 @@ const int winW( 800 ), winH( 600 );
 #define GL_READ_FRAMEBUFFER_BINDING 0x8CAA
 #endif
 #ifndef GL_RENDERBUFFER
-#define GL_RENDERBUFFER GL_RENDERBUFFER_EXT
+#define GL_RENDERBUFFER 0x8D41
 #endif
 
 class MSMRTCallback : public osg::Camera::DrawCallback
 {
 public:
     MSMRTCallback( osg::Camera* cam )
-      : _cam( cam ),
-        __glGetFramebufferAttachmentParameteriv( NULL ),
-        __glFramebufferRenderbuffer( NULL )
+      : _cam( cam )
     {
     }
 
@@ -60,11 +91,11 @@ public:
         const unsigned int ctx = state.getContextID();
         osg::FBOExtensions* fboExt = osg::FBOExtensions::instance( ctx, true );
 
-        if( __glGetFramebufferAttachmentParameteriv == NULL )
+        PerContextInfo& ctxInfo( _contextInfo[ ctx ] );
+        if( ctxInfo.__glGetFramebufferAttachmentParameteriv == NULL )
         {
-            // TBD needs to be per-context and thread-safe
-            osg::setGLExtensionFuncPtr( __glGetFramebufferAttachmentParameteriv, "glGetFramebufferAttachmentParameteriv" );
-            osg::setGLExtensionFuncPtr( __glFramebufferRenderbuffer, "glFramebufferRenderbuffer" );
+            // Initialize function pointer for FBO query.
+            osg::setGLExtensionFuncPtr( ctxInfo.__glGetFramebufferAttachmentParameteriv, "glGetFramebufferAttachmentParameteriv" );
         }
 
         const GLint width = _cam->getViewport()->width();
@@ -72,22 +103,15 @@ public:
 
 #if 0
         // Make sure something is actually bound.
-
-        // By default, RenderStage unbinds, and the default
-        // framebuffer (is 0) is bound.
-        // We use the KeepFBOsBoundCallback class to disable FBO unbind.
-        // We'll unbind it ourself, at the end of this function.
-        GLint drawFBO, readFBO;
+        GLint drawFBO( -1 );
         glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &drawFBO );
-        glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &readFBO );
-        osg::notify( osg::ALWAYS ) << "draw " << std::hex << drawFBO << ",  read " << std::hex << readFBO << std::endl;
 #endif
 
         // BlitFramebuffer blits to all attached color buffers in the
         // draw FBO. We only want to blit to attachment1, so aave
         // attachment0 and then unbind it.
-        GLint destColorTex0;
-        __glGetFramebufferAttachmentParameteriv(
+        GLint destColorTex0( -1 );
+        ctxInfo.__glGetFramebufferAttachmentParameteriv(
             GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
             GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &destColorTex0 );
         fboExt->glFramebufferTexture2DEXT(
@@ -97,8 +121,8 @@ public:
         // Verification
         //osg::notify( osg::ALWAYS ) << "Dest " << std::hex << destColorTex0 << std::endl;
 
-        // Set draw and read buffers to attachment1 to avoid
-        // INVALID_FRAMEBUFFER_OPERATION error.
+        // Set draw and read buffers to attachment1 to read from correct
+        // buffer and avoid INVALID_FRAMEBUFFER_OPERATION error.
         glDrawBuffer( GL_COLOR_ATTACHMENT1 );
         glReadBuffer( GL_COLOR_ATTACHMENT1 );
 
@@ -125,12 +149,28 @@ protected:
     osg::ref_ptr< osg::Camera > _cam;
 
     typedef void APIENTRY TglGetFramebufferAttachmentParameteriv( GLenum, GLenum, GLenum, GLint* );
-    mutable TglGetFramebufferAttachmentParameteriv* __glGetFramebufferAttachmentParameteriv;
 
-    typedef void APIENTRY TglFramebufferRenderbuffer( GLenum, GLenum, GLenum, GLuint );
-    mutable TglFramebufferRenderbuffer* __glFramebufferRenderbuffer;
+    // Each different context could potentially have a different address for
+    // the FBO query function. For this reason, keep it in buffered_value
+    // and init / index the function pointer on a per-context basis.
+    // Of course, this wouldn't be necessary if OSG already has this function
+    // pointer in FBOExtensions. Or if OSG used something like GLEW.
+    struct PerContextInfo
+    {
+        PerContextInfo()
+        {
+            __glGetFramebufferAttachmentParameteriv = NULL;
+        }
+
+        TglGetFramebufferAttachmentParameteriv* __glGetFramebufferAttachmentParameteriv;
+    };
+    mutable osg::buffered_object< PerContextInfo > _contextInfo;
 };
 
+
+// RenderStage unbinds FBOs before executing post-draw callbacks.
+// The only way I know of to access the RenderStage (to disable this
+// unbinding) is with a cull callback.
 class KeepFBOsBoundCallback : public osg::NodeCallback
 {
 public:
@@ -143,7 +183,13 @@ public:
             traverse( node, nv );
             return;
         }
+        // Should only see this message once (or twice, for osgViewer) per cull thread.
+        osg::notify( osg::ALWAYS ) << "In KeepFBOsBoundCallback, cull traversal" << std::endl;
 
+        // Get the current RenderStage and prevent it from unbinding the FBOs
+        // just before our post-draw MSMRTCallback is executed. We need them
+        // bound in our callback so we can execute another glBlitFramebuffer.
+        // After the blit, MSMRTCallback unbinds the FBOs.
         osgUtil::CullVisitor* cv = dynamic_cast< osgUtil::CullVisitor* >( nv );
         osgUtil::RenderStage* rs = cv->getRenderStage();
         rs->setDisableFboAfterRender( false );
@@ -152,6 +198,9 @@ public:
     }
 };
 
+
+// State set for writing two color values. Used when rendering
+// main scene graph.
 void
 mrtStateSet( osg::StateSet* ss )
 {
@@ -172,11 +221,12 @@ mrtStateSet( osg::StateSet* ss )
     program->addShader( fragShader );
     ss->setAttribute( program, osg::StateAttribute::ON );
 }
-osg::StateSet*
-mrtStateSetTriPair( osg::Texture2D* tex0, osg::Texture2D* tex1 )
-{
-    osg::StateSet* ss = new osg::StateSet;
 
+// State set for combining two textures. Used
+// when rendering fullscreen tri pairs.
+void
+mrtStateSetTriPair( osg::StateSet* ss, osg::Texture2D* tex0, osg::Texture2D* tex1 )
+{
     ss->setTextureAttributeAndModes( 0, tex0, osg::StateAttribute::ON );
     ss->setTextureAttributeAndModes( 1, tex1, osg::StateAttribute::ON );
 
@@ -200,7 +250,6 @@ mrtStateSetTriPair( osg::Texture2D* tex0, osg::Texture2D* tex1 )
     ss->setAttribute( program, osg::StateAttribute::ON );
 
     ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
-    return( ss );
 }
 
 
@@ -243,12 +292,9 @@ postRender( osgViewer::Viewer& viewer )
     MSMRTCallback* msmrt = new MSMRTCallback( rootCamera );
     rootCamera->setPostDrawCallback( msmrt );
 
-    // Set fragment program for MRT.
-    mrtStateSet( rootCamera->getOrCreateStateSet() );
 
-
-
-    // Configure postRenderCamera to draw fullscreen textured quad
+    // Configure postRenderCamera to draw fullscreen textured tri pair.
+    // This will combine the two (resolved) textures into a single image.
     osg::ref_ptr< osg::Camera > postRenderCamera( new osg::Camera );
     postRenderCamera->setClearColor( osg::Vec4( 0., 1., 0., 1. ) ); // should never see this.
     postRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER, osg::Camera::FRAME_BUFFER );
@@ -259,9 +305,10 @@ postRender( osgViewer::Viewer& viewer )
     postRenderCamera->setProjectionMatrix( osg::Matrixd::identity() );
 
     osg::Geode* geode( new osg::Geode );
+    geode->setCullingActive( false );
     geode->addDrawable( osg::createTexturedQuadGeometry(
         osg::Vec3( -1,-1,0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2,0 ) ) );
-    geode->setStateSet( mrtStateSetTriPair( tex0, tex1 ) );
+    mrtStateSetTriPair( geode->getOrCreateStateSet(), tex0, tex1 );
 
     postRenderCamera->addChild( geode );
 
@@ -279,17 +326,37 @@ main( int argc, char** argv )
     // Do not unbind the FBOs after the BlitFramebuffer call.
     root->setCullCallback( new KeepFBOsBoundCallback() );
 
+    // Set fragment program for MRT.
+    mrtStateSet( root->getOrCreateStateSet() );
+
 
     osgViewer::Viewer viewer;
-    viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
+    // TBD remove
+    //viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
+    viewer.getCamera()->setClearColor( osg::Vec4( .2, .2, .2, 1. ) );
+    viewer.setCameraManipulator( new osgGA::TrackballManipulator );
     viewer.setUpViewInWindow( 10, 30, winW, winH );
     viewer.setSceneData( root.get() );
     viewer.realize();
 
     root->addChild( postRender( viewer ) );
 
-    // Clear to white to make AA extremely obvious.
-    viewer.getCamera()->setClearColor( osg::Vec4( 1., 1., 1., 1. ) );
 
-    return( viewer.run() );
+    // Required for osgViewer threading model support.
+    // Render at least 2 frames before NULLing the cull callback.
+    int frameCount( 2 );
+
+    while( !viewer.done() )
+    {
+        viewer.frame();
+
+        if( frameCount > 0 )
+        {
+            frameCount--;
+            if( frameCount == 0 )
+                // After rendering, set cull callback to NULL.
+                root->setCullCallback( NULL );
+        }
+    }
+    return( 0 );
 }
