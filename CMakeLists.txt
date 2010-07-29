@@ -50,6 +50,7 @@ ADD_SUBDIRECTORY( shadertext )
 ADD_SUBDIRECTORY( Slider )
 ADD_SUBDIRECTORY( streamlines1 )
 ADD_SUBDIRECTORY( streamlines2 )
+ADD_SUBDIRECTORY( streamlines3 )
 ADD_SUBDIRECTORY( VectorField )
 ADD_SUBDIRECTORY( WarpVertex )
 

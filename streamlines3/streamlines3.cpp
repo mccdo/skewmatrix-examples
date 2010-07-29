@@ -16,6 +16,8 @@
 #include <osgwTools/Shapes.h>
 #include <osgwTools/Version.h>
 
+#include <osg/io_utils>
+
 
 
 
@@ -114,7 +116,7 @@ const float dX( .25f );
 
 
 void
-createSLPoint( osg::Geometry& geom, int nInstances, const osg::Vec3 position,
+createSLPoint( osg::Geometry& geom, int nInstances,
                const osg::Vec4 color, const float radius )
 {
     // Configure a Geometry to draw a single tri pair, but use the draw instanced PrimitiveSet
@@ -122,10 +124,10 @@ createSLPoint( osg::Geometry& geom, int nInstances, const osg::Vec3 position,
     osg::Vec3Array* v = new osg::Vec3Array;
     v->resize( 4 );
     geom.setVertexArray( v );
-    (*v)[ 0 ] = position + osg::Vec3( -radius, -radius, 0. );
-    (*v)[ 1 ] = position + osg::Vec3( radius, -radius, 0. );
-    (*v)[ 2 ] = position + osg::Vec3( -radius, radius, 0. );
-    (*v)[ 3 ] = position + osg::Vec3( radius, radius, 0. );
+    (*v)[ 0 ] = osg::Vec3( -radius, -radius, 0. );
+    (*v)[ 1 ] = osg::Vec3( radius, -radius, 0. );
+    (*v)[ 2 ] = osg::Vec3( -radius, radius, 0. );
+    (*v)[ 3 ] = osg::Vec3( radius, radius, 0. );
 
     osg::Vec2Array* tc = new osg::Vec2Array;
     tc->resize( 4 );
@@ -165,17 +167,18 @@ createSLPoint( osg::Geometry& geom, int nInstances, const osg::Vec3 position,
 
 // Create an array of xyz float position values for each point in the streamline.
 float*
-createPositionArray( int m, int n )
+createPositionArray( const osg::Vec3& position, int m, int n )
 {
     float* pos = new float[ m * n * 3 ];
     float* posI = pos;
+    const float x( position.x() ), y( position.y() ), z( position.z() );
 
     int iIdx;
     for( iIdx = 0; iIdx < m*n; iIdx++ )
     {
-        *posI++ = iIdx*dX;
-        *posI++ = 0.;
-        *posI++ = 4. * sin( (float)iIdx / (float)(m*n) * osg::PI * 2. );
+        *posI++ = x + iIdx*dX;
+        *posI++ = y;
+        *posI++ = z + ( 4. * sin( (float)iIdx / (float)(m*n) * osg::PI * 2. ) );
     }
 
     return pos;
@@ -205,8 +208,20 @@ createInstanced( const int m, const int n )
     geom->setUseVertexBufferObjects( true );
     osg::Vec3 loc( 0., 0., 0. );
     osg::Vec4 color( .6, .4, 1., 1. );
-    createSLPoint( *geom, m*n, loc, color, pointRadius );
+    createSLPoint( *geom, m*n, color, pointRadius );
     geode->addDrawable( geom );
+    {
+        // specify the position texture. The vertex shader will index into
+        // this texture to obtain position values for each streamline point.
+        float* pos = createPositionArray( loc, m, n );
+        osg::Image* iPos = new osg::Image;
+        iPos->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+            (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
+        osg::Texture2D* texPos = new osg::Texture2D( iPos );
+        texPos->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
+        texPos->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+        geom->getOrCreateStateSet()->setTextureAttribute( 0, texPos );
+    }
 
     // Note:
     // OSG has no idea where our vertex shader will render the points. For proper culling
@@ -214,17 +229,31 @@ createInstanced( const int m, const int n )
     osg::BoundingBox bb( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
     geom->setInitialBound( bb );
 
+
     // 2nd streamline
     geom = new osg::Geometry;
     geom->setUseDisplayList( false );
     geom->setUseVertexBufferObjects( true );
     loc.set( 1., -3., 0.5 );
     color.set( 1., .7, .5, 1. );
-    createSLPoint( *geom, m*n, loc, color, pointRadius );
+    createSLPoint( *geom, m*n, color, pointRadius );
     geode->addDrawable( geom );
+    {
+        // specify the position texture. The vertex shader will index into
+        // this texture to obtain position values for each streamline point.
+        float* pos = createPositionArray( loc, m, n );
+        osg::Image* iPos = new osg::Image;
+        iPos->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+            (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
+        osg::Texture2D* texPos = new osg::Texture2D( iPos );
+        texPos->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
+        texPos->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+        geom->getOrCreateStateSet()->setTextureAttribute( 0, texPos );
+    }
 
     bb = osg::BoundingBox( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
     geom->setInitialBound( bb );
+
 
     // 3rd streamline
     geom = new osg::Geometry;
@@ -232,8 +261,20 @@ createInstanced( const int m, const int n )
     geom->setUseVertexBufferObjects( true );
     loc.set( -0.5, 2., -0.5 );
     color.set( .5, 1., .6, 1. );
-    createSLPoint( *geom, m*n, loc, color, pointRadius );
+    createSLPoint( *geom, m*n, color, pointRadius );
     geode->addDrawable( geom );
+    {
+        // specify the position texture. The vertex shader will index into
+        // this texture to obtain position values for each streamline point.
+        float* pos = createPositionArray( loc, m, n );
+        osg::Image* iPos = new osg::Image;
+        iPos->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
+            (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
+        osg::Texture2D* texPos = new osg::Texture2D( iPos );
+        texPos->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
+        texPos->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
+        geom->getOrCreateStateSet()->setTextureAttribute( 0, texPos );
+    }
 
     bb = osg::BoundingBox( osg::Vec3( 0., -1., -4. )+loc, osg::Vec3( m*n*dX, 1., 4. )+loc );
     geom->setInitialBound( bb );
@@ -301,17 +342,7 @@ createInstanced( const int m, const int n )
     osg::ref_ptr< osg::Depth > depth = new osg::Depth( osg::Depth::LESS, 0., 1., false );
     ss->setAttributeAndModes( depth.get() );
 
-    // specify the position texture. The vertex shader will index into
-    // this texture to obtain position values for each streamline point.
-    float* pos = createPositionArray( m, n );
-    osg::Image* iPos = new osg::Image;
-    iPos->setImage( m, n, 1, GL_RGB32F_ARB, GL_RGB, GL_FLOAT,
-        (unsigned char*) pos, osg::Image::USE_NEW_DELETE );
-    osg::Texture2D* texPos = new osg::Texture2D( iPos );
-    texPos->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST );
-    texPos->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::NEAREST );
-    ss->setTextureAttribute( 0, texPos );
-
+    // Texture unit uniform for the position texture sampler.
     osg::ref_ptr< osg::Uniform > texPosUniform =
         new osg::Uniform( "texPos", 0 );
     ss->addUniform( texPosUniform.get() );

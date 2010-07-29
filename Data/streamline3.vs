@@ -5,6 +5,7 @@ uniform float totalInstances;
 uniform sampler2D texPos;
 
 uniform float osg_SimulationTime;
+uniform mat4 osg_ViewMatrix;
 
 
 // Total traces to draw on this streamline.
@@ -57,10 +58,15 @@ void main()
     tC.s = fract( r ); tC.t = floor( r ) / sizes.y;
 
     // Get position from the texture.
-    vec3 direction = vec3( 1., 0., 0. );
+    vec4 instancePos = texture2D( texPos, tC );
+
+    // Compute orientation
+    vec4 eye = gl_ModelViewMatrixInverse * vec4( 0., 0., 0., 1. );
+    vec3 direction = normalize( eye.xyz - instancePos.xyz );
     mat3 orient = makeOrientMat( direction );
-    vec4 pos = vec4( orient * gl_Vertex.xyz, 0. );
-    vec4 modelPos = pos + texture2D( texPos, tC );
+    // Orient the incoming vertices and translate by the instance position.
+    vec4 modelPos = vec4( orient * gl_Vertex.xyz, 0. ) + instancePos;
+    // Transform into clip coordinates.
     gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * modelPos;
 
 
