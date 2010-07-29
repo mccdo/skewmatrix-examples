@@ -45,7 +45,7 @@ two frames.
 #include <string>
 
 
-const int winW( 800 ), winH( 600 );
+const int winW( 800 ), winH( 800 );
 
 
 // Define some OpenGL constants for FBOs that OSG doesn't define/use.
@@ -105,6 +105,7 @@ public:
         // Make sure something is actually bound.
         GLint drawFBO( -1 );
         glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &drawFBO );
+        osg::notify( osg::ALWAYS ) << "Draw FBO: " << std::hex << drawFBO << std::endl;
 #endif
 
         // BlitFramebuffer blits to all attached color buffers in the
@@ -167,7 +168,6 @@ protected:
     mutable osg::buffered_object< PerContextInfo > _contextInfo;
 };
 
-
 // RenderStage unbinds FBOs before executing post-draw callbacks.
 // The only way I know of to access the RenderStage (to disable this
 // unbinding) is with a cull callback.
@@ -191,15 +191,12 @@ public:
         // bound in our callback so we can execute another glBlitFramebuffer.
         // After the blit, MSMRTCallback unbinds the FBOs.
         osgUtil::CullVisitor* cv = dynamic_cast< osgUtil::CullVisitor* >( nv );
-        // Don't use getRenderStage(). It returns the _root_ RenderStage.
-        //osgUtil::RenderStage* rs = cv->getRenderStage();
         osgUtil::RenderStage* rs = cv->getCurrentRenderBin()->getStage();
         rs->setDisableFboAfterRender( false );
 
         traverse( node, nv );
     }
 };
-
 
 // State set for writing two color values. Used when rendering
 // main scene graph.
@@ -254,69 +251,6 @@ mrtStateSetTriPair( osg::StateSet* ss, osg::Texture2D* tex0, osg::Texture2D* tex
     ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
 }
 
-
-osg::Node*
-postRender( osgViewer::Viewer& viewer )
-{
-    osg::Camera* rootCamera( viewer.getCamera() );
-
-    // MRT: Attach two color buffers to the root camera, one for
-    // the standard color image, and another for the glow color.
-    osg::Texture2D* tex0 = new osg::Texture2D;
-    tex0->setTextureWidth( winW );
-    tex0->setTextureHeight( winH );
-    tex0->setInternalFormat( GL_RGBA );
-    tex0->setBorderWidth( 0 );
-    tex0->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
-    tex0->setFilter( osg::Texture::MAG_FILTER, osg::Texture::NEAREST );
-    // Full color: attachment 0
-    rootCamera->attach( osg::Camera::COLOR_BUFFER0, tex0, 0, 0, false, 8, 8 );
-
-    osg::Texture2D* tex1 = new osg::Texture2D;
-    tex1->setTextureWidth( winW );
-    tex1->setTextureHeight( winH );
-    tex1->setInternalFormat( GL_RGBA );
-    tex1->setBorderWidth( 0 );
-    tex1->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
-    tex1->setFilter( osg::Texture::MAG_FILTER, osg::Texture::NEAREST );
-    // Glow color: attachment 1
-    rootCamera->attach( osg::Camera::COLOR_BUFFER1, tex1, 0, 0, false, 8, 8 );
-
-    rootCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
-#if( OSGWORKS_OSG_VERSION >= 20906 )
-    rootCamera->setImplicitBufferAttachmentMask(
-        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT|osg::Camera::IMPLICIT_DEPTH_BUFFER_ATTACHMENT,
-        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT );
-#endif
-
-    // Post-draw callback on root camera handles resolving
-    // multisampling for the MRT case.
-    MSMRTCallback* msmrt = new MSMRTCallback( rootCamera );
-    rootCamera->setPostDrawCallback( msmrt );
-
-
-    // Configure postRenderCamera to draw fullscreen textured tri pair.
-    // This will combine the two (resolved) textures into a single image.
-    osg::ref_ptr< osg::Camera > postRenderCamera( new osg::Camera );
-    postRenderCamera->setClearColor( osg::Vec4( 0., 1., 0., 1. ) ); // should never see this.
-    postRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER, osg::Camera::FRAME_BUFFER );
-
-    postRenderCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
-    postRenderCamera->setRenderOrder( osg::Camera::POST_RENDER );
-    postRenderCamera->setViewMatrix( osg::Matrixd::identity() );
-    postRenderCamera->setProjectionMatrix( osg::Matrixd::identity() );
-
-    osg::Geode* geode( new osg::Geode );
-    geode->setCullingActive( false );
-    geode->addDrawable( osg::createTexturedQuadGeometry(
-        osg::Vec3( -1,-1,0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2,0 ) ) );
-    mrtStateSetTriPair( geode->getOrCreateStateSet(), tex0, tex1 );
-
-    postRenderCamera->addChild( geode );
-
-    return( postRenderCamera.release() );
-}
-
 int
 main( int argc, char** argv )
 {
@@ -331,18 +265,83 @@ main( int argc, char** argv )
     // Set fragment program for MRT.
     mrtStateSet( root->getOrCreateStateSet() );
 
+    // MRT: Attach two color buffers to the root camera, one for
+    // the standard color image, and another for the glow color.
+    osg::Texture2D* tex0 = new osg::Texture2D;
+    tex0->setTextureWidth( winW );
+    tex0->setTextureHeight( winH );
+    tex0->setInternalFormat( GL_RGBA );
+    tex0->setBorderWidth( 0 );
+    tex0->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
+    tex0->setFilter( osg::Texture::MAG_FILTER, osg::Texture::NEAREST );
+
+    osg::Texture2D* tex1 = new osg::Texture2D;
+    tex1->setTextureWidth( winW );
+    tex1->setTextureHeight( winH );
+    tex1->setInternalFormat( GL_RGBA );
+    tex1->setBorderWidth( 0 );
+    tex1->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
+    tex1->setFilter( osg::Texture::MAG_FILTER, osg::Texture::NEAREST );
+
+    osg::ref_ptr< osg::Camera > rttCamera = new osg::Camera();
+    rttCamera->setClearColor( osg::Vec4( 0.2, 0.2, 0.2, 0.0 ) );
+    rttCamera->setRenderTargetImplementation(
+        osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
+    rttCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
+    rttCamera->setRenderOrder( osg::Camera::POST_RENDER, 0 );
+    rttCamera->setViewMatrixAsLookAt(
+        osg::Vec3( 0.0, 0.0, 20.0 ),
+        osg::Vec3d( 0.0, 0.0, 0.0 ),
+        osg::Vec3( 0.0, 1.0, 0.0 ) );
+    rttCamera->setProjectionMatrixAsPerspective( 45.0, 1.0, 0.01, 1000.0 );
+    rttCamera->setViewport( 0, 0, winW, winH );
+    rttCamera->attach( osg::Camera::COLOR_BUFFER0, tex0, 0, 0, false, 8, 8 );
+    rttCamera->attach( osg::Camera::COLOR_BUFFER1, tex1, 0, 0, false, 8, 8 );
+#if( OSGWORKS_OSG_VERSION >= 20906 )
+    rttCamera->setImplicitBufferAttachmentMask(
+        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT |
+        osg::Camera::IMPLICIT_DEPTH_BUFFER_ATTACHMENT,
+        osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT );
+#endif
+    rttCamera->addChild( root.get() );
+
+    // Post-draw callback on root camera handles resolving
+    // multisampling for the MRT case.
+    MSMRTCallback* msmrt = new MSMRTCallback( rttCamera );
+    rttCamera->setPostDrawCallback( msmrt );
+
+    // Configure postRenderCamera to draw fullscreen textured tri pair.
+    // This will combine the two (resolved) textures into a single image.
+    osg::ref_ptr< osg::Camera > postRenderCamera( new osg::Camera );
+    postRenderCamera->setClearColor( osg::Vec4( 0.0, 1.0, 0.0, 0.0 ) ); // should never see this.
+    postRenderCamera->setRenderTargetImplementation(
+        osg::Camera::FRAME_BUFFER, osg::Camera::FRAME_BUFFER );
+    postRenderCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
+    postRenderCamera->setRenderOrder( osg::Camera::POST_RENDER, 1 );
+    postRenderCamera->setViewMatrix( osg::Matrixd::identity() );
+    postRenderCamera->setProjectionMatrix( osg::Matrixd::identity() );
+    postRenderCamera->setViewport( 0, 0, winW, winH );
+    rttCamera->addChild( postRenderCamera.get() );
+
+    osg::Geode* geode( new osg::Geode );
+    geode->setCullingActive( false );
+    geode->addDrawable( osg::createTexturedQuadGeometry(
+        osg::Vec3( -1,-1, 0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2, 0 ) ) );
+    mrtStateSetTriPair( geode->getOrCreateStateSet(), tex0, tex1 );
+
+    postRenderCamera->addChild( geode );
 
     osgViewer::Viewer viewer;
-    // TBD remove
-    //viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
-    viewer.getCamera()->setClearColor( osg::Vec4( .2, .2, .2, 1. ) );
+
+    osg::ref_ptr< osg::Camera > viewerCamera = viewer.getCamera();
+    viewerCamera->setClearColor( osg::Vec4( 1.0, 0.0, 0.0, 0.0 ) );
+    viewerCamera->addChild( rttCamera.get() );
+
+    //viewer.setCamera( rttCamera.get() );
+
+    viewer.setUpViewInWindow( 100, 100, winW, winH );
     viewer.setCameraManipulator( new osgGA::TrackballManipulator );
-    viewer.setUpViewInWindow( 10, 30, winW, winH );
-    viewer.setSceneData( root.get() );
     viewer.realize();
-
-    root->addChild( postRender( viewer ) );
-
 
     // Required for osgViewer threading model support.
     // Render at least 2 frames before NULLing the cull callback.
