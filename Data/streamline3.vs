@@ -5,7 +5,6 @@ uniform float totalInstances;
 uniform sampler2D texPos;
 
 uniform float osg_SimulationTime;
-uniform mat4 osg_ViewMatrix;
 
 
 // Total traces to draw on this streamline.
