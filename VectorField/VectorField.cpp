@@ -16,6 +16,8 @@
 #include <osg/io_utils>
 
 
+//#define DISPLAY_TEST_VECTORS
+
 
 // (Some of the) GL 3 enums not defined by OSG.
 #define GL_CLIP_DISTANCE0                 0x3000
@@ -536,8 +538,11 @@ protected:
         }
     }
 };
-//osg::ref_ptr< MyVectorFieldData > _vectorField;
+#ifdef DISPLAY_TEST_VECTORS
 osg::ref_ptr< DebugVectorFieldData > _vectorField;
+#else
+osg::ref_ptr< MyVectorFieldData > _vectorField;
+#endif
 
 
 // Number of vertices in arrow
@@ -642,8 +647,13 @@ float colorScale[] = {
     0.5f, 0.0f, 0.7f  // violet
 };
 
+#ifdef DISPLAY_TEST_VECTORS
 osg::Node*
 createInstanced( DebugVectorFieldData& vf )
+#else
+osg::Node*
+createInstanced( MyVectorFieldData& vf )
+#endif
 {
     osg::Group* grp = new osg::Group;
 
@@ -754,7 +764,11 @@ main( int argc,
     arguments.read( "-o", outfile );
 
     osg::ref_ptr< osg::Node > root;
+#ifdef DISPLAY_TEST_VECTORS
     _vectorField = new DebugVectorFieldData;
+#else
+    _vectorField = new MyVectorFieldData;
+#endif
 
     {
         osg::ref_ptr< osg::Node > node( osgDB::readNodeFiles( arguments ) );
