@@ -1,6 +1,9 @@
 // at2demo.cpp - demo of shader-based AutoTransform2
 // mike.weiblen@gmail.com
-// 2010-08-02
+// 2010-08-09
+
+//#define FILENAME        "test.osg"
+#define FILENAME        "cow.osg"
 
 
 #include <osg/Geode>
@@ -41,14 +44,14 @@ static void loadShaderSource( osg::Shader* shader )
 }
 
 
-static osg::Shader* at2VertShader = 0;
 static osg::Shader* at2FragShader = 0;
+static osg::Shader* at2VertShader = 0;
 
 
 static void reloadShaders()
 {
-    loadShaderSource( at2VertShader );
     loadShaderSource( at2FragShader );
+    loadShaderSource( at2VertShader );
 }
 
 
@@ -62,14 +65,14 @@ static void addAutoTransform2( osg::Node* node )
 
     osg::Program* program = new osg::Program;
     program->setName( "AutoTransform2" );
-    program->addShader( at2VertShader );
     program->addShader( at2FragShader );
+    program->addShader( at2VertShader );
     osg::StateSet* ss = node->getOrCreateStateSet();
     ss->setAttributeAndModes( program, osg::StateAttribute::ON );
 
     // default values for AutoTransform2
-    ss->addUniform( new osg::Uniform( "at2PivotPoint", osg::Vec3() ) );
-    ss->addUniform( new osg::Uniform( "at2Scale", 1.0f ) );
+    ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
+    ss->addUniform( new osg::Uniform( "at2_Scale", 1.0f ) );
 }
 
 
@@ -78,31 +81,31 @@ static void addAutoTransform2( osg::Node* node )
 osg::Node* createScene()
 {
     // load a model to test AutoTransform2
-    osg::Node* cow( osgDB::readNodeFile( "cow.osg" ) );
-    if( ! cow )
+    osg::Node* model( osgDB::readNodeFile( FILENAME ) );
+    if( ! model )
     {
-        osg::notify( osg::FATAL ) << "cant load cow.osg" << std::endl;
+        osg::notify( osg::FATAL ) << "cant load " FILENAME << std::endl;
         exit(1);
     }
 
     // use the model's bounding sphere to defined points-of-interest
-    const osg::BoundingSphere bsphere( cow->getBound() );
+    const osg::BoundingSphere bsphere( model->getBound() );
     osg::Vec3 at2PivotPoint( bsphere._center );
     float at2Scale( 1.0f );
 
     // override the AT2's default values for this model.
-    osg::StateSet* ss = cow->getOrCreateStateSet();
-    ss->addUniform( new osg::Uniform( "at2PivotPoint", at2PivotPoint ) );
-    ss->addUniform( new osg::Uniform( "at2Scale", at2Scale ) );
+    osg::StateSet* ss = model->getOrCreateStateSet();
+    ss->addUniform( new osg::Uniform( "at2_PivotPoint", at2PivotPoint ) );
+    ss->addUniform( new osg::Uniform( "at2_Scale", at2Scale ) );
 
-    // add two cows: one under the AT2, the other as control under the root
+    // add two models: one under the AT2, the other as control under the root
     osg::Group* root( new osg::Group );
-    root->addChild( cow );
+    root->addChild( model );
 
     osg::Group* at2( new osg::Group );
     addAutoTransform2( at2 );
     root->addChild( at2 );
-    at2->addChild( cow );
+    at2->addChild( model );
 
     return root;
 }
