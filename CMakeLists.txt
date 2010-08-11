@@ -53,6 +53,7 @@ ADD_SUBDIRECTORY( streamlines2 )
 ADD_SUBDIRECTORY( streamlines3 )
 ADD_SUBDIRECTORY( VectorField )
 ADD_SUBDIRECTORY( WarpVertex )
+ADD_SUBDIRECTORY( AutoTransform2 )
 
 # Bullet examples
 # message( STATUS "Bullet: " ${BULLET_FOUND} )
