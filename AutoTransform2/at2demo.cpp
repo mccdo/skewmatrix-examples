@@ -18,6 +18,10 @@
 #include <osg/Uniform>
 #include <osg/BoundingSphere>
 
+#include <osg/MatrixTransform>
+#include <osg/Depth>
+#include <osgwTools/Shapes.h>
+
 #include <osgGA/GUIEventAdapter>
 #include <osgGA/GUIActionAdapter>
 
@@ -109,7 +113,45 @@ osg::Node* createScene()
     root->addChild( at2 );
     at2->addChild( model );
 
-    return root;
+
+    //
+    // Orthographic scene / HUD
+    osg::Camera* cam = new osg::Camera;
+    cam->setViewport( 0., 0., 800., 600. );
+    cam->setProjectionMatrix( osg::Matrix::ortho( 0.125, 799.125, 0.125, 599.125, -1., 1. ) );
+    cam->setViewMatrix( osg::Matrix::identity() );
+    cam->setAllowEventFocus( false );
+    cam->setRenderOrder( osg::Camera::POST_RENDER );
+    cam->setReferenceFrame( osg::Transform::ABSOLUTE_RF );
+    cam->setClearMask( 0 );
+    root->addChild( cam );
+    
+    ss = cam->getOrCreateStateSet();
+    ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
+    ss->setAttributeAndModes( new osg::Depth( osg::Depth::ALWAYS ) );
+
+    osg::MatrixTransform* mt = new osg::MatrixTransform( osg::Matrix::translate( 70., 70., 0. ) );
+    cam->addChild( mt );
+
+    osg::Geode* geode = new osg::Geode;
+    mt->addChild( geode );
+    // Draw cirle in plane w/ normal 1,0,0, and use AutoTransform to make it
+    // face the screen.
+    geode->addDrawable( osgwTools::makeWireCircle( 60., 32, osg::Vec3( 1., 0., 0. ) ) );
+    if( true )
+    {
+        ss = geode->getOrCreateStateSet();
+        osg::Program* program = new osg::Program;
+        program->setName( "AutoTransform2" );
+        program->addShader( at2VertShader );
+        //program->addShader( at2FragShader );
+        ss->setAttributeAndModes( program, osg::StateAttribute::ON );
+
+        ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
+        ss->addUniform( new osg::Uniform( "at2_Scale", 1.0f ) );
+    }
+
+    return( root );
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -1,3 +1,5 @@
+// Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
+
 // AutoTransform2.vs - vertex shader for AutoTransform2
 // mike.weiblen@gmail.com 2010-08-31
 
@@ -34,6 +36,13 @@ void at2RotateToEye( void )
 
     // select orientation axis:
     if( true )
+    {
+        // model's +x axis points to eye.
+        rotX = eyeZ;
+        rotY = eyeX;
+        rotZ = eyeY;
+    }
+    else if( true )
     {
         // model's +Z axis points to eye.
         rotX = eyeX;
@@ -78,6 +87,13 @@ void at2RotateToScreen( void )
 
     // select orientation axis:
     if( true )
+    {
+        // model's +x axis points to eye.
+        rotX = eyeZ;
+        rotY = eyeX;
+        rotZ = eyeY;
+    }
+    else if( true )
     {
         // model's +Z axis points to eye.
         rotX = eyeX;
@@ -128,9 +144,11 @@ void main(void)
     float z = vertex.z;
     vec4 scale = vec4( -z, -z, -z, fudgeFactor / at2_Scale );
     vertex = gl_ProjectionMatrix * vertex;
-    vertex *= scale;                            // compensate for size
+    //vertex *= scale;                            // compensate for size
 
     gl_Position = vertex;
+    
+    gl_FrontColor = gl_Color;
 
 v_Color = vec4( 0.5 * gl_Normal + 0.5, 1. );    // DEBUG: color the model
 }
