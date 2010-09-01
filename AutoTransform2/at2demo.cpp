@@ -1,8 +1,10 @@
+// Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
+
 // at2demo.cpp - demo of shader-based AutoTransform2
 // mike.weiblen@gmail.com
 // 2010-08-09
 
-//#define FILENAME        "test.osg"
+//#define FILENAME        "at2test.osg"
 #define FILENAME        "cow.osg"
 
 
