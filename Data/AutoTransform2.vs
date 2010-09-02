@@ -7,6 +7,9 @@
 uniform vec3    at2_PivotPoint;         // point around which to pivot the model
 uniform float   at2_Scale;              // if >0, compute orthographic projection
 
+uniform float at2_pixelSize; // Desired pixel size of at2_Scale;
+uniform float at2_vpWidth; // Viewport width, required for scaling.
+
 // these matrices are constant for fixed input parameters;
 // they could be precomputed on CPU and passed as uniform.
 mat4 _at2ModelViewMatrix;
@@ -138,19 +141,47 @@ void main(void)
 
     // TODO: compute _at2NormalMatrix from _at2ModelViewMatrix
 
-    vec4 vertex = _at2ModelViewMatrix * gl_Vertex;      // instead of gl_ModelViewMatrix
+    vec4 vertex;
+    if( at2_Scale > 0.0 )
+    {
+        // Get the eye coord pivot point.
+        vec4 ecpp = _at2ModelViewMatrix * vec4( at2_PivotPoint, 1. );
+        
+        // We subtract two NDC values and scale the result into window space.
+        // First vector:
+        vec4 ec = vec4( at2_Scale, 0., ecpp.z, gl_Vertex.w );
+        vec4 cc = gl_ProjectionMatrix * ec;
+        vec3 ndcA = cc.xyz / cc.w;
+        // Second vector:
+        ec.x = 0.;
+        cc = gl_ProjectionMatrix * ec;
+        vec3 ndcB = cc.xyz / cc.w;
+        
+        // Scale to window space, and determine the scale factor.
+        float scaleFactor = at2_pixelSize / ( (ndcA.x-ndcB.x) * 0.5 * at2_vpWidth );
+        
+        // Compute the eye coord vertex.
+        vec4 oc = vec4( gl_Vertex.xyz * scaleFactor, 1. );
+        vertex = _at2ModelViewMatrix * oc;
+    }
+    else
+    {
+        // Compute the eye coord vertex.
+        vertex = _at2ModelViewMatrix * gl_Vertex;      // instead of gl_ModelViewMatrix
+    }
+    gl_Position = gl_ProjectionMatrix * vertex;
+
     vec3 normal = _at2NormalMatrix * gl_Normal;         // instead of gl_NormalMatrix
 
-    float z = vertex.z;
-    vec4 scale = vec4( -z, -z, -z, fudgeFactor / at2_Scale );
-    vertex = gl_ProjectionMatrix * vertex;
-    //vertex *= scale;                            // compensate for size
-
-    gl_Position = vertex;
-    
     gl_FrontColor = gl_Color;
 
 v_Color = vec4( 0.5 * gl_Normal + 0.5, 1. );    // DEBUG: color the model
 }
 
 // vim: set sw=4 ts=8 et ic ai:
+
+
+        //float p0 = gl_ProjectionMatrix[0][0];
+        //float p11 = gl_ProjectionMatrix[2][3];
+        //float p15 = gl_ProjectionMatrix[3][3];
+        //float scaleFactor = at2_pixelSize / ( 0.5*at2_vpWidth * at2_Scale*p0 / vertex.x*p11+p15 );

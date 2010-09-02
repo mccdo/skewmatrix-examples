@@ -78,13 +78,13 @@ static void addAutoTransform2( osg::Node* node )
 
     // default values for AutoTransform2
     ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
-    ss->addUniform( new osg::Uniform( "at2_Scale", 1.0f ) );
+    ss->addUniform( new osg::Uniform( "at2_Scale", 0.0f ) ); // Don't scale
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 
-osg::Node* createScene()
+osg::Node* createScene( osg::Viewport* vp )
 {
     // load a model to test AutoTransform2
     osg::Node* model( osgDB::readNodeFile( FILENAME ) );
@@ -97,12 +97,20 @@ osg::Node* createScene()
     // use the model's bounding sphere to defined points-of-interest
     const osg::BoundingSphere bsphere( model->getBound() );
     osg::Vec3 at2PivotPoint( bsphere._center );
-    float at2Scale( 1.0f );
 
     // override the AT2's default values for this model.
     osg::StateSet* ss = model->getOrCreateStateSet();
     ss->addUniform( new osg::Uniform( "at2_PivotPoint", at2PivotPoint ) );
-    ss->addUniform( new osg::Uniform( "at2_Scale", at2Scale ) );
+
+    if( true ) // do fixed scaling
+    {
+        // Make this many world coordinate units...
+        ss->addUniform( new osg::Uniform( "at2_Scale", (float)( bsphere._radius ) ) );
+        // ...display as this pixel size...
+        ss->addUniform( new osg::Uniform( "at2_pixelSize", 500.f ) );
+        // ...given this viewport width:
+        ss->addUniform( new osg::Uniform( "at2_vpWidth", (float)( vp->width() ) ) );
+    }
 
     // add two models: one under the AT2, the other as control under the root
     osg::Group* root( new osg::Group );
@@ -116,9 +124,12 @@ osg::Node* createScene()
 
     //
     // Orthographic scene / HUD
+
+    const float vpWidth( 800.f );
+    const float vpHeight( 600.f );
     osg::Camera* cam = new osg::Camera;
-    cam->setViewport( 0., 0., 800., 600. );
-    cam->setProjectionMatrix( osg::Matrix::ortho( 0.125, 799.125, 0.125, 599.125, -1., 1. ) );
+    cam->setViewport( 0., 0., vpWidth, vpHeight );
+    cam->setProjectionMatrix( osg::Matrix::ortho( 0.125, vpWidth-0.875, 0.125, vpHeight-0.875, -1., 1. ) );
     cam->setViewMatrix( osg::Matrix::identity() );
     cam->setAllowEventFocus( false );
     cam->setRenderOrder( osg::Camera::POST_RENDER );
@@ -137,18 +148,20 @@ osg::Node* createScene()
     mt->addChild( geode );
     // Draw cirle in plane w/ normal 1,0,0, and use AutoTransform to make it
     // face the screen.
-    geode->addDrawable( osgwTools::makeWireCircle( 60., 32, osg::Vec3( 1., 0., 0. ) ) );
-    if( true )
+    const float radius = 60.f;
+    geode->addDrawable( osgwTools::makeWireCircle( radius, 32, osg::Vec3( 1., 0., 0. ) ) );
     {
         ss = geode->getOrCreateStateSet();
         osg::Program* program = new osg::Program;
-        program->setName( "AutoTransform2" );
         program->addShader( at2VertShader );
-        //program->addShader( at2FragShader );
         ss->setAttributeAndModes( program, osg::StateAttribute::ON );
 
-        ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
-        ss->addUniform( new osg::Uniform( "at2_Scale", 1.0f ) );
+        // Make this many world coordinate units...
+        ss->addUniform( new osg::Uniform( "at2_Scale", radius ) );
+        // ...display as this pixel size...
+        ss->addUniform( new osg::Uniform( "at2_pixelSize", 70.f ) );
+        // ...given this viewport width:
+        ss->addUniform( new osg::Uniform( "at2_vpWidth", vpWidth ) );
     }
 
     return( root );
@@ -181,7 +194,8 @@ class KeyHandler: public osgGA::GUIEventHandler
 int main( int argc, char* argv[] )
 {
     osgViewer::Viewer viewer;
-    viewer.setSceneData( createScene() );
+    viewer.realize();
+    viewer.setSceneData( createScene( viewer.getCamera()->getViewport() ) );
     viewer.addEventHandler( new KeyHandler() );
     return viewer.run();
 }
