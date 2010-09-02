@@ -18,7 +18,6 @@ mat3 _at2NormalMatrix;
 // DEBUG: color to fragment shader
 varying vec4 v_Color;
 
-const float fudgeFactor = 20.0;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -26,11 +25,12 @@ const float fudgeFactor = 20.0;
 
 void at2RotateToEye( void )
 {
-
     vec4 pivot = vec4( at2_PivotPoint, 1. );
 
     // compute direction vectors in eye-space
     vec3 eyeZ = -normalize( vec3( gl_ModelViewMatrix * pivot ) );   // +Z axis
+    if( gl_ProjectionMatrix[2][3] == 0.0 )
+        eyeZ = vec3( 0., 0., 1. ); // orthographic
     vec3 eyeY = vec3( 0., 1., 0. );                     // a "generic" +Y axis
     vec3 eyeX = normalize( cross( eyeY, eyeZ ) );       // horizonal +X axis
     eyeY = cross( eyeZ, eyeX );                         // compute actual +Y axis
@@ -51,6 +51,13 @@ void at2RotateToEye( void )
         rotX = eyeX;
         rotY = eyeY;
         rotZ = eyeZ;
+    }
+    else if( true )
+    {
+        // model's +Y axis points to eye.
+        rotX = -eyeX;
+        rotY = eyeZ;
+        rotZ = eyeY;
     }
     else
     {
@@ -103,6 +110,13 @@ void at2RotateToScreen( void )
         rotY = eyeY;
         rotZ = eyeZ;
     }
+    else if( true )
+    {
+        // model's +Y axis points to eye.
+        rotX = -eyeX;
+        rotY = eyeZ;
+        rotZ = eyeY;
+    }
     else
     {
         // model's -Y axis points to eye.
@@ -130,7 +144,7 @@ void at2RotateToScreen( void )
 void main(void)
 {
     // select orientation mode: normal_to_eye or normal_to_screen
-    if( false )
+    if( true )
     {
         at2RotateToEye();
     }
