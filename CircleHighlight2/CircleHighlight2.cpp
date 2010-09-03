@@ -1,3 +1,5 @@
+// Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
+
 /* Example, CircleHighlight
 * 
 * Based originally on OSG example osgkeyboardmouse's PolytopeIntersector code
@@ -20,23 +22,19 @@
 
 // Simple example of use of picking and highlighting with a circle
 
-#include <osg/NodeVisitor>
-#include <osg/AutoTransform>
-#include <osg/StateSet>
-
+#include <osgViewer/Viewer>
+#include <osgDB/ReadFile>
+#include <osgDB/FileUtils>
+#include <osgGA/TrackballManipulator>
+#include <osgGA/StateSetManipulator>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/PolytopeIntersector>
 
-#include <osgDB/ReadFile>
-
-#include <osgGA/TrackballManipulator>
-#include <osgGA/StateSetManipulator>
-
-#include <osgViewer/Viewer>
-
+#include <osg/NodeVisitor>
+#include <osg/StateSet>
+#include <osg/Shader>
 #include <osgText/Text>
 #include <osgText/Font>
-
 #include <osgwTools/AbsoluteModelTransform.h>
 #include <osgwTools/Shapes.h>
 
@@ -73,7 +71,9 @@ public:
       : _labelGroup( labelGroup ),
         _mx(0.0),
         _my(0.0)
-    {}
+    {
+        createCircleState( _labelGroup->getOrCreateStateSet() );
+    }
     ~PickHandler() {}
 
     bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -99,7 +99,15 @@ public:
                     // only do a pick if the mouse hasn't moved
                     osg::ref_ptr< osg::Node > subgraph( pick( ea, viewer ) );
                     if( (subgraph != NULL) && (_labelGroup != NULL) )
+                    {
                         _labelGroup->addChild( subgraph.get() );
+
+                        // HACK to work around a bug in OSG. Only attach a program
+                        // once the subgraph has something to draw.
+                        osg::StateSet* ss = _labelGroup->getOrCreateStateSet();
+                        if( ss->getAttribute( osg::StateAttribute::PROGRAM ) == NULL )
+                            ss->setAttribute( _program );
+                    }
                 } // if
 
                 // false: pass to camera manipulator.
@@ -113,12 +121,22 @@ public:
                     case( osgGA::GUIEventAdapter::KEY_Delete ):
                     {
                         _labelGroup->removeChildren( 0, _labelGroup->getNumChildren() );
+
+                        // HACK to work around a bug in OSG. If a program is attached to a node
+                        // that has no Drawables in its subgraph, that program will "leak" out to
+                        // other sibling nodes and affect their rendering. So, when we remove
+                        // all the circle highlights, we must also remove the program.
+                        _labelGroup->getOrCreateStateSet()->removeAttribute( osg::StateAttribute::PROGRAM );
+
                         return( true );
                     }
                     case( 't' ):
                     case( 'T' ):
                     {
-                        _labelGroup->setNodeMask( ~( _labelGroup->getNodeMask() ) );
+                        if( _labelGroup->getNodeMask() == 0 )
+                            _labelGroup->setNodeMask( ~NOT_PICKABLE_NODE_MASK );
+                        else
+                            _labelGroup->setNodeMask( 0 );
                         return( true );
                     }
                 }
@@ -147,15 +165,16 @@ public:
 
 protected:
     osg::Node* pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer );
-
     osg::Node* createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
         const osg::Node& pickedNode, const std::string& labelText );
+    void createCircleState( osg::StateSet* ss );
 
-    float _mx,_my;
+    float _mx, _my;
 
     std::string _labelText;
 
     osg::ref_ptr< osg::Group > _labelGroup;
+    osg::ref_ptr< osg::Program > _program;
 }; // PickHandler
 
 
@@ -192,12 +211,16 @@ PickHandler::pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
             <<std::endl;
 
         osg::NodePath& nodePath = intersection.nodePath;
-        node = (nodePath.size()>=1)?nodePath[nodePath.size()-1]:0;
-        parent = (nodePath.size()>=2)?dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]):0;
+        node = (nodePath.size()>=1) ? nodePath[nodePath.size()-1] : 0;
+        parent = (nodePath.size()>=2) ? dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]) : 0;
 
         osg::Node* pickedNode( node );
+#if 0
+        // Enable this code to force picking a group.
+        // Personally, I like being able to pick Geodes.
         if( (node->asGroup() == NULL) && (parent != NULL) )
             pickedNode = parent;
+#endif
         if( pickedNode )
         {
             osg::notify( osg::DEBUG_FP ) <<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
@@ -237,35 +260,31 @@ PickHandler::createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePat
     osg::notify( osg::DEBUG_FP ) << "  Using subdiv " << subdivisions << std::endl;
 
     // Determine text pos and line segment endpoints.
+    // In xy (z=0) plane.
     osg::Vec3 textDirection( 1., 1., 0. );
     textDirection.normalize();
     osg::Vec3 lineEnd( textDirection * radius );
     osg::Vec3 textPos( textDirection * radius * 1.4f );
 
     // Structure:
-    //   AbsoluteModelTransform->AutoTransform->CircleGeode->Circle (Geometry)
-    //                                                   \-->Line segment (Geometry)
-    //                                                   \-->Label (osgText::Text)
+    //   AbsoluteModelTransform->CircleGeode-->Circle (Geometry)
+    //                                   \---->Line segment (Geometry)
+    //                                    \--->Label (osgText::Text)
     osg::ref_ptr< osg::Geode > circlegeode;
-    osg::ref_ptr< osg::AutoTransform > circleat;
     osg::ref_ptr< osgwTools::AbsoluteModelTransform > amt;
 
     // determine position of highlight
-    osg::Vec3 position(0., 0., 0.);
-    osg::Matrix matrix = osg::computeLocalToWorld(nodePath);
-    position = nodePath[nodePath.size()-1]->getBound().center();
+    osg::Vec3 position = sphere.center();
+    osg::Matrix matrix = osg::computeLocalToWorld( nodePath ) *
+        osg::Matrix::translate( position );
 
     circlegeode = new osg::Geode;
+    // By default, circle is created in xy (z=0) plane.
     osg::Geometry* circleGeom( osgwTools::makeWireCircle( radius, subdivisions ) );
     circlegeode->addDrawable( circleGeom );
-    circleat = new osg::AutoTransform();
-    circleat->addChild( circlegeode.get() );
-    circleat->setAutoRotateMode( osg::AutoTransform::ROTATE_TO_CAMERA );
-    circleat->setAutoScaleToScreen(false);
-    circleat->setPosition(position);
     amt = new osgwTools::AbsoluteModelTransform;
     amt->setNodeMask( NOT_PICKABLE_NODE_MASK );
-    amt->addChild( circleat.get() );
+    amt->addChild( circlegeode.get() );
     amt->setMatrix(matrix); // setup Absolute Model Transform to mimic transforms of nodepath
 
     // Add a line segment from the circle to the text.
@@ -294,7 +313,13 @@ PickHandler::createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePat
         text->setText( textAnnotation );
         text->setColor( osg::Vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
         text->setAlignment( osgText::Text::LEFT_BOTTOM );
+        // In xy (z=0) plans.
         text->setAxisAlignment( osgText::Text::XY_PLANE );
+
+        // This is how we render osgText when we have our own shader.
+        // See circle.fs for shader code.
+        text->getOrCreateStateSet()->addUniform(
+            new osg::Uniform( "circleEnableText", 1 ) );
 
         // Character size goes up as a function of distance.
         // Basis: Size is 0.1 for a distance of 10.0.
@@ -305,14 +330,55 @@ PickHandler::createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePat
         circlegeode->addDrawable( text.get() );
     } // if
 
-    // TBD application responsibility?
-    // turn off depth testing on our subgraph
-    amt->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-    amt->getOrCreateStateSet()->setRenderBinDetails( 1000, "RenderBin" );
-    amt->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-
     return( amt.release() );
 } // createCircleHighlight
+
+void
+PickHandler::createCircleState( osg::StateSet* ss )
+{
+    // turn off depth testing on our subgraph
+    ss->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    ss->setRenderBinDetails( 1000, "RenderBin" );
+
+    // Support for texture mapped text. Off by default, but test stateset will enable it.
+    ss->addUniform( new osg::Uniform( "circleEnableText", 0 ) );
+    ss->addUniform( new osg::Uniform( "circleTextSampler", 0 ) );
+
+    // Load shaders for rendering the circle highlight.
+    _program = new osg::Program;
+    _program->setName( "Circle shader" );
+
+    osg::Shader* shader = new osg::Shader( osg::Shader::VERTEX );
+    std::string shaderFileName( "circle.vs" );
+    shaderFileName = osgDB::findDataFile( shaderFileName );
+    if( shaderFileName.empty() )
+    {
+        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
+        return;
+    }
+    shader->loadShaderSourceFromFile( shaderFileName );
+    _program->addShader( shader );
+
+    shader = new osg::Shader( osg::Shader::FRAGMENT );
+    shaderFileName = "circle.fs";
+    shaderFileName = osgDB::findDataFile( shaderFileName );
+    if( shaderFileName.empty() )
+    {
+        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
+        return;
+    }
+    shader->loadShaderSourceFromFile( shaderFileName );
+    _program->addShader( shader );
+
+    // HACK to work around a bug in OSG. Do not attach the program now, because
+    // _labelGroup currently has nothing to draw. Attaching a program to such an
+    // "empty" program causes the program to "leak" to other sibling nodes.
+    //ss->setAttribute( _program );
+
+    // default values for AutoTransform2
+    ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
+    ss->addUniform( new osg::Uniform( "at2_Scale", 0.0f ) ); // Don't scale
+}
 
 
 
