@@ -195,3 +195,43 @@ CircleSupport::getLabelText() const
 {
     return( _labelText );
 }
+
+
+
+CameraUpdateViewportCallback::CameraUpdateViewportCallback()
+{
+}
+CameraUpdateViewportCallback::~CameraUpdateViewportCallback()
+{
+}
+
+void
+CameraUpdateViewportCallback::operator()( osg::Node* node, osg::NodeVisitor* nv )
+{
+    if( nv->getVisitorType() != osg::NodeVisitor::UPDATE_VISITOR )
+    {
+        osg::notify( osg::WARN ) << "CameraUpdateViewportCallback is intended to be used as an update callback." << std::endl;
+        traverse( node,nv );
+        return;
+    }
+    osg::Camera* cam = dynamic_cast< osg::Camera* >( node );
+    if( cam == NULL )
+    {
+        osg::notify( osg::WARN ) << "CameraUpdateViewportCallback should be attached to the top-level Camera." << std::endl;
+        traverse( node,nv );
+        return;
+    }
+
+    osg::StateSet* ss = node->getOrCreateStateSet();
+    osg::Uniform* uniform = ss->getUniform( "viewport" );
+    if( uniform == NULL )
+    {
+        uniform = new osg::Uniform( osg::Uniform::FLOAT_VEC2, "viewport" );
+        ss->addUniform( uniform );
+    }
+
+    const osg::Viewport* vp = cam->getViewport();
+    uniform->set( osg::Vec2f( vp->width(), vp->height() ) );
+
+    traverse(node,nv);
+}

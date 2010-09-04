@@ -268,17 +268,14 @@ int main( int argc, char **argv )
     for( itr = windows.begin(); itr != windows.end(); itr++ )
         (*itr)->getState()->setCheckForGLErrors( osg::State::ONCE_PER_ATTRIBUTE );
 
+    // Sets the viewport width and height as a uniform.
+    viewer.getCamera()->setUpdateCallback( new CameraUpdateViewportCallback() );
+
 
     osg::notify( osg::ALWAYS ) << "Click on the model to highlight." << std::endl;
     osg::notify( osg::ALWAYS ) << "\tT/t\ttoggle highlights on/off." << std::endl;
     osg::notify( osg::ALWAYS ) << "\tDel\tClear all highlights." << std::endl;
 
-    // main loop (note, window toolkits which take control over the main loop will require a window redraw callback containing the code below.)
-    while(!viewer.done())
-    {
-        viewer.frame();
-    } // while
-
-    return 0;
+    return( viewer.run() );
 } // main
 

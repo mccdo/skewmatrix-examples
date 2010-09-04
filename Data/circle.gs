@@ -5,10 +5,13 @@
 
 uniform float circleRadius;
 
+uniform vec2 viewport;
+
 #define pi 3.1415926535897932384626433832795
 
 void main( void )
 {
+    float aspect = viewport[0] / viewport[1];
     vec4 ccCircleRadius = gl_ProjectionMatrix *
         vec4( circleRadius, 0., 0., 1. );
 
@@ -18,7 +21,7 @@ void main( void )
 
     const float s45 = sin( pi / 4. );
     vec4 rVec = vec4( ccCircleRadius.x * s45,
-        ccCircleRadius.x * s45, 0., 0. );
+        ccCircleRadius.x * s45 * aspect, 0., 0. );
 
     gl_FrontColor = gl_FrontColorIn[0];
     gl_Position = gl_PositionIn[0] + rVec;
@@ -48,7 +51,7 @@ void main( void )
         float cosA = cos( angle );
 
         rVec = vec4( ccCircleRadius.x * cosA,
-            ccCircleRadius.x * sinA, 0., 0. );
+            ccCircleRadius.x * sinA * aspect, 0., 0. );
 
         gl_FrontColor = gl_FrontColorIn[0];
         gl_Position = gl_PositionIn[0] + rVec;
