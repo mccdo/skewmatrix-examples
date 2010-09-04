@@ -1,5 +1,7 @@
 // Copyright (c) 2010 Skew Matrix Software LLC. All rights reserved.
 
+#version 120
+
 // AutoTransform2.vs - vertex shader for AutoTransform2
 // mike.weiblen@gmail.com 2010-08-31
 
@@ -13,7 +15,6 @@ uniform float at2_vpWidth; // Viewport width, required for scaling.
 // these matrices are constant for fixed input parameters;
 // they could be precomputed on CPU and passed as uniform.
 mat4 _at2ModelViewMatrix;
-
 
 
 /////////////////////////////////////////////////////////////////////////////
