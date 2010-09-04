@@ -113,10 +113,11 @@ CircleSupport::createCircleState( osg::StateSet* ss )
     gShader->loadShaderSourceFromFile( shaderFileName );
     _lineStripProgram->addShader( gShader.get() );
 
-    // If circle approx is 8 vertices,
-    // add another to close the circle (9)
-    // and add two more for the label text tag (11).
-    _lineStripProgram->setParameter( GL_GEOMETRY_VERTICES_OUT_EXT, 11 );
+    // If circle approx is 'maxApprox' vertices,
+    //   ...add another to close the circle,
+    //     ...and add two more for the label text tag.
+    const float maxApprox( 40.f );
+    _lineStripProgram->setParameter( GL_GEOMETRY_VERTICES_OUT_EXT, (int)(maxApprox) + 3 );
     _lineStripProgram->setParameter( GL_GEOMETRY_INPUT_TYPE_EXT, GL_POINTS );
     _lineStripProgram->setParameter( GL_GEOMETRY_OUTPUT_TYPE_EXT, GL_LINE_STRIP );
 
@@ -160,6 +161,7 @@ CircleSupport::createCircleState( osg::StateSet* ss )
 
     // Controls for circle geometry shader.
     ss->addUniform( new osg::Uniform( "circleRadius", 1.f ) );
+    ss->addUniform( new osg::Uniform( "circleMaxApprox", maxApprox ) );
 
     // Support for texture mapped text.
     ss->addUniform( new osg::Uniform( "circleTextSampler", 0 ) );

@@ -17,6 +17,11 @@ uniform float at2_vpWidth; // Viewport width, required for scaling.
 mat4 _at2ModelViewMatrix;
 
 
+// Circle controls
+uniform float circleRadius;
+uniform float circleMaxApprox;
+varying float circleApprox;
+
 /////////////////////////////////////////////////////////////////////////////
 // rotate the model to be normal_to_eye
 
@@ -58,14 +63,20 @@ void at2RotateToEye( void )
 
 void main(void)
 {
+    // Get the eye coord pivot point.
+    vec4 ecpp = gl_ModelViewMatrix * vec4( at2_PivotPoint, 1. );
+    
+    // 'circleArrox' segments is inversely proportional to distance/radius.
+    // If distance/radiue if halved, segments is doubled, and vice versa.
+    // Basis: subdivide circle with 80 segments at a distance/radius of 10 units.
+    //   clamp() puts approximation in the range 8 to circleMaxApprox.
+    circleApprox = clamp( ( 80. * 10. / ( -ecpp.z / circleRadius ) ), 8., circleMaxApprox );
+
     at2RotateToEye();
 
     vec4 vertex;
     if( at2_Scale > 0.0 )
     {
-        // Get the eye coord pivot point.
-        vec4 ecpp = _at2ModelViewMatrix * vec4( at2_PivotPoint, 1. );
-        
         // We subtract two NDC values and scale the result into window space.
         // First vector:
         vec4 ec = vec4( at2_Scale, 0., ecpp.z, gl_Vertex.w );

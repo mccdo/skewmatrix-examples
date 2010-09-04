@@ -4,8 +4,9 @@
 #extension GL_EXT_geometry_shader4 : enable
 
 uniform float circleRadius;
-
 uniform vec2 viewport;
+
+varying in float circleApprox[];
 
 #define pi 3.1415926535897932384626433832795
 
@@ -36,17 +37,10 @@ void main( void )
 
     // Create a circle around the input point.
 
-    // Subdivision segments is inversely proportional to distance/radius.
-    // If distance/radiue if halved, segments is doubled, and vice versa.
-    // Basis: subdivide circle with 60 segments at a distance/radius of 10 units.
-    // TBD
-    //const int subdivisions( (int)( 10.f / ( distance / radius ) * 60.f ) );
-
-    float subdivs = 8.;
     float idx;
-    for( idx = 0.; idx < subdivs; idx += 1. )
+    for( idx = 0.; idx < circleApprox[0]; idx += 1. )
     {
-        float angle = (idx/subdivs) * 2. * pi;
+        float angle = (idx/circleApprox[0]) * 2. * pi;
         float sinA = sin( angle );
         float cosA = cos( angle );
 
