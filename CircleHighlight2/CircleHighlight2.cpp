@@ -22,9 +22,10 @@
 
 // Simple example of use of picking and highlighting with a circle
 
+#include "CircleSupport.h"
+
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
-#include <osgDB/FileUtils>
 #include <osgGA/TrackballManipulator>
 #include <osgGA/StateSetManipulator>
 #include <osgUtil/IntersectionVisitor>
@@ -32,10 +33,6 @@
 
 #include <osg/NodeVisitor>
 #include <osg/StateSet>
-#include <osg/Shader>
-#include <osgText/Text>
-#include <osgText/Font>
-#include <osgwTools/AbsoluteModelTransform.h>
 
 #include <iostream>
 #include <osg/io_utils>
@@ -63,7 +60,7 @@ protected:
 
 
 // class to handle events with a pick
-class PickHandler : public osgGA::GUIEventHandler 
+class PickHandler : public osgGA::GUIEventHandler, public CircleSupport
 {
 public: 
     PickHandler( osg::Group* labelGroup )
@@ -72,6 +69,7 @@ public:
         _my(0.0)
     {
         createCircleState( _labelGroup->getOrCreateStateSet() );
+        _labelGroup->setNodeMask( NOT_PICKABLE_NODE_MASK );
     }
     ~PickHandler() {}
 
@@ -148,34 +146,13 @@ public:
     } // handle
 
 
-    // App needs to explicitly set a text label, and the event handler
-    // will use it for the next pick. Alternatively, the event handler
-    // could be modified to support a callback, written by the app, to
-    // supply the text label.
-    void setLabelText( const std::string& labelText )
-    {
-        _labelText = labelText;
-    }
-
-    const std::string& getLabelText() const
-    {
-        return( _labelText );
-    }
 
 protected:
     osg::Node* pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer );
-    osg::Node* createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
-        const osg::Node& pickedNode, const std::string& labelText );
-    void createCircleState( osg::StateSet* ss );
-    osg::Drawable* createPoint();
 
     float _mx, _my;
 
-    std::string _labelText;
-
     osg::ref_ptr< osg::Group > _labelGroup;
-    osg::ref_ptr< osg::Program > _lineStripProgram;
-    osg::ref_ptr< osg::Program > _textProgram;
 }; // PickHandler
 
 
@@ -228,8 +205,7 @@ PickHandler::pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
 
             osg::Vec3 eyepoint, center, up;
             viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
-            osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight(
-                eyepoint, nodePath, *pickedNode, _labelText );
+            osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight( nodePath, *pickedNode );
 
             return( highlightGraph.release() );
         } // if
@@ -237,196 +213,6 @@ PickHandler::pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
 
     return( NULL );
 } // pick
-
-
-osg::Node*
-PickHandler::createCircleHighlight( const osg::Vec3 eyePoint, const osg::NodePath& nodePath,
-                                   const osg::Node& pickedNode, const std::string& labelText )
-{
-    const std::string textAnnotation( labelText );
-
-    // determine Subdivision and Radius settings for current viewpoint (stub for now)
-    osg::BoundingSphere sphere( pickedNode.getBound() );
-    const double radius( sphere.radius() );
-    osg::Vec3 dVec( sphere.center() - eyePoint );
-    const double distance( dVec.length() );
-
-    osg::notify( osg::ALWAYS ) << "Picked node name: " << pickedNode.getName() << std::endl;
-    osg::notify( osg::ALWAYS ) << "  radius: " << sphere.radius() << std::endl;
-
-    // Subdivision segments is inversely proportional to distance/radius.
-    // If distance/radiue if halved, segments is doubled, and vice versa.
-    // Basis: subdivide circle with 60 segments at a distance/radius of 10 units.
-    const int subdivisions( (int)( 10.f / ( distance / radius ) * 60.f ) );
-    osg::notify( osg::DEBUG_FP ) << "  Using subdiv " << subdivisions << std::endl;
-
-    // Determine text pos and line segment endpoints.
-    // In xy (z=0) plane.
-    osg::Vec3 textDirection( 1., 1., 0. );
-    textDirection.normalize();
-    osg::Vec3 lineEnd( textDirection * radius );
-    osg::Vec3 textPos( textDirection * radius * 1.4f );
-
-    // Structure:
-    //   AbsoluteModelTransform->CircleGeode-->Circle (Geometry)
-    //                                   \---->Line segment (Geometry)
-    //                                    \--->Label (osgText::Text)
-    osg::ref_ptr< osg::Geode > circleGeode;
-    osg::ref_ptr< osgwTools::AbsoluteModelTransform > amt;
-
-    // determine position of highlight
-    osg::Vec3 position = sphere.center();
-    osg::Matrix matrix = osg::computeLocalToWorld( nodePath ) *
-        osg::Matrix::translate( position );
-
-
-    circleGeode = new osg::Geode;
-    circleGeode->getOrCreateStateSet()->addUniform( new osg::Uniform( "circleRadius", (float)(sphere.radius()) ) );
-
-    // By default, circle is created in xy (z=0) plane.
-    osg::Drawable* circleInput( createPoint() );
-    circleGeode->addDrawable( circleInput );
-    amt = new osgwTools::AbsoluteModelTransform;
-    amt->setNodeMask( NOT_PICKABLE_NODE_MASK );
-    amt->addChild( circleGeode.get() );
-    amt->setMatrix(matrix); // setup Absolute Model Transform to mimic transforms of nodepath
-
-    // Add a line segment from the circle to the text.
-    if( !textAnnotation.empty() )
-    {
-        osg::Drawable* lineInput( createPoint() );
-        circleGeode->addDrawable( lineInput );
-
-        // Disable circle approximation and turns on "tag" rendering (connect text to circle)
-        lineInput->getOrCreateStateSet()->addUniform( new osg::Uniform( "circleTagMode", 1 ) );
-
-
-
-        // Add text annotation
-        osg::ref_ptr<osgText::Text> text = new osgText::Text;
-        text->setPosition( textPos );
-        text->setFont( "arial.ttf" );
-        text->setText( textAnnotation );
-        text->setColor( osg::Vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
-        text->setAlignment( osgText::Text::LEFT_BOTTOM );
-        // In xy (z=0) plans.
-        text->setAxisAlignment( osgText::Text::XY_PLANE );
-
-        // This is how we render osgText using shaders.
-        // See circleText.fs for fragment shader code.
-        text->getOrCreateStateSet()->setAttribute( _textProgram.get() );
-
-        // Character size goes up as a function of distance.
-        // Basis: Size is 0.1 for a distance of 10.0.
-        float size( 0.01f * distance );
-        osg::notify( osg::DEBUG_FP ) << "    Using char size " << size << std::endl;
-        text->setCharacterSize( size );
-
-        circleGeode->addDrawable( text.get() );
-    } // if
-
-    return( amt.release() );
-} // createCircleHighlight
-
-void
-PickHandler::createCircleState( osg::StateSet* ss )
-{
-    // turn off depth testing on our subgraph
-    ss->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-    ss->setRenderBinDetails( 1000, "RenderBin" );
-
-    // Load shaders for rendering the circle highlight.
-    _lineStripProgram = new osg::Program;
-    _lineStripProgram->setName( "Circle line strip shader" );
-
-    osg::ref_ptr< osg::Shader > vShader = new osg::Shader( osg::Shader::VERTEX );
-    std::string shaderFileName( "circle.vs" );
-    shaderFileName = osgDB::findDataFile( shaderFileName );
-    if( shaderFileName.empty() )
-    {
-        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
-        return;
-    }
-    vShader->loadShaderSourceFromFile( shaderFileName );
-    _lineStripProgram->addShader( vShader.get() );
-
-    // prep for geometry shader
-    osg::ref_ptr< osg::Shader > gShader = new osg::Shader( osg::Shader::GEOMETRY );
-    shaderFileName = "circle.gs";
-    shaderFileName = osgDB::findDataFile( shaderFileName );
-    if( shaderFileName.empty() )
-    {
-        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
-        return;
-    }
-    gShader->loadShaderSourceFromFile( shaderFileName );
-    _lineStripProgram->addShader( gShader.get() );
-
-    _lineStripProgram->setParameter( GL_GEOMETRY_VERTICES_OUT_EXT, 9 );
-    _lineStripProgram->setParameter( GL_GEOMETRY_INPUT_TYPE_EXT, GL_POINTS );
-    _lineStripProgram->setParameter( GL_GEOMETRY_OUTPUT_TYPE_EXT, GL_LINE_STRIP );
-
-    osg::ref_ptr< osg::Shader > fShader = new osg::Shader( osg::Shader::FRAGMENT );
-    shaderFileName = "circle.fs";
-    shaderFileName = osgDB::findDataFile( shaderFileName );
-    if( shaderFileName.empty() )
-    {
-        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
-        return;
-    }
-    fShader->loadShaderSourceFromFile( shaderFileName );
-    _lineStripProgram->addShader( fShader.get() );
-
-    // HACK to work around a bug in OSG. Do not attach the program now, because
-    // _labelGroup currently has nothing to draw. Attaching a program to such an
-    // "empty" program causes the program to "leak" to other sibling nodes.
-    //ss->setAttribute( _lineStripProgram );
-
-    _textProgram = new osg::Program;
-    _textProgram->setName( "Circle line strip shader" );
-
-    // Use same vertex shader.
-    _textProgram->addShader( vShader.get() );
-
-    osg::ref_ptr< osg::Shader > tfShader = new osg::Shader( osg::Shader::FRAGMENT );
-    shaderFileName = "circleText.fs";
-    shaderFileName = osgDB::findDataFile( shaderFileName );
-    if( shaderFileName.empty() )
-    {
-        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
-        return;
-    }
-    tfShader->loadShaderSourceFromFile( shaderFileName );
-    _textProgram->addShader( tfShader.get() );
-
-
-    // default values for AutoTransform2
-    ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
-    ss->addUniform( new osg::Uniform( "at2_Scale", 0.0f ) ); // Don't scale
-
-    // Controls for circle geometry shader.
-    ss->addUniform( new osg::Uniform( "circleTagMode", 0 ) );
-    ss->addUniform( new osg::Uniform( "circleRadius", 1.f ) );
-
-    // Support for texture mapped text.
-    ss->addUniform( new osg::Uniform( "circleTextSampler", 0 ) );
-}
-
-osg::Drawable*
-PickHandler::createPoint()
-{
-    osg::ref_ptr< osg::Geometry > geom = new osg::Geometry;
-    osg::Vec3Array* v = new osg::Vec3Array;
-    v->push_back( osg::Vec3( 0., 0., 0. ) );
-    geom->setVertexArray( v );
-    osg::Vec4Array* c = new osg::Vec4Array;
-    c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
-    geom->setColorArray( c );
-    geom->setColorBinding( osg::Geometry::BIND_PER_VERTEX );
-    geom->addPrimitiveSet( new osg::DrawArrays( GL_POINTS, 0, 1 ) );
-
-    return( geom.release() );
-}
 
 
 
