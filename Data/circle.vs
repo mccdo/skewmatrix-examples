@@ -8,7 +8,7 @@ uniform float circleMaxApprox;
 varying float circleApprox;
 
 
-void main(void)
+void main( void )
 {
     // Get the eye coord vertex.
     vec4 ec = gl_ModelViewMatrix * gl_Vertex;

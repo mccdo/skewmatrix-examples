@@ -2,7 +2,7 @@
 
 #version 120
 
-void main(void)
+void main( void )
 {
     gl_FragColor = gl_Color;
 }

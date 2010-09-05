@@ -8,6 +8,7 @@
 
 
 CircleSupport::CircleSupport()
+  : _labelSize( 15.f )
 {
 }
 CircleSupport::~CircleSupport()
@@ -23,9 +24,9 @@ CircleSupport::createCircleHighlight( const osg::NodePath& nodePath, const osg::
     const double radius( sphere.radius() );
 
     // Structure:
-    //   AbsoluteModelTransform->CircleGeode-->Circle (Geometry)
-    //                                   \---->Line segment (Geometry)
-    //                                    \--->Label (osgText::Text)
+    //   AbsoluteModelTransform --> circleGeode --> Single Point (Geometry)
+    //                     \
+    //                      \--> textGeode --> Label (osgText::Text)
 
     osg::Matrix xform = osg::computeLocalToWorld( nodePath ) *
         osg::Matrix::translate( sphere.center() );
@@ -45,35 +46,40 @@ CircleSupport::createCircleHighlight( const osg::NodePath& nodePath, const osg::
     {
         // Add text annotation
 
-        // Determine text pos and line segment endpoints.
-        // In xy (z=0) plane.
-        // NOTE: These computations are mirrored in the geometry shader (circle.gs)
-        // to draw the tag line from the circle to the text.
-        osg::Vec3 textDirection( 1., 1., 0. );
-        textDirection.normalize();
-        osg::Vec3 textPos( textDirection * radius * 1.4f );
+        osg::ref_ptr< osg::Geode > textGeode = new osg::Geode;
+        amt->addChild( textGeode );
 
-        osg::ref_ptr<osgText::Text> text = new osgText::Text;
-        text->setPosition( textPos );
+        osg::ref_ptr< osgText::Text > text = new osgText::Text;
         text->setFont( "arial.ttf" );
         text->setText( _labelText );
         text->setColor( osg::Vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
+        text->setCharacterSize( 1.f );
         text->setAlignment( osgText::Text::LEFT_BOTTOM );
         // In xy (z=0) plans.
         text->setAxisAlignment( osgText::Text::XY_PLANE );
 
-        // This is how we render osgText using shaders.
-        // See circleText.fs for fragment shader code.
-        text->getOrCreateStateSet()->setAttribute( _textProgram.get() );
+        {
+            osg::StateSet* ss = textGeode->getOrCreateStateSet();
 
-        // Character size goes up as a function of distance.
-        // Basis: Size is 0.1 for a distance of 10.0.
-        // TBD hack, need to auto size the text in the shader.
-        float size( 0.01f * 40.f );
-        osg::notify( osg::DEBUG_FP ) << "    Using char size " << size << std::endl;
-        text->setCharacterSize( size );
+            // This is how we render osgText using shaders.
+            // See circleText.fs for fragment shader code.
+            ss->setAttribute( _textProgram.get() );
 
-        circleGeode->addDrawable( text.get() );
+            // Auto scale the text.
+            ss->addUniform( new osg::Uniform( "at2_Scale", 1.f ) );
+            ss->addUniform( new osg::Uniform( "at2_pixelSize", _labelSize ) );
+
+            // Determine text pos and line segment endpoints.
+            // In xy (z=0) plane.
+            // NOTE: These computations are mirrored in the geometry shader (circle.gs)
+            // to draw the tag line from the circle to the text.
+            osg::Vec3 textDirection( 1., 1., 0. );
+            textDirection.normalize();
+            const osg::Vec3 textPos( textDirection * radius * 1.4f );
+            ss->addUniform( new osg::Uniform( "translate", textPos ) );
+        }
+
+        textGeode->addDrawable( text.get() );
     } // if
 
     return( amt.release() );
@@ -165,6 +171,7 @@ CircleSupport::createCircleState( osg::StateSet* ss )
     // default values for AutoTransform2
     ss->addUniform( new osg::Uniform( "at2_PivotPoint", osg::Vec3() ) );
     ss->addUniform( new osg::Uniform( "at2_Scale", 0.0f ) ); // Don't scale
+    ss->addUniform( new osg::Uniform( "translate", osg::Vec3() ) ); // Don't scale
 
     // Controls for circle geometry shader.
     ss->addUniform( new osg::Uniform( "circleRadius", 1.f ) );
@@ -178,14 +185,15 @@ osg::Drawable*
 CircleSupport::createPoint()
 {
     osg::ref_ptr< osg::Geometry > geom = new osg::Geometry;
+    geom->setInitialBound( osg::BoundingBox( osg::Vec3( -1., -1., -1. ), osg::Vec3( 1., 1., 1. ) ) );
 
-    osg::Vec3Array* v = new osg::Vec3Array;
+    osg::ref_ptr< osg::Vec3Array > v = new osg::Vec3Array;
     v->push_back( osg::Vec3( 0., 0., 0. ) );
-    geom->setVertexArray( v );
+    geom->setVertexArray( v.get() );
 
-    osg::Vec4Array* c = new osg::Vec4Array;
+    osg::ref_ptr< osg::Vec4Array > c = new osg::Vec4Array;
     c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
-    geom->setColorArray( c );
+    geom->setColorArray( c.get() );
     geom->setColorBinding( osg::Geometry::BIND_PER_VERTEX );
 
     geom->addPrimitiveSet( new osg::DrawArrays( GL_POINTS, 0, 1 ) );
@@ -198,11 +206,20 @@ CircleSupport::setLabelText( const std::string& labelText )
 {
     _labelText = labelText;
 }
-
 const std::string&
 CircleSupport::getLabelText() const
 {
     return( _labelText );
+}
+void
+CircleSupport::setLabelSize( float sizePicels )
+{
+    _labelSize = sizePicels;
+}
+float
+CircleSupport::getLabelSize() const
+{
+    return( _labelSize );
 }
 
 

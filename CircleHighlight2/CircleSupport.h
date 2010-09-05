@@ -24,6 +24,10 @@ public:
     void setLabelText( const std::string& labelText );
     const std::string& getLabelText() const;
 
+    // Default size: 15 pixels.
+    void setLabelSize( float sizePicels );
+    float getLabelSize() const;
+
 protected:
     virtual ~CircleSupport();
 
@@ -31,6 +35,7 @@ protected:
     osg::Drawable* createPoint();
 
     std::string _labelText;
+    float _labelSize;
 
     osg::ref_ptr< osg::Program > _lineStripProgram;
     osg::ref_ptr< osg::Program > _textProgram;
