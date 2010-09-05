@@ -101,7 +101,6 @@ CircleSupport::createCircleState( osg::StateSet* ss )
     vShader->loadShaderSourceFromFile( shaderFileName );
     _lineStripProgram->addShader( vShader.get() );
 
-    // prep for geometry shader
     osg::ref_ptr< osg::Shader > gShader = new osg::Shader( osg::Shader::GEOMETRY );
     shaderFileName = "circle.gs";
     shaderFileName = osgDB::findDataFile( shaderFileName );
@@ -138,10 +137,18 @@ CircleSupport::createCircleState( osg::StateSet* ss )
     //ss->setAttribute( _lineStripProgram );
 
     _textProgram = new osg::Program;
-    _textProgram->setName( "Circle line strip shader" );
+    _textProgram->setName( "Circle text label shader" );
 
-    // Use same vertex shader.
-    _textProgram->addShader( vShader.get() );
+    osg::ref_ptr< osg::Shader > tvShader = new osg::Shader( osg::Shader::VERTEX );
+    shaderFileName = "circleText.vs";
+    shaderFileName = osgDB::findDataFile( shaderFileName );
+    if( shaderFileName.empty() )
+    {
+        osg::notify(osg::WARN) << "File \"" << shaderFileName << "\" not found." << std::endl;
+        return;
+    }
+    tvShader->loadShaderSourceFromFile( shaderFileName );
+    _textProgram->addShader( tvShader.get() );
 
     osg::ref_ptr< osg::Shader > tfShader = new osg::Shader( osg::Shader::FRAGMENT );
     shaderFileName = "circleText.fs";
