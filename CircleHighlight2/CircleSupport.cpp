@@ -17,10 +17,9 @@ CircleSupport::~CircleSupport()
 
 
 osg::Node*
-CircleSupport::createCircleHighlight( const osg::NodePath& nodePath, const osg::Node& pickedNode )
+CircleSupport::createCircleHighlight( const osg::NodePath& nodePath, const osg::BoundingSphere& sphere )
 {
     // determine radius 
-    osg::BoundingSphere sphere( pickedNode.getBound() );
     const double radius( sphere.radius() );
 
     // Structure:

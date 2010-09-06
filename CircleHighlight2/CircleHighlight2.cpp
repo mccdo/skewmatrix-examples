@@ -65,6 +65,8 @@ class PickHandler : public osgGA::GUIEventHandler, public CircleSupport
 public: 
     PickHandler( osg::Group* labelGroup )
       : _labelGroup( labelGroup ),
+        _pickMode( PICK_GROUP ),
+        _labelMode( LABEL_USER_SPECIFIED ),
         _mx(0.0),
         _my(0.0)
     {
@@ -72,6 +74,23 @@ public:
         _labelGroup->setNodeMask( NOT_PICKABLE_NODE_MASK );
     }
     ~PickHandler() {}
+
+    // Default: PICK_GROUP
+    typedef enum {
+        PICK_GROUP,
+        PICK_GEODE,
+        PICK_DRAWABLE
+    } PickMode;
+    void setPickMode( const PickMode pickMode ) { _pickMode = pickMode; }
+    PickMode getPickMode() const { return( _pickMode ); }
+
+    // Default: LABEL_USER_SPECIFIED
+    typedef enum {
+        LABEL_USER_SPECIFIED,
+        LABEL_FROM_OBJECT
+    } LabelMode;
+    void setLabelMode( const LabelMode labelMode ) { _labelMode = labelMode; }
+    LabelMode getLabelMode() const { return( _labelMode ); }
 
     bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
     {
@@ -153,6 +172,9 @@ protected:
     float _mx, _my;
 
     osg::ref_ptr< osg::Group > _labelGroup;
+
+    PickMode _pickMode;
+    LabelMode _labelMode;
 }; // PickHandler
 
 
@@ -188,27 +210,53 @@ PickHandler::pick( const osgGA::GUIEventAdapter& ea, osgViewer::Viewer* viewer )
             <<intersection.numIntersectionPoints
             <<std::endl;
 
-        osg::NodePath& nodePath = intersection.nodePath;
-        node = (nodePath.size()>=1) ? nodePath[nodePath.size()-1] : 0;
-        parent = (nodePath.size()>=2) ? dynamic_cast<osg::Group*>(nodePath[nodePath.size()-2]) : 0;
-
-        osg::Node* pickedNode( node );
-#if 0
-        // Enable this code to force picking a group.
-        // Personally, I like being able to pick Geodes.
-        if( (node->asGroup() == NULL) && (parent != NULL) )
-            pickedNode = parent;
-#endif
-        if( pickedNode )
+        std::string objectName;
+        const osg::NodePath& nodePath = intersection.nodePath;
+        osg::BoundingSphere sphere;
+        switch( _pickMode )
         {
-            osg::notify( osg::DEBUG_FP ) <<"  Hits "<< pickedNode->className() << " named " << pickedNode->getName() << ". nodePath size "<<nodePath.size()<<std::endl;
+        case PICK_DRAWABLE:
+            if( intersection.drawable != NULL )
+            {
+                sphere = intersection.drawable->getBound();
+                objectName = intersection.drawable->getName();
+                break;
+            }
+            // intentional fallthrough
+        case PICK_GROUP:
+            if( nodePath.size() > 1 )
+            {
+                sphere = nodePath[ nodePath.size()-2 ]->getBound();
+                break;
+            }
+            // intentional fallthrough
+        case PICK_GEODE:
+            sphere = nodePath[ nodePath.size()-1 ]->getBound();
+            objectName = nodePath[ nodePath.size()-1 ]->getName();
+            break;
+        }
 
-            osg::Vec3 eyepoint, center, up;
-            viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
-            osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight( nodePath, *pickedNode );
+        if( _labelMode == LABEL_FROM_OBJECT )
+        {
+            if( objectName.empty() )
+            {
+                osg::NodePath::const_reverse_iterator it = nodePath.rbegin();
+                it++;
+                for( ; it != nodePath.rend(); it++ )
+                {
+                    objectName = (*it)->getName();
+                    if( !( objectName.empty() ) )
+                        break;
+                }
+            }
+            setLabelText( objectName );
+        }
 
-            return( highlightGraph.release() );
-        } // if
+        osg::Vec3 eyepoint, center, up;
+        viewer->getCamera()->getViewMatrixAsLookAt( eyepoint, center, up );
+        osg::ref_ptr<osg::Node> highlightGraph = createCircleHighlight( nodePath, sphere );
+
+        return( highlightGraph.release() );
     } // if intersections
 
     return( NULL );
@@ -256,8 +304,9 @@ int main( int argc, char **argv )
 
     // add the pick handler
     PickHandler* ph = new PickHandler( labelGroup.get() );
+    ph->setPickMode( PickHandler::PICK_GROUP );
+    ph->setLabelMode( PickHandler::LABEL_FROM_OBJECT );
     viewer.addEventHandler( ph );
-    ph->setLabelText( "test label 01234" );
 
     viewer.realize();
 

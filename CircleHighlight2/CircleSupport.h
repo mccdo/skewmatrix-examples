@@ -19,7 +19,7 @@ class CircleSupport
 public:
     CircleSupport();
 
-    osg::Node* createCircleHighlight( const osg::NodePath& nodePath, const osg::Node& pickedNode );
+    osg::Node* createCircleHighlight( const osg::NodePath& nodePath, const osg::BoundingSphere& sphere );
 
     void setLabelText( const std::string& labelText );
     const std::string& getLabelText() const;
