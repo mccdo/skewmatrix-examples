@@ -1,0 +1,3 @@
+This is a rewrite of the OSG example osgshaders to demonstrate the Complex Surfaces shaders, grass, dirt and concrete.
+
+The framework of the shaders was built in RenderMonkey, staring with their Shaded Bump example. The shaders incorporate fBm noise code by Stefan Gustavson ITN-LiTH (stegu@itn.liu.se) used by permission (see source for terms). The bump aplitude to normal code is by Steve Koren. The shaders were developed by Chris 'Xenon' Hanson, xenon@alphapixel.com for Skew Matrix and ISU.
