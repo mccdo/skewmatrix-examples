@@ -21,12 +21,15 @@ int main( int argc, char** argv )
     }
 
     const std::string inFile( argv[ 1 ] );
-    const std::string filePath( osgDB::getFilePath( inFile ) );
+    std::string filePath( osgDB::getFilePath( inFile ) );
+    if( filePath.empty() )
+    {
+        filePath = ".";
+    }
     const std::string baseName( osgDB::getStrippedName( inFile ) );
     const std::string outFile( filePath + "/" + baseName + ".osg" );
     osg::notify( osg::DEBUG_INFO ) << "In: " << inFile << std::endl;
     osg::notify( osg::DEBUG_INFO ) << "Out: " << outFile << std::endl;
-
 
     osg::ref_ptr< osg::Group > group( new osg::Group );
     osg::Node* model( osgDB::readNodeFile( inFile ) );
@@ -51,7 +54,6 @@ int main( int argc, char** argv )
 
     // Output to .osg.
     osgDB::writeNodeFile( *processedModel, outFile );
-
 
     // Add axes
     osg::Node* axes( osgDB::readNodeFile( "axes.osg" ) );
