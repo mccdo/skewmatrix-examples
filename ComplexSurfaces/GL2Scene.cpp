@@ -51,6 +51,9 @@
 #include "GL2Scene.h"
 #include "Noise.h"
 
+//#define CONCRETE
+#define GRASS
+//#define DIRT
 
 ///////////////////////////////////////////////////////////////////////////
 // in-line GLSL source code for the "microshader" example
@@ -166,7 +169,7 @@ GL2Scene::buildScene()
     }
 
     // Concrete Shader
-	if(0)
+#if defined( CONCRETE )
     {
 	    osg::Image* ConcreteDarkenImage = osgDB::readImageFile("images/ConcreteDarken.png");
 	    osg::Image* ConcreteBumpImage   = osgDB::readImageFile("images/ConcreteBump.png");
@@ -207,10 +210,8 @@ GL2Scene::buildScene()
         ConcreteProgram->addShader( ConcreteVertObj );
         ss->setAttributeAndModes(ConcreteProgram, osg::StateAttribute::ON);
     }
-
-	
+#elif defined( GRASS )
 	// Grass Shader
-    if(0)
 	{
         osg::StateSet* ss = ModelInstance();
 
@@ -240,7 +241,7 @@ GL2Scene::buildScene()
         GrassProgram->addShader( GrassVertObj );
         ss->setAttributeAndModes(GrassProgram, osg::StateAttribute::ON);
     }
-
+#else
 	// Dirt Shader
     {
         osg::StateSet* ss = ModelInstance();
@@ -273,6 +274,7 @@ GL2Scene::buildScene()
         DirtProgram->addShader( DirtVertObj );
         ss->setAttributeAndModes(DirtProgram, osg::StateAttribute::ON);
     }
+#endif
 
     reloadShaderSource();
 
@@ -297,14 +299,16 @@ GL2Scene::reloadShaderSource()
 {
     osg::notify(osg::INFO) << "reloadShaderSource()" << std::endl;
 
-    //LoadShaderSource( ConcreteVertObj, "shaders/basicbumpmap.vert" );
-    //LoadShaderSource( ConcreteFragObj, "shaders/concrete.frag" );
-
-    //LoadShaderSource( GrassVertObj, "shaders/basicbumpmap.vert" );
-    //LoadShaderSource( GrassFragObj, "shaders/grass.frag" );
-
+#if defined( CONCRETE )
+    LoadShaderSource( ConcreteVertObj, "shaders/basicbumpmap.vert" );
+    LoadShaderSource( ConcreteFragObj, "shaders/concrete.frag" );
+#elif defined( GRASS )
+    LoadShaderSource( GrassVertObj, "shaders/basicbumpmap.vert" );
+    LoadShaderSource( GrassFragObj, "shaders/grass.frag" );
+#else
     LoadShaderSource( DirtVertObj, "shaders/basicbumpmap.vert" );
     LoadShaderSource( DirtFragObj, "shaders/dirt.frag" );
+#endif
 }
 
 
