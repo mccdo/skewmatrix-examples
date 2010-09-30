@@ -1,24 +1,4 @@
-uniform vec4 fvAmbient;
-uniform vec4 fvSpecular;
-uniform vec4 fvDiffuse;
-uniform float fSpecularPower;
-uniform float fScale;
-uniform float fGravelScale;
-uniform float fDirtScale;
-uniform float fDirtGravelDistScale;
-
-varying vec2 Texcoord;
-varying vec3 ViewDirection;
-varying vec3 LightDirection;
-
-uniform vec4 fvBaseColorA;
-uniform vec4 fvBaseColorB;
-
 vec2 localDFD;
-
-
-
-
 
 /*
  * 2D, 3D and 4D Perlin noise, classic and simplex, in a GLSL fragment shader.
@@ -476,6 +456,23 @@ vec3 fBMToNormal(vec2 MapCoord, float octaves, float scale)
     float Delta = (localDFD.x + localDFD.y) * .5; // average is better than nothing
     return(SamplesToNormal(BaseAmplitude, DeltaAmplitudeXY.x, DeltaAmplitudeXY.y, Delta, scale));
  }
+
+
+uniform vec4 fvAmbient;
+uniform vec4 fvSpecular;
+uniform vec4 fvDiffuse;
+uniform float fSpecularPower;
+uniform float fScale;
+uniform float fGravelScale;
+uniform float fDirtScale;
+uniform float fDirtGravelDistScale;
+
+varying vec2 Texcoord;
+varying vec3 ViewDirection;
+varying vec3 LightDirection;
+
+uniform vec4 fvBaseColorA;
+uniform vec4 fvBaseColorB;
 
 
 void main( void )

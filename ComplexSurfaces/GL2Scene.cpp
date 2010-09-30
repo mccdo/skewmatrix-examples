@@ -52,31 +52,9 @@
 #include "Noise.h"
 
 //#define CONCRETE
-#define GRASS
-//#define DIRT
+//#define GRASS
+#define DIRT
 
-///////////////////////////////////////////////////////////////////////////
-// in-line GLSL source code for the "microshader" example
-
-static const char *ConcreteShaderVertSource = {
-    "// microshader - colors a fragment based on its position\n"
-    "varying vec4 color;\n"
-    "void main(void)\n"
-    "{\n"
-	"    color = vec4(gl_MultiTexCoord0.xyz, 1.0);\n"
-    "    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
-    "}\n"
-};
-
-static const char *ConcreteShaderFragSource = {
-    "varying vec4 color;\n"
-    "void main(void)\n"
-    "{\n"
-    "    gl_FragColor = color;\n"
-    "}\n"
-};
-
-///////////////////////////////////////////////////////////////////////////
 
 static osg::ref_ptr<osg::Group> rootNode;
 
