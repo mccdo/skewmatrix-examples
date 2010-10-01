@@ -68,9 +68,14 @@ void CameraImageCaptureCallback::operator()( osg::RenderInfo& ri ) const
         << fName << " ... " << std::endl;
     //const osg::Viewport* vp = ri.getState()->getCurrentViewport();    
     //image->readPixels( 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE );
-    
-    //image->readPixels( 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE );
+
+    //
+    // Get the texture image.
+    m_tex->apply( *( ri.getState() ) );
     image->readImageFromCurrentTexture( ri.getContextID(), false, GL_UNSIGNED_BYTE );
+    // Got it.
+    //
+
     osg::notify( osg::ALWAYS ) << "Writing file " 
         << fName << " ... " << std::endl;
     osgDB::writeImageFile( *image, fName );

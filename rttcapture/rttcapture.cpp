@@ -10,7 +10,7 @@
 #include <osgwTools/Shapes.h>
 #include <osgwTools/Version.h>
 
-//#define USE_ISU_CB
+#define USE_ISU_CB
 #if defined( USE_ISU_CB )
 #include "CameraImageCaptureCallback.h"
 #else
