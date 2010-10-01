@@ -51,9 +51,9 @@
 #include "GL2Scene.h"
 #include "Noise.h"
 
-//#define CONCRETE
+#define CONCRETE
 //#define GRASS
-#define DIRT
+//#define DIRT
 
 
 static osg::ref_ptr<osg::Group> rootNode;

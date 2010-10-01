@@ -7,23 +7,43 @@
 #include <osg/Texture2D>
 #include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
+#include <osgwTools/Shapes.h>
 #include <osgwTools/Version.h>
+
+//#define USE_ISU_CB
+#if defined( USE_ISU_CB )
+#include "CameraImageCaptureCallback.h"
+#else
 #include <osgwTools/ScreenCapture.h>
+#endif
 
 #include <string>
 
 
+//
+// Begin globalc
 const int winW( 800 ), winH( 600 );
 
 osg::ref_ptr< osg::Texture2D > tex;
 
+osg::ref_ptr< osg::Camera > preRenderCamera;
+
+#if defined( USE_ISU_CB )
+std::string imageDumpName( "out.png" );
+osg::ref_ptr< CameraImageCaptureCallback > captureCB;
+#else
 osg::ref_ptr< osgwTools::ScreenCapture > captureCB;
+#endif
+
+// End globals
+//
+
 
 
 class Handler : public osgGA::GUIEventHandler 
 {
 public: 
-    Handler() {}
+    Handler() : _frameCount( -1 ) {}
     ~Handler() {}
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa )
@@ -31,14 +51,29 @@ public:
         bool handled( false );
         switch(ea.getEventType())
         {
+            case( osgGA::GUIEventAdapter::FRAME ):
+            {
+#if defined( USE_ISU_CB )
+                if( _frameCount > -1 )
+                {
+                    if( --_frameCount == 0 )
+                        preRenderCamera->setPostDrawCallback( NULL );
+                }
+#endif
+            }
             case( osgGA::GUIEventAdapter::KEYDOWN ):
             {
                 switch( ea.getKey() )
                 {
                     case( osgGA::GUIEventAdapter::KEY_Return ):
                     {
+#if defined( USE_ISU_CB )
+                        preRenderCamera->setPostDrawCallback( captureCB.get() );
+                        _frameCount = 2;
+#else
                         captureCB->setNumFramesToCapture( 1 );
                         captureCB->setCapture( true );
+#endif
                         handled = true;
                     }
                 }
@@ -46,14 +81,14 @@ public:
         }
         return( handled );
     }
+
+    int _frameCount;
 };
 
 
 osg::Node*
-postRender( osgViewer::Viewer& viewer )
+preRender( osg::Group* root, osg::Node* model )
 {
-    osg::Camera* rootCamera( viewer.getCamera() );
-
     // Create the texture; we'll use this as our color buffer.
     // Note it has no image data; not required.
     tex = new osg::Texture2D;
@@ -63,45 +98,55 @@ postRender( osgViewer::Viewer& viewer )
     tex->setBorderWidth( 0 );
     tex->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
     tex->setFilter( osg::Texture::MAG_FILTER, osg::Texture::NEAREST );
+#if defined( USE_ISU_CB )
+    osg::Image* image = new osg::Image;
+    tex->setImage( image );
+#endif
 
-    // Attach the texture to the camera. Tell it to use multisampling.
-    // Internally, OSG allocates a multisampled renderbuffer, renders to it,
-    // and at the end of the frame performs a BlitFramebuffer into our texture.
-    rootCamera->attach( osg::Camera::COLOR_BUFFER0, tex.get(), 0, 0, false );
-    rootCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
 
+    // Configure preRenderCamera to draw fullscreen textured quad
+    preRenderCamera = new osg::Camera;
+    preRenderCamera->setClearColor( osg::Vec4( .5, 0., 0., 1. ) );
+
+    preRenderCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
+    preRenderCamera->setRenderOrder( osg::Camera::PRE_RENDER );
+    preRenderCamera->setViewMatrix( osg::Matrixd::translate( 0., 0., -30. ) );
+    preRenderCamera->setProjectionMatrix( osg::Matrixd::perspective( 25., 1., 1., 100. ) );
+
+    preRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
+    preRenderCamera->attach( osg::Camera::COLOR_BUFFER0, tex.get(), 0, 0, false );
+
+    preRenderCamera->addChild( model );
+
+#if defined( USE_ISU_CB )
+    captureCB = new CameraImageCaptureCallback( imageDumpName, 512, 512, tex );
+#else
     captureCB = new osgwTools::ScreenCapture;
-    rootCamera->setPostDrawCallback( captureCB.get() );
+    preRenderCamera->setPostDrawCallback( captureCB.get() );
+#endif
 
 
-    // Configure postRenderCamera to draw fullscreen textured quad
-    osg::ref_ptr< osg::Camera > postRenderCamera( new osg::Camera );
-    postRenderCamera->setClearColor( osg::Vec4( 0., 1., 0., 1. ) ); // should never see this.
-    postRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER, osg::Camera::FRAME_BUFFER );
-
-    postRenderCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
-    postRenderCamera->setRenderOrder( osg::Camera::POST_RENDER );
-    postRenderCamera->setViewMatrix( osg::Matrixd::identity() );
-    postRenderCamera->setProjectionMatrix( osg::Matrixd::identity() );
-
+    // Configure textured tri pair to hang off the root node and
+    // display our texture.
     osg::Geode* geode( new osg::Geode );
-    geode->addDrawable( osg::createTexturedQuadGeometry(
-        osg::Vec3( -1,-1,0 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,2,0 ) ) );
+    geode->addDrawable( osgwTools::makePlane(
+        osg::Vec3( -1,0,-1 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,0,2 ) ) );
     geode->getOrCreateStateSet()->setTextureAttributeAndModes(
         0, tex, osg::StateAttribute::ON );
     geode->getOrCreateStateSet()->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
 
-    postRenderCamera->addChild( geode );
+    root->addChild( geode );
 
-    return( postRenderCamera.release() );
+
+    return( preRenderCamera.get() );
 }
 
 int
 main( int argc, char** argv )
 {
     osg::ref_ptr< osg::Group > root( new osg::Group );
-    root->addChild( osgDB::readNodeFile( "cow.osg" ) );
-    if( root->getNumChildren() == 0 )
+    osg::ref_ptr< osg::Node > model( osgDB::readNodeFile( "cow.osg" ) );
+    if( !model.valid() )
         return( 1 );
 
     osgViewer::Viewer viewer;
@@ -110,10 +155,9 @@ main( int argc, char** argv )
     viewer.realize();
     viewer.addEventHandler( new Handler );
 
-    root->addChild( postRender( viewer ) );
+    root->addChild( preRender( root.get(), model.get() ) );
 
-    // Clear to white to make AA extremely obvious.
-    viewer.getCamera()->setClearColor( osg::Vec4( 1., 1., 1., 1. ) );
+    viewer.getCamera()->setClearColor( osg::Vec4( 0.4, 0.4, 0.4, 1. ) );
 
     return( viewer.run() );
 }
