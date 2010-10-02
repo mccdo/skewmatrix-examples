@@ -7,6 +7,7 @@
 #include <osg/Texture2D>
 #include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 #include <osgwTools/Shapes.h>
 #include <osgwTools/Version.h>
 #include <osg/OcclusionQueryNode>
@@ -117,9 +118,13 @@ preRender( osg::Group* root, osg::Node* model )
     preRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
     preRenderCamera->attach( osg::Camera::COLOR_BUFFER0, tex.get(), 0, 0, false );
 
+#if 0
     osg::OcclusionQueryNode* oqn = new osg::OcclusionQueryNode;
     oqn->addChild( model );
     preRenderCamera->addChild( oqn );
+#else
+    preRenderCamera->addChild( model );
+#endif
 
 #if defined( USE_ISU_CB )
     captureCB = new CameraImageCaptureCallback( imageDumpName, 512, 512, tex );
@@ -147,16 +152,21 @@ preRender( osg::Group* root, osg::Node* model )
 int
 main( int argc, char** argv )
 {
+    // Disable serialization of draw threads.
+    // TBD verify that OSG picks this up.
+    putenv( "OSG_SERIALIZE_DRAW_DISPATCH=OFF" );
+
     osg::ref_ptr< osg::Group > root( new osg::Group );
     osg::ref_ptr< osg::Node > model( osgDB::readNodeFile( "cow.osg" ) );
     if( !model.valid() )
         return( 1 );
 
     osgViewer::Viewer viewer;
-    viewer.setUpViewInWindow( 10, 30, winW, winH );
     viewer.setSceneData( root.get() );
     viewer.realize();
     viewer.addEventHandler( new Handler );
+    viewer.addEventHandler( new osgViewer::StatsHandler );
+    viewer.addEventHandler( new osgViewer::ThreadingHandler );
 
     root->addChild( preRender( root.get(), model.get() ) );
 
