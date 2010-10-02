@@ -22,6 +22,225 @@
 #include <string>
 
 
+
+//
+//
+//
+
+#include <sstream>
+
+unsigned int countGeometryVertices( osg::Geometry* geom )
+{
+    if (!geom->getVertexArray())
+        return 0;
+
+    // TBD This will eventually iterate over the PrimitiveSets and total the
+    //   number of vertices actually used. But for now, it just returns the
+    //   size of the vertex array.
+
+    return geom->getVertexArray()->getNumElements();
+}
+
+class VertexCounter : public osg::NodeVisitor
+{
+public:
+    VertexCounter( int limit )
+      : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
+        _limit( limit ),
+        _total( 0 ) {}
+    ~VertexCounter() {}
+
+    int getTotal() { return _total; }
+    bool exceeded() const { return _total > _limit; }
+    void reset() { _total = 0; }
+
+    virtual void apply( osg::Node& node )
+    {
+        // Check for early abort. If out total already exceeds the
+        //   max number of vertices, no need to traverse further.
+        if (exceeded())
+            return;
+        traverse( node );
+    }
+
+    virtual void apply( osg::Geode& geode )
+    {
+        // Possible early abort.
+        if (exceeded())
+            return;
+
+        unsigned int i;
+        for( i = 0; i < geode.getNumDrawables(); i++ )
+        {
+            osg::Geometry* geom = dynamic_cast<osg::Geometry *>(geode.getDrawable(i));
+            if( !geom )
+                continue;
+
+            _total += countGeometryVertices( geom );
+
+            if (_total > _limit)
+                break;
+        }
+    }
+
+protected:
+    int _limit;
+    int _total;
+};
+
+
+class OcclusionQueryVisitor : public osg::NodeVisitor
+{
+public:
+    OcclusionQueryVisitor();
+    virtual ~OcclusionQueryVisitor();
+
+    // Specify the vertex count threshold for performing occlusion
+    //   query tests. Nodes in the scene graph whose total child geometry
+    //   contains fewer vertices than the specified threshold will
+    //   never be tested, just drawn. (In fact, they will br treated as
+    //   potential occluders and rendered first in front-to-back order.)
+    void setOccluderThreshold( int vertices );
+    int getOccluderThreshold() const;
+
+    virtual void apply( osg::OcclusionQueryNode& oqn );
+    virtual void apply( osg::Group& group );
+    virtual void apply( osg::Geode& geode );
+
+protected:
+    void addOQN( osg::Node& node );
+
+    // When an OQR creates all OQNs and each OQN shares the same OQC,
+    //   these methods are used to uniquely name all OQNs. Handy
+    //   for debugging.
+    std::string getNextOQNName();
+    int getNameIdx() const { return _nameIdx; }
+
+    osg::ref_ptr<osg::StateSet> _state;
+    osg::ref_ptr<osg::StateSet> _debugState;
+
+    unsigned int _nameIdx;
+
+    int _occluderThreshold;
+};
+
+OcclusionQueryVisitor::OcclusionQueryVisitor()
+  : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
+    _nameIdx( 0 ),
+    _occluderThreshold( 5000 )
+{
+    // Create a dummy OcclusionQueryNode just so we can get its state.
+    // We'll then share that state between all OQNs we add to the visited scene graph.
+    osg::ref_ptr<osg::OcclusionQueryNode> oqn = new osg::OcclusionQueryNode;
+
+    _state = oqn->getQueryStateSet();
+    _debugState = oqn->getDebugStateSet();
+}
+
+OcclusionQueryVisitor::~OcclusionQueryVisitor()
+{
+    osg::notify( osg::INFO ) <<
+        "osgOQ: OcclusionQueryVisitor: Added " << getNameIdx() <<
+        " OQNodes." << std::endl;
+}
+
+void
+OcclusionQueryVisitor::setOccluderThreshold( int vertices )
+{
+    _occluderThreshold = vertices;
+}
+int
+OcclusionQueryVisitor::getOccluderThreshold() const
+{
+    return _occluderThreshold;
+}
+
+void
+OcclusionQueryVisitor::apply( osg::OcclusionQueryNode& oqn )
+{
+    // A subgraph is already under osgOQ control.
+    // Don't traverse further.
+    return;
+}
+
+void
+OcclusionQueryVisitor::apply( osg::Group& group )
+{
+    if (group.getNumParents() == 0)
+    {
+        // Can't add an OQN above a root node.
+        traverse( group );
+        return;
+    }
+
+    int preTraverseOQNCount = getNameIdx();
+    traverse( group );
+
+    if (getNameIdx() > preTraverseOQNCount)
+        // A least one OQN was added below the current node.
+        //   Don't add one here to avoid hierarchical nesting.
+        return;
+
+    // There are no OQNs below this group. If the vertex
+    //   count exceeds the threshold, add an OQN here.
+    addOQN( group );
+}
+
+void
+OcclusionQueryVisitor::apply( osg::Geode& geode )
+{
+    if (geode.getNumParents() == 0)
+    {
+        // Can't add an OQN above a root node.
+        traverse( geode );
+        return;
+    }
+
+    addOQN( geode );
+}
+
+void
+OcclusionQueryVisitor::addOQN( osg::Node& node )
+{
+    VertexCounter vc( _occluderThreshold );
+    node.accept( vc );
+    if (vc.exceeded())
+    {
+        // Insert OQN(s) above this node.
+        unsigned int np = node.getNumParents();
+        while (np--)
+        {
+            osg::Group* parent = dynamic_cast<osg::Group*>( node.getParent( np ) );
+            if (parent != NULL)
+            {
+                osg::ref_ptr<osg::OcclusionQueryNode> oqn = new osg::OcclusionQueryNode();
+                oqn->addChild( &node );
+                parent->replaceChild( &node, oqn.get() );
+
+                oqn->setName( getNextOQNName() );
+                // Set all OQNs to use the same query StateSets (instead of multiple copies
+                //   of the same StateSet) for efficiency.
+                oqn->setQueryStateSet( _state.get() );
+                oqn->setDebugStateSet( _debugState.get() );
+            }
+        }
+    }
+}
+
+std::string
+OcclusionQueryVisitor::getNextOQNName()
+{
+    std::ostringstream ostr;
+    ostr << "OQNode_" << _nameIdx++;
+    return ostr.str();
+}
+
+//
+//
+//
+
+
+
 //
 // Begin globalc
 const int texW( 512 ), texH( 512 );
@@ -119,12 +338,10 @@ preRender( osg::Group* root, osg::Node* model )
     preRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
     preRenderCamera->attach( osg::Camera::COLOR_BUFFER0, tex.get(), 0, 0, false );
 
-#if 0
-    osg::OcclusionQueryNode* oqn = new osg::OcclusionQueryNode;
-    oqn->addChild( model );
-    preRenderCamera->addChild( oqn );
-#else
     preRenderCamera->addChild( model );
+#if 1
+    OcclusionQueryVisitor oqv;
+    model->accept( oqv );
 #endif
 
 #if defined( USE_ISU_CB )
@@ -153,12 +370,8 @@ preRender( osg::Group* root, osg::Node* model )
 int
 main( int argc, char** argv )
 {
-    // Disable serialization of draw threads.
-    // TBD verify that OSG picks this up.
-    putenv( "OSG_SERIALIZE_DRAW_DISPATCH=OFF" );
-
     osg::ref_ptr< osg::Group > root( new osg::Group );
-    osg::ref_ptr< osg::Node > model( osgDB::readNodeFile( "cow.osg" ) );
+    osg::ref_ptr< osg::Node > model( osgDB::readNodeFile( "02-1100.ive" ) );
     if( !model.valid() )
         return( 1 );
 
