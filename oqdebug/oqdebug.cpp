@@ -24,7 +24,7 @@
 
 //
 // Begin globalc
-const int winW( 800 ), winH( 600 );
+const int texW( 512 ), texH( 512 );
 
 osg::ref_ptr< osg::Texture2D > tex;
 
@@ -94,8 +94,8 @@ preRender( osg::Group* root, osg::Node* model )
     // Create the texture; we'll use this as our color buffer.
     // Note it has no image data; not required.
     tex = new osg::Texture2D;
-    tex->setTextureWidth( winW );
-    tex->setTextureHeight( winH );
+    tex->setTextureWidth( texW );
+    tex->setTextureHeight( texH );
     tex->setInternalFormat( GL_RGBA );
     tex->setBorderWidth( 0 );
     tex->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
@@ -114,6 +114,7 @@ preRender( osg::Group* root, osg::Node* model )
     preRenderCamera->setRenderOrder( osg::Camera::PRE_RENDER );
     preRenderCamera->setViewMatrix( osg::Matrixd::translate( 0., 0., -30. ) );
     preRenderCamera->setProjectionMatrix( osg::Matrixd::perspective( 25., 1., 1., 100. ) );
+    preRenderCamera->setViewport( new osg::Viewport( 0, 0, texW, texH ) );
 
     preRenderCamera->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::FRAME_BUFFER );
     preRenderCamera->attach( osg::Camera::COLOR_BUFFER0, tex.get(), 0, 0, false );
@@ -127,7 +128,7 @@ preRender( osg::Group* root, osg::Node* model )
 #endif
 
 #if defined( USE_ISU_CB )
-    captureCB = new CameraImageCaptureCallback( imageDumpName, 512, 512, tex );
+    captureCB = new CameraImageCaptureCallback( imageDumpName, texW, texH, tex );
 #else
     captureCB = new osgwTools::ScreenCapture;
     preRenderCamera->setPostDrawCallback( captureCB.get() );
