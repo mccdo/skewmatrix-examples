@@ -41,10 +41,13 @@
 #include <osgDB/ReadFile>
 #include <osgDB/FileUtils>
 #include <osgUtil/Optimizer>
+#include <osgUtil/TangentSpaceGenerator>
 
 #include <osg/Program>
 #include <osg/Shader>
 #include <osg/Uniform>
+#include <osgwTools/Shapes.h>
+
 
 #include <iostream>
 
@@ -55,6 +58,16 @@
 //#define GRASS
 //#define DIRT
 
+#define TEXUNIT_PERM        1
+#define TEXUNIT_BUMP        2
+#define TEXUNIT_DARK        3
+#define TEXUNIT_GRASS       4
+
+// vertex attribute subscripts, not related to above
+#define TANGENT_ATR_UNIT	6
+#define BINORMAL_ATR_UNIT	7
+
+
 
 static osg::ref_ptr<osg::Group> rootNode;
 
@@ -63,8 +76,14 @@ static osg::Geode*
 CreateModel()
 {
     osg::Geode* geode = new osg::Geode();
-    geode->addDrawable(new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0f,0.0f,0.0f),0.5f,0.5f,0.01f)));
-    return geode;
+	osg::Geometry *geom = NULL;
+	geode->addDrawable(geom = osgwTools::makeBox(osg::Vec3(0.5f,0.5f,0.01f), osg::Vec3s(1,1,1)));
+	// Compute tangent space for geometry
+	osg::ref_ptr< osgUtil::TangentSpaceGenerator > tsg = new osgUtil::TangentSpaceGenerator;
+	tsg->generate( geom, 0 ); // all textures in this test use the same texcoords, so we use 0 and not TEXUNIT_BUMP
+	geom->setVertexAttribData( TANGENT_ATR_UNIT, osg::Geometry::ArrayData(tsg->getTangentArray(), osg::Geometry::BIND_PER_VERTEX, GL_FALSE ) );
+	geom->setVertexAttribData( BINORMAL_ATR_UNIT, osg::Geometry::ArrayData(tsg->getBinormalArray(), osg::Geometry::BIND_PER_VERTEX, GL_FALSE ) );
+  return geode;
 }
 
 // Add a reference to the masterModel at the specified translation, and
@@ -118,11 +137,6 @@ static osg::Shader*  DirtFragObj;
 
 ///////////////////////////////////////////////////////////////////////////
 // Compose a scenegraph with examples of GLSL shaders
-
-#define TEXUNIT_PERM        1
-#define TEXUNIT_BUMP        2
-#define TEXUNIT_DARK        3
-#define TEXUNIT_GRASS       4
 
 osg::ref_ptr<osg::Group>
 GL2Scene::buildScene()
@@ -186,6 +200,8 @@ GL2Scene::buildScene()
         ConcreteFragObj = new osg::Shader( osg::Shader::FRAGMENT );
         ConcreteProgram->addShader( ConcreteFragObj );
         ConcreteProgram->addShader( ConcreteVertObj );
+		ConcreteProgram->addBindAttribLocation( "rm_Tangent", TANGENT_ATR_UNIT );
+		ConcreteProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
         ss->setAttributeAndModes(ConcreteProgram, osg::StateAttribute::ON);
     }
 #elif defined( GRASS )
@@ -217,6 +233,8 @@ GL2Scene::buildScene()
         GrassFragObj = new osg::Shader( osg::Shader::FRAGMENT );
         GrassProgram->addShader( GrassFragObj );
         GrassProgram->addShader( GrassVertObj );
+		GrassProgram->addBindAttribLocation( "rm_Tangent", TANGENT_ATR_UNIT );
+		GrassProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
         ss->setAttributeAndModes(GrassProgram, osg::StateAttribute::ON);
     }
 #else
@@ -250,7 +268,9 @@ GL2Scene::buildScene()
         DirtFragObj = new osg::Shader( osg::Shader::FRAGMENT );
         DirtProgram->addShader( DirtFragObj );
         DirtProgram->addShader( DirtVertObj );
-        ss->setAttributeAndModes(DirtProgram, osg::StateAttribute::ON);
+		DirtProgram->addBindAttribLocation( "rm_Tangent", TANGENT_ATR_UNIT );
+		DirtProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
+		ss->setAttributeAndModes(DirtProgram, osg::StateAttribute::ON);
     }
 #endif
 
