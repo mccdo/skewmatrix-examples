@@ -466,7 +466,7 @@ uniform float fScale;
 uniform float fMacroToMicroScale;
 
 varying vec2 Texcoord;
-varying vec3 ViewDirection;
+//varying vec3 ViewDirection; // not using specular right now
 varying vec3 LightDirection;
 
 uniform vec4 fvBaseColorA;
@@ -478,9 +478,9 @@ uniform sampler2D grassTexture;
 void main( void )
 {
    vec2  TexScale = vec2(fScale, fScale);
-   localDFD.x = dFdx(Texcoord);
-   localDFD.y = dFdy(Texcoord);
-   localDFD *= TexScale;
+   localDFD.x = 0.002; // dFdx(Texcoord);
+   localDFD.y = 0.002; // dFdy(Texcoord);
+   //localDFD *= TexScale;
    vec2  TexCoordScaled = Texcoord * TexScale;
    vec3  fvLightDirection = normalize( LightDirection );
    

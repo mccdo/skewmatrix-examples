@@ -468,7 +468,7 @@ uniform sampler2D baseMap;
 uniform sampler2D bumpMap;
 
 varying vec2 Texcoord;
-varying vec3 ViewDirection;
+//varying vec3 ViewDirection; // not using specular right now
 varying vec3 LightDirection;
 
 uniform vec4 fvBaseColorA;
@@ -478,9 +478,9 @@ uniform vec4 fvBaseColorB;
 void main( void )
 {
    vec2  TexScale = vec2(fScale, fScale);
-   localDFD.x = dFdx(Texcoord);
-   localDFD.y = dFdy(Texcoord);
-   localDFD *= TexScale;
+   localDFD.x = 0.005; // dFdx(Texcoord);
+   localDFD.y = 0.005; // dFdy(Texcoord);
+   //localDFD *= TexScale;
    vec2  TexCoordScaled = Texcoord * TexScale;
    vec3  fvLightDirection = normalize( LightDirection );
    vec3  fvNormalMap      = MapToNormal(bumpMap, TexCoordScaled, .005);
