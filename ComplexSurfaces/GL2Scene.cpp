@@ -73,12 +73,19 @@ static osg::ref_ptr<osg::Group> rootNode;
 
 // Create some geometry upon which to render GLSL shaders.
 static osg::Geode*
-CreateModel()
+CreateModel( const osg::Vec3& corner, const float len )
 {
     osg::Geode* geode = new osg::Geode();
-	osg::Geometry *geom = NULL;
-	geode->addDrawable(geom = osgwTools::makeBox(osg::Vec3(0.5f,0.5f,0.01f), osg::Vec3s(1,1,1)));
-	// Compute tangent space for geometry
+
+    osg::Geometry* geom = osgwTools::makePlane( corner,
+        osg::Vec3( len, 0., 0. ), osg::Vec3( 0., len, 0. ),
+        osg::Vec2s( 10, 10 ) );
+    geode->addDrawable( geom );
+
+    //osg::Geometry *geom = NULL;
+	//geode->addDrawable(geom = osgwTools::makeBox(osg::Vec3(0.5f,0.5f,0.01f), osg::Vec3s(1,1,1)));
+
+    // Compute tangent space for geometry
 	osg::ref_ptr< osgUtil::TangentSpaceGenerator > tsg = new osgUtil::TangentSpaceGenerator;
 	tsg->generate( geom, 0 ); // all textures in this test use the same texcoords, so we use 0 and not TEXUNIT_BUMP
 	geom->setVertexAttribData( TANGENT_ATR_UNIT, osg::Geometry::ArrayData(tsg->getTangentArray(), osg::Geometry::BIND_PER_VERTEX, GL_FALSE ) );
@@ -86,6 +93,7 @@ CreateModel()
   return geode;
 }
 
+#if 0
 // Add a reference to the masterModel at the specified translation, and
 // return its StateSet so we can easily attach StateAttributes.
 static osg::StateSet*
@@ -101,6 +109,7 @@ ModelInstance()
     rootNode->addChild(xform);
     return xform->getOrCreateStateSet();
 }
+#endif
 
 // load source from a file.
 static void
@@ -161,7 +170,6 @@ GL2Scene::buildScene()
     }
 
     // Concrete Shader
-#if defined( CONCRETE )
     {
 	    osg::Image* ConcreteDarkenImage = osgDB::readImageFile("images/ConcreteDarken.png");
 	    osg::Image* ConcreteBumpImage   = osgDB::readImageFile("images/ConcreteBump.png");
@@ -171,7 +179,10 @@ GL2Scene::buildScene()
 		osg::Texture2D* BumpTexture = new osg::Texture2D(ConcreteBumpImage);
         BumpTexture->setWrap( osg::Texture2D::WRAP_S, osg::Texture2D::REPEAT );
         BumpTexture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT );
-        osg::StateSet* ss = ModelInstance();
+
+        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 10.f );
+        rootNode->addChild( model );
+        osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_DARK, DarkenTexture);
 		ss->setTextureAttribute(TEXUNIT_BUMP, BumpTexture);
@@ -204,10 +215,12 @@ GL2Scene::buildScene()
 		ConcreteProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
         ss->setAttributeAndModes(ConcreteProgram, osg::StateAttribute::ON);
     }
-#elif defined( GRASS )
-	// Grass Shader
+
+    // Grass Shader
 	{
-        osg::StateSet* ss = ModelInstance();
+        osg::Node* model = CreateModel( osg::Vec3( 0., -10., 0. ), 10.f );
+        rootNode->addChild( model );
+        osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_PERM, PermTexture);
 
@@ -237,10 +250,12 @@ GL2Scene::buildScene()
 		GrassProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
         ss->setAttributeAndModes(GrassProgram, osg::StateAttribute::ON);
     }
-#else
-	// Dirt Shader
+
+    // Dirt Shader
     {
-        osg::StateSet* ss = ModelInstance();
+        osg::Node* model = CreateModel( osg::Vec3( -5., 0., 0. ), 10.f );
+        rootNode->addChild( model );
+        osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_PERM, PermTexture);
 
@@ -272,7 +287,6 @@ GL2Scene::buildScene()
 		DirtProgram->addBindAttribLocation( "rm_Binormal", BINORMAL_ATR_UNIT );
 		ss->setAttributeAndModes(DirtProgram, osg::StateAttribute::ON);
     }
-#endif
 
     reloadShaderSource();
 
@@ -297,16 +311,14 @@ GL2Scene::reloadShaderSource()
 {
     osg::notify(osg::INFO) << "reloadShaderSource()" << std::endl;
 
-#if defined( CONCRETE )
     LoadShaderSource( ConcreteVertObj, "shaders/basicbumpmap.vert" );
     LoadShaderSource( ConcreteFragObj, "shaders/concrete.frag" );
-#elif defined( GRASS )
+
     LoadShaderSource( GrassVertObj, "shaders/basicbumpmap.vert" );
     LoadShaderSource( GrassFragObj, "shaders/grass.frag" );
-#else
+
     LoadShaderSource( DirtVertObj, "shaders/basicbumpmap.vert" );
     LoadShaderSource( DirtFragObj, "shaders/dirt.frag" );
-#endif
 }
 
 

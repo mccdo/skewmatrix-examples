@@ -29,6 +29,7 @@
 #include <osgGA/GUIEventAdapter>
 #include <osgGA/GUIActionAdapter>
 #include <osgDB/ReadFile>
+#include <osgDB/WriteFile>
 #include <osgUtil/Optimizer>
 #include <osgViewer/Viewer>
 
@@ -75,7 +76,10 @@ int main(int, char **)
     // create the scene
     GL2ScenePtr gl2Scene = new GL2Scene;
 
-    viewer.setSceneData( gl2Scene->getRootNode().get() );
+    osg::Node* model = gl2Scene->getRootNode().get();
+    osgDB::writeNodeFile( *model, "surface.ive" );
+
+    viewer.setSceneData( model );
 
     viewer.addEventHandler( new KeyHandler(gl2Scene) );
 
