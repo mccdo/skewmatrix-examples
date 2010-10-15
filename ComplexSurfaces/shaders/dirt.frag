@@ -373,16 +373,16 @@ float n = 0.0;
 
 // unrolled 5-step octave loop
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 1) return n;
+if(octaves == 1.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 2) return n;
+if(octaves == 2.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 3) return n;
+if(octaves == 3.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 4) return n;
+if(octaves == 4.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
 return n;
@@ -485,16 +485,16 @@ void main( void )
    vec3  fvLightDirection = normalize( LightDirection );
 
    // evaluate macro dirt-gravel distribution
-   float fMacroDirtGravel = clampedfBmZeroToOne(100.0 + (TexCoordScaled * fDirtGravelDistScale), 2); // 100: random offset
+   float fMacroDirtGravel = clampedfBmZeroToOne(100.0 + (TexCoordScaled * fDirtGravelDistScale), 2.0); // 100: random offset
 
    // evaluate gravel properties
-   vec3  fvNormalGravel   = fBMToNormal(TexCoordScaled * fGravelScale, 1, 0.02);
-   float fGravelVal       = clampedfBmZeroToOne(TexCoordScaled * (fGravelScale * .25), 4);
+   vec3  fvNormalGravel   = fBMToNormal(TexCoordScaled * fGravelScale, 1.0, 0.02);
+   float fGravelVal       = clampedfBmZeroToOne(TexCoordScaled * (fGravelScale * .25), 4.0);
    vec4  fvGravelColor    = mix(vec4(.5, .4, .3, 1.0), vec4(.7, .6, .5, 1.0), fGravelVal);
    
    // evaluate dirt properties
    vec3  fvNormalDirt     = vec3(0.0, 0.0, 1.0);
-   float fDirtVal         = clampedfBmZeroToOne(500 - (TexCoordScaled * fDirtScale), 4); // -500: random offset
+   float fDirtVal         = clampedfBmZeroToOne(500.0 - (TexCoordScaled * fDirtScale), 4.0); // -500: random offset
    vec4  fvDirtColor      = mix(fvBaseColorA, fvBaseColorB, fDirtVal);
    
    vec3  fvNormal         = mix(fvNormalGravel, fvNormalDirt, fMacroDirtGravel);

@@ -373,16 +373,16 @@ float n = 0.0;
 
 // unrolled 5-step octave loop
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 1) return n;
+if(octaves == 1.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 2) return n;
+if(octaves == 2.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 3) return n;
+if(octaves == 3.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 4) return n;
+if(octaves == 4.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
 return n;
@@ -484,7 +484,7 @@ void main( void )
    vec2  TexCoordScaled = Texcoord * TexScale;
    vec3  fvLightDirection = normalize( LightDirection );
    vec3  fvNormalMap      = MapToNormal(bumpMap, TexCoordScaled, .005);
-   vec3  fvNormalfBM      = fBMToNormal(vec2(TexCoordScaled.x, TexCoordScaled.y * 9), 2, 0.001);
+   vec3  fvNormalfBM      = fBMToNormal(vec2(TexCoordScaled.x, TexCoordScaled.y * 9.0), 2.0, 0.001);
    
    vec3  fvNormal         = (fvNormalMap + fvNormalfBM) * .5;
 
@@ -493,7 +493,7 @@ void main( void )
    //vec3  fvViewDirection  = normalize( ViewDirection );
    //float fRDotV           = max( 0.0, dot( fvReflection, fvViewDirection ) );
 
-   float fGradVal         = clampedfBmZeroToOne(TexCoordScaled * 0.2, 4);
+   float fGradVal         = clampedfBmZeroToOne(TexCoordScaled * 0.2, 4.0);
    vec4  fvBaseColorMixed = mix(fvBaseColorA, fvBaseColorB, fGradVal);
    vec4  fvBaseShade      = texture2D( baseMap, TexCoordScaled );
    vec4  fvBaseColor      = fvBaseColorMixed * fvBaseShade;

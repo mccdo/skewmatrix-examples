@@ -373,16 +373,16 @@ float n = 0.0;
 
 // unrolled 5-step octave loop
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 1) return n;
+if(octaves == 1.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 2) return n;
+if(octaves == 2.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 3) return n;
+if(octaves == 3.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
-if(octaves == 4) return n;
+if(octaves == 4.0) return n;
 scale *= 2.0;
 n += snoise(P * scale * 10.0) / scale;
 return n;
@@ -485,7 +485,7 @@ void main( void )
    vec3  fvLightDirection = normalize( LightDirection );
    
    // evaluate macro grass color distribution
-   float fMacroGrassColor = clampedfBmZeroToOne(100.0 + (TexCoordScaled * fMacroToMicroScale), 2); // 100: random offset
+   float fMacroGrassColor = clampedfBmZeroToOne(100.0 + (TexCoordScaled * fMacroToMicroScale), 2.0); // 100: random offset
    vec4  fvGrassColor     = mix(fvBaseColorA, fvBaseColorB, fMacroGrassColor);
    float fGrassValue      = SampleAmplitude(grassTexture, TexCoordScaled);
    fvGrassColor *= fGrassValue;
