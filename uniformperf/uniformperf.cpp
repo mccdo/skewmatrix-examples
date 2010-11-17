@@ -157,6 +157,7 @@ public:
         osg::StateSet* ss = node.getOrCreateStateSet();
         ss->addUniform( new osg::Uniform( "u0", 0.0f ) );
         ss->addUniform( new osg::Uniform( "u1", 1.0f ) );
+        ss->addUniform( new osg::Uniform( "u2", 2.0f ) );
 
         traverse( node );
     }
