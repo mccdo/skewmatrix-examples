@@ -34,6 +34,10 @@ LINK_DIRECTORIES(
 )
 
 
+# benchmarks
+ADD_SUBDIRECTORY( uniformperf )
+
+# examples
 ADD_SUBDIRECTORY( character )
 ADD_SUBDIRECTORY( CircleHighlight )
 ADD_SUBDIRECTORY( CircleHighlight2 )
