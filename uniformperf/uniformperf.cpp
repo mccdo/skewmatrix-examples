@@ -63,10 +63,10 @@ osg::Node* getSharedGeode()
         geom->setVertexArray( v );
 
         osg::Vec4Array* c = new osg::Vec4Array;
-        c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
-        c->push_back( osg::Vec4( 1., 1., 1., 1. ) );
-        c->push_back( osg::Vec4( 0., 0., 1., 1. ) );
-        c->push_back( osg::Vec4( 0., 0., 1., 1. ) );
+        c->push_back( osg::Vec4( .9, .9, .9, 1. ) );
+        c->push_back( osg::Vec4( .9, .9, .9, 1. ) );
+        c->push_back( osg::Vec4( 0., 0., .9, 1. ) );
+        c->push_back( osg::Vec4( 0., 0., .9, 1. ) );
         geom->setColorArray( c );
         geom->setColorBinding( osg::Geometry::BIND_PER_VERTEX );
 
@@ -91,9 +91,11 @@ osg::Program* getProgram()
     osg::ref_ptr< osg::Program > myProgram = new osg::Program;
 
     char* vShaderSource =
+        "uniform float u0, u1, u2; \n" \
         "void main() { \n" \
+        "  vec4 offset = vec4( u0, u1, u2, 0.0 ); \n" \
         "  gl_Position = ftransform(); \n" \
-        "  gl_FrontColor = gl_Color; \n" \
+        "  gl_FrontColor = gl_Color + offset; \n" \
         "} \n";
     osg::ref_ptr< osg::Shader > vShader = new osg::Shader( osg::Shader::VERTEX,
         std::string( vShaderSource ) );
@@ -155,9 +157,9 @@ public:
     void apply( osg::Node& node )
     {
         osg::StateSet* ss = node.getOrCreateStateSet();
-        ss->addUniform( new osg::Uniform( "u0", 0.0f ) );
-        ss->addUniform( new osg::Uniform( "u1", 1.0f ) );
-        ss->addUniform( new osg::Uniform( "u2", 2.0f ) );
+        ss->addUniform( new osg::Uniform( "u0", 0.1f ) );
+        ss->addUniform( new osg::Uniform( "u1", 0.09f ) );
+        ss->addUniform( new osg::Uniform( "u2", 0.08f ) );
 
         traverse( node );
     }
