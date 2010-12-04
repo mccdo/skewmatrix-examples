@@ -121,9 +121,15 @@ public:
         ctxInfo.__glGetFramebufferAttachmentParameteriv(
             GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
             GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &destColorTex0 );
+#if( OSGWORKS_OSG_VERSION > 20906 )
+        fboExt->glFramebufferTexture2D(
+            GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, 0, 0 );
+#else
         fboExt->glFramebufferTexture2DEXT(
             GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_2D, 0, 0 );
+#endif
 
         // Verification
         //osg::notify( osg::ALWAYS ) << "Dest " << std::hex << destColorTex0 << std::endl;
@@ -135,21 +141,36 @@ public:
 
         // Blit, from (multisampled read FBO) attachment1 to
         // (non-multisampled draw FBO) attachment1.
+#if( OSGWORKS_OSG_VERSION > 20906 )
+        fboExt->glBlitFramebuffer( 0, 0, width, height, 0, 0, width, height,
+            GL_COLOR_BUFFER_BIT, GL_NEAREST );
+#else
         fboExt->glBlitFramebufferEXT( 0, 0, width, height, 0, 0, width, height,
             GL_COLOR_BUFFER_BIT, GL_NEAREST );
+#endif
 
         // Restore draw and read buffers
         glDrawBuffer( GL_COLOR_ATTACHMENT0 );
         glReadBuffer( GL_COLOR_ATTACHMENT0 );
 
         // Restore the draw FBO's attachment0.
+#if( OSGWORKS_OSG_VERSION > 20906 )
+        fboExt->glFramebufferTexture2D(
+            GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, destColorTex0, 0 );
+#else
         fboExt->glFramebufferTexture2DEXT(
             GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_2D, destColorTex0, 0 );
+#endif
 
         // We disabled FBO unbinding in the RenderStage,
         // so do it ourself here.
+#if( OSGWORKS_OSG_VERSION > 20906 )
+        fboExt->glBindFramebuffer( GL_FRAMEBUFFER_EXT, 0 );
+#else
         fboExt->glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
+#endif
     }
 
 protected:
