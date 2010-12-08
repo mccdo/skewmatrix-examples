@@ -13,11 +13,11 @@ MAKE_DIRECTORY( ${PROJECT_BINARY_DIR}/bin )
 # Define macro that helps us append 'd' to debug executables/libs on Windows
 INCLUDE( CMakeMacros )
 
+include( FindOSGHelper )
+include( FindBulletHelper )
 
-FIND_PACKAGE( osg REQUIRED )
 FIND_PACKAGE( OSGWorks REQUIRED )
 FIND_PACKAGE( OpenGL REQUIRED )
-FIND_PACKAGE( Bullet )
 FIND_PACKAGE( OSGBullet )
 FIND_PACKAGE( OSGBulletPlus )
 FIND_PACKAGE( OpenAL )
@@ -74,8 +74,7 @@ IF( BULLET_FOUND AND OSGBULLET_FOUND AND OSGBULLETPLUS_FOUND )
     ENDIF( EXAMPLES_USE_DOUBLE_PRECISION )
 
     INCLUDE_DIRECTORIES(
-        ${BULLET_INCLUDE_DIR}
-        ${BULLET_EXTRAS_INCLUDE_DIR}
+        ${BULLET_INCLUDE_DIRS}
         ${OSGBULLET_INCLUDE_DIR}
         ${OSGBULLETPLUS_INCLUDE_DIR}
     )
