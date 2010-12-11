@@ -8,7 +8,6 @@
 #include <osgbBullet/OSGToCollada.h>
 #include <osgbBullet/MotionState.h>
 #include <osgbBullet/CollisionShapes.h>
-#include <osgbBullet/ColladaUtils.h>
 #include <osgbBullet/Utils.h>
 
 #include <osgAudio/SoundManager.h>
@@ -377,6 +376,7 @@ makeDoorFrame( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     amt->addChild( node );
 
 
+    /*
     // Create matrix transform to simulate an accumulated transformation in the hierarchy.
     // Create a NodePath from it.
     // In a real app, NodePath would come from visiting the parents.
@@ -385,8 +385,25 @@ makeDoorFrame( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     osg::MatrixTransform* mt = new osg::MatrixTransform( m );
     osg::NodePath np;
     np.push_back( mt );
+    */
 
-    btRigidBody* rb = osgbBullet::loadDae( amt, np, "USMC23_1019.ASM1.dae" );
+    // Deep copy for conversion to collision shape
+    osg::Group* asGrp = node->asGroup();
+    osg::ref_ptr< osg::Group > copyGrp = new osg::Group( *asGrp, osg::CopyOp::DEEP_COPY_ALL );
+
+    osgbBullet::OSGToCollada converter;
+    converter.setSceneGraph( copyGrp.get() );
+    converter.setShapeType( BOX_SHAPE_PROXYTYPE );
+    converter.setMass( 0. ); // static
+    converter.setOverall( true );
+
+    converter.convert();
+
+    btRigidBody* rb = converter.getRigidBody();
+    osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    motion->setTransform( amt );
+    rb->setMotionState( motion );
+
     bw->addRigidBody( rb, COL_DOORFRAME, doorFrameCollidesWith );
     rb->setActivationState( DISABLE_DEACTIVATION );
 
@@ -418,11 +435,29 @@ makeDoor( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     // In a real app, NodePath would come from visiting the parents.
     osg::Matrix m( osg::Matrix::rotate( osg::PI_2, osg::Vec3( 0., 1., 0. ) ) * 
         osg::Matrix::translate( osg::Vec3( -.26, -3.14, .2 ) ) );
+    /*
     osg::MatrixTransform* mt = new osg::MatrixTransform( m );
     osg::NodePath np;
     np.push_back( mt );
+    */
 
-    btRigidBody* rb = osgbBullet::loadDae( amt, np, "USMC23_1020.ASM1.dae" );
+    // Deep copy for conversion to collision shape
+    osg::Group* asGrp = node->asGroup();
+    osg::ref_ptr< osg::Group > copyGrp = new osg::Group( *asGrp, osg::CopyOp::DEEP_COPY_ALL );
+
+    osgbBullet::OSGToCollada converter;
+    converter.setSceneGraph( copyGrp.get() );
+    converter.setShapeType( BOX_SHAPE_PROXYTYPE );
+    converter.setMass( 1. );
+    converter.setOverall( true );
+
+    converter.convert();
+
+    btRigidBody* rb = converter.getRigidBody();
+    osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    motion->setTransform( amt );
+    rb->setMotionState( motion );
+
     bw->addRigidBody( rb, COL_DOOR, doorCollidesWith );
     rb->setActivationState( DISABLE_DEACTIVATION );
 
