@@ -142,7 +142,7 @@ CharacterFixVisitor::preTraverse( osg::Group& grp )
     osg::NodeList::iterator it;
     for( it=removeList.begin(); it != removeList.end(); it++ )
     {
-        bool result = grp.removeChild( *it );
+        bool result = grp.removeChild( (*it).get() );
         osg::notify( osg::DEBUG_INFO ) << "Pre-traverse name: " << (*it)->getName() <<
             ", class: " << (*it)->className() << std::endl;
     }
@@ -169,7 +169,7 @@ CharacterFixVisitor::postTraverse( osg::Group& grp )
     osg::NodeList::iterator it;
     for( it=removeList.begin(); it != removeList.end(); it++ )
     {
-        bool result = grp.removeChild( *it );
+        bool result = grp.removeChild( (*it).get() );
         osg::notify( osg::DEBUG_INFO ) << "Post-traverse name: " << (*it)->getName() <<
             ", class: " << (*it)->className() << std::endl;
     }

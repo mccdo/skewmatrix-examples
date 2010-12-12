@@ -123,7 +123,7 @@ osg::Node* createSceneGraph( int depth=0 )
         int idx;
         for( idx=0; idx<numChildren; idx++ )
             grp->addChild( createSceneGraph( depth+1 ) );
-        node = grp;
+        node = grp.get();
     }
     return( node.release() );
 }

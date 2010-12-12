@@ -122,7 +122,7 @@ public:
                         // once the subgraph has something to draw.
                         osg::StateSet* ss = _labelGroup->getOrCreateStateSet();
                         if( ss->getAttribute( osg::StateAttribute::PROGRAM ) == NULL )
-                            ss->setAttribute( _lineStripProgram );
+                            ss->setAttribute( _lineStripProgram.get() );
                     }
                 } // if
 

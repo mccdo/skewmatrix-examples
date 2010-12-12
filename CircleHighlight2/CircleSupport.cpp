@@ -46,7 +46,7 @@ CircleSupport::createCircleHighlight( const osg::NodePath& nodePath, const osg::
         // Add text annotation
 
         osg::ref_ptr< osg::Geode > textGeode = new osg::Geode;
-        amt->addChild( textGeode );
+        amt->addChild( textGeode.get() );
 
         osg::ref_ptr< osgText::Text > text = new osgText::Text;
         text->setFont( "arial.ttf" );

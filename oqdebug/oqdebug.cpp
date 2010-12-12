@@ -345,7 +345,7 @@ preRender( osg::Group* root, osg::Node* model )
 #endif
 
 #if defined( USE_ISU_CB )
-    captureCB = new CameraImageCaptureCallback( imageDumpName, texW, texH, tex );
+    captureCB = new CameraImageCaptureCallback( imageDumpName, texW, texH, tex.get() );
 #else
     captureCB = new osgwTools::ScreenCapture;
     preRenderCamera->setPostDrawCallback( captureCB.get() );
@@ -358,7 +358,7 @@ preRender( osg::Group* root, osg::Node* model )
     geode->addDrawable( osgwTools::makePlane(
         osg::Vec3( -1,0,-1 ), osg::Vec3( 2,0,0 ), osg::Vec3( 0,0,2 ) ) );
     geode->getOrCreateStateSet()->setTextureAttributeAndModes(
-        0, tex, osg::StateAttribute::ON );
+        0, tex.get(), osg::StateAttribute::ON );
     geode->getOrCreateStateSet()->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
 
     root->addChild( geode );
