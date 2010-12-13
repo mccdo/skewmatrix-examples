@@ -7,14 +7,9 @@
 #include <osg/Geode>
 
 
-// The OSG convention is bin number 10. We want to pick
-// a slightly different number, whoch would be unlikely that
-// any other code would use it. This helps us detect our
-// own transparent StateSet, thereby avoiding setting other
-// transparent StateSets to opaque.
-// OK, it's kind of a hack.
-static int s_magicBinNumber( 10 );
-
+// When enabling transparency on a Node or Drawable that has no StateSet,
+// we addign this name to the Newly created StateSet. When transparency
+// is later disabled, if the name matches, we delete the StateSet.
 static std::string s_magicStateSetName( "TransparentDeleteMe" );
 
 
@@ -91,9 +86,9 @@ bool transparentDisable( osg::Node* node, bool recursive )
     return( true );
 }
 
-bool isTransparent( osg::Node* node )
+bool isTransparent( const osg::Node* node )
 {
-    osg::StateSet* stateSet = node->getStateSet();
+    const osg::StateSet* stateSet = node->getStateSet();
     if( stateSet != NULL )
     {
         return( isTransparent( stateSet ) );
@@ -115,7 +110,6 @@ bool transparentEnable( osg::StateSet* stateSet, float alpha )
         osg::BlendFunc::ONE_MINUS_CONSTANT_ALPHA );
     stateSet->setAttributeAndModes( bf, modeValue );
     stateSet->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );
-    stateSet->setBinNumber( s_magicBinNumber );
 
     return( true );
 }
@@ -160,15 +154,14 @@ bool transparentDisable( osg::Drawable* drawable )
     return( true );
 }
 
-bool isTransparent( osg::StateSet* stateSet )
+bool isTransparent( const osg::StateSet* stateSet )
 {
     const bool hasBlendColor = ( stateSet->getAttribute( osg::StateAttribute::BLENDCOLOR ) != NULL );
     const bool hasBlendFunc = ( stateSet->getAttribute( osg::StateAttribute::BLENDFUNC ) != NULL );
     const bool blendEnabled = ( ( stateSet->getMode( GL_BLEND ) & osg::StateAttribute::ON ) != 0 );
     const bool hasRenderingHint = ( stateSet->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN );
-    const bool hasMagicBinNumber = ( stateSet->getBinNumber() == s_magicBinNumber );
 
-    return( hasBlendColor && hasBlendFunc && blendEnabled && hasRenderingHint && hasMagicBinNumber );
+    return( hasBlendColor && hasBlendFunc && blendEnabled && hasRenderingHint );
 }
 
 
@@ -177,22 +170,72 @@ ProtectTransparencyVisitor::ProtectTransparencyVisitor()
   : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN )
 {
 }
-ProtectTransparencyVisitor::~ProtectTransparencyVisitor()
-{
-}
 
 void ProtectTransparencyVisitor::apply( osg::Node& node )
 {
+    protectTransparent( node.getStateSet() );
     traverse( node );
 }
 void ProtectTransparencyVisitor::apply( osg::Geode& geode )
 {
+    protectTransparent( geode.getStateSet() );
+
     unsigned int idx;
     for( idx=0; idx<geode.getNumDrawables(); idx++ )
     {
+        protectTransparent( geode.getDrawable( idx )->getStateSet() );
     }
 
     traverse( geode );
+}
+
+void ProtectTransparencyVisitor::protectTransparent( osg::StateSet* stateSet ) const
+{
+    if( stateSet == NULL )
+    {
+        return;
+    }
+
+    if( isTransparentInternal( stateSet ) )
+    {
+        stateSet->setMode( GL_BLEND, stateSet->getMode( GL_BLEND ) | osg::StateAttribute::PROTECTED );
+
+        osg::BlendColor* bc = dynamic_cast< osg::BlendColor* >( stateSet->getAttribute( osg::StateAttribute::BLENDCOLOR ) );
+        if( bc != NULL )
+            stateSet->setAttributeAndModes( bc, stateSet->getMode( GL_BLEND ) | osg::StateAttribute::PROTECTED );
+
+        osg::BlendFunc* bf = dynamic_cast< osg::BlendFunc* >( stateSet->getAttribute( osg::StateAttribute::BLENDFUNC ) );
+        if( bf != NULL )
+            stateSet->setAttributeAndModes( bf, stateSet->getMode( GL_BLEND ) | osg::StateAttribute::PROTECTED );
+    }
+}
+bool ProtectTransparencyVisitor::isTransparentInternal( const osg::StateSet* stateSet ) const
+{
+    bool hasTranslucentTexture = false;
+    bool hasBlendFunc = ( stateSet->getAttribute( osg::StateAttribute::BLENDFUNC ) != 0 );
+    bool hasTransparentRenderingHint = stateSet->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN;
+    bool hasDepthSortBin = ( stateSet->getRenderBinMode() == osg::StateSet::USE_RENDERBIN_DETAILS ) ? 
+        ( stateSet->getBinName()=="DepthSortedBin" ) : false;
+
+    // search for the existence of any texture object attributes
+    for( unsigned int i=0;i<stateSet->getTextureAttributeList().size();++i )
+    {
+        const osg::Texture* texture = dynamic_cast< const osg::Texture* >(
+            stateSet->getTextureAttribute( i, osg::StateAttribute::TEXTURE ) );
+        if( texture != NULL )
+        {
+            for( unsigned int im=0;im<texture->getNumImages();++im )
+            {
+                const osg::Image* image = texture->getImage(im);
+                if (image && image->isImageTranslucent())
+                {
+                    hasTranslucentTexture = true;   
+                }
+            }
+        }
+    }
+    
+    return( hasTranslucentTexture || hasBlendFunc || hasTransparentRenderingHint || hasDepthSortBin );
 }
 
 

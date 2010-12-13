@@ -29,7 +29,10 @@ bool transparentDisable( osg::Node* node, bool recursive=false );
 /** \brief Determine whether a node is transparent.
 \return True if the node has a StateSet and the StateSet has rendering hint set to TRANSPARENT_BIN. Otherwise, returns false.
 */
-bool isTransparent( osg::Node* node );
+bool isTransparent( const osg::Node* node );
+
+
+
 
 /** \brief Enable transparency for the given StateSet using the given alpha value.
 This is useful for setting transparency on Drawables instead of Nodes.
@@ -44,29 +47,53 @@ bool transparentDisable( osg::Drawable* drawable );
 /** \brief Return true if the given StateSet has the TRANSPARENT_BIN rendering hint.
 This is useful for testing the transparency of Drawables instead of Nodes.
 */
-bool isTransparent( osg::StateSet* stateSet );
+bool isTransparent( const osg::StateSet* stateSet );
 
 
 
+
+/** \brief Find StateSets with nominal transparency, and mark the transparent state as PROTECTED.
+Run this node visitor on scene graphs / loaded models that potentially already
+contain transparency. The visitor marks the transparent state as PROTECTED so that
+subsequently enabling transparency on an ancestor node will not affect the
+protected state.
+*/
 class ProtectTransparencyVisitor : public osg::NodeVisitor
 {
 public:
     ProtectTransparencyVisitor();
-    ~ProtectTransparencyVisitor();
 
-    void apply( osg::Node& node );
-    void apply( osg::Geode& geode );
+    virtual void apply( osg::Node& node );
+    virtual void apply( osg::Geode& geode );
+
+protected:
+    /** \bried Mark the transparent componenets of \c stateSet as PROTECTED.
+    Does nothing if the \c stateSet is NULL.
+    */
+    virtual void protectTransparent( osg::StateSet* stateSet ) const;
+
+    /** \brief A general test for transparency.
+    Code was lifted from osgconv.cpp FixTransparentVisitor and modified.
+    */
+    virtual bool isTransparentInternal( const osg::StateSet* stateSet ) const;
 };
 
-/** \brief recursively restore opacity on a subgraph.
+
+
+
+/** \brief Recursively restore opacity on a subgraph.
+This visitor should be considered part of the implementation of transparentDisable(),
+which invokes this visitor when the \c recursive parameter is true.
+Therefore, apps should call transparentDisable(), rather than invoking this
+visitor directly.
 */
 class RestoreOpacityVisitor : public osg::NodeVisitor
 {
 public:
     RestoreOpacityVisitor();
 
-    void apply( osg::Node& node );
-    void apply( osg::Geode& geode );
+    virtual void apply( osg::Node& node );
+    virtual void apply( osg::Geode& geode );
 };
 
 
