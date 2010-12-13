@@ -27,7 +27,11 @@ to its StateSet.
 bool transparentDisable( osg::Node* node, bool recursive=false );
 
 /** \brief Determine whether a node is transparent.
-\return True if the node has a StateSet and the StateSet has rendering hint set to TRANSPARENT_BIN. Otherwise, returns false.
+\return True if the node has a StateSet and the StateSet has the following signature:
+\li A BlendColor StateAttribute
+\li A BlendFunc StateAttribute
+\li GL_BLEND is enabled
+\li Rendering hint set to TRANSPARENT_BIN
 */
 bool isTransparent( const osg::Node* node );
 

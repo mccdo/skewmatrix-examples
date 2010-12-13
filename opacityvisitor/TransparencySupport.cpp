@@ -65,12 +65,17 @@ bool transparentDisable( osg::Node* node, bool recursive )
     {
         // Probably the node had something else attached to UserData, so we
         // were unable to save the StateSet and had to modify the attached StateSet.
-        // There's no way to restore the StateSet to its original state in this case.
         osg::StateSet* stateSet = node->getStateSet();
         if( stateSet->getName() == s_magicStateSetName )
+        {
+            // We created the StateSet, so just delete it.
             node->setStateSet( NULL );
+        }
         else
         {
+            // We didn't create this StateSet, and we weren't able to save it.
+            // Best thing we can do is delete the state we added and hope we haven't
+            // damaged anything.
             stateSet->removeAttribute( osg::StateAttribute::BLENDCOLOR );
             stateSet->removeAttribute( osg::StateAttribute::BLENDFUNC );
             stateSet->removeMode( GL_BLEND );
@@ -98,6 +103,9 @@ bool isTransparent( const osg::Node* node )
         return( false );
     }
 }
+
+
+
 
 bool transparentEnable( osg::StateSet* stateSet, float alpha )
 {
@@ -133,12 +141,17 @@ bool transparentDisable( osg::Drawable* drawable )
     {
         // Probably the drawable had something else attached to UserData, so we
         // were unable to save the StateSet and had to modify the attached StateSet.
-        // There's no way to restore the StateSet to its original state in this case.
         osg::StateSet* stateSet = drawable->getStateSet();
         if( stateSet->getName() == s_magicStateSetName )
+        {
+            // We created the StateSet, so just delete it.
             drawable->setStateSet( NULL );
+        }
         else
         {
+            // We didn't create this StateSet, and we weren't able to save it.
+            // Best thing we can do is delete the state we added and hope we haven't
+            // damaged anything.
             stateSet->removeAttribute( osg::StateAttribute::BLENDCOLOR );
             stateSet->removeAttribute( osg::StateAttribute::BLENDFUNC );
             stateSet->removeMode( GL_BLEND );
@@ -166,6 +179,7 @@ bool isTransparent( const osg::StateSet* stateSet )
 
 
 
+
 ProtectTransparencyVisitor::ProtectTransparencyVisitor()
   : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN )
 {
@@ -176,6 +190,7 @@ void ProtectTransparencyVisitor::apply( osg::Node& node )
     protectTransparent( node.getStateSet() );
     traverse( node );
 }
+
 void ProtectTransparencyVisitor::apply( osg::Geode& geode )
 {
     protectTransparent( geode.getStateSet() );
@@ -209,8 +224,10 @@ void ProtectTransparencyVisitor::protectTransparent( osg::StateSet* stateSet ) c
             stateSet->setAttributeAndModes( bf, stateSet->getMode( GL_BLEND ) | osg::StateAttribute::PROTECTED );
     }
 }
+
 bool ProtectTransparencyVisitor::isTransparentInternal( const osg::StateSet* stateSet ) const
 {
+    bool blendEnabled = ( ( stateSet->getMode( GL_BLEND ) & osg::StateAttribute::ON ) != 0 );
     bool hasTranslucentTexture = false;
     bool hasBlendFunc = ( stateSet->getAttribute( osg::StateAttribute::BLENDFUNC ) != 0 );
     bool hasTransparentRenderingHint = stateSet->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN;
@@ -235,8 +252,11 @@ bool ProtectTransparencyVisitor::isTransparentInternal( const osg::StateSet* sta
         }
     }
     
-    return( hasTranslucentTexture || hasBlendFunc || hasTransparentRenderingHint || hasDepthSortBin );
+    return( blendEnabled &&
+        ( hasTranslucentTexture || hasBlendFunc || hasTransparentRenderingHint || hasDepthSortBin ) );
 }
+
+
 
 
 RestoreOpacityVisitor::RestoreOpacityVisitor()
@@ -251,6 +271,7 @@ void RestoreOpacityVisitor::apply( osg::Node& node )
 
     traverse( node );
 }
+
 void RestoreOpacityVisitor::apply( osg::Geode& geode )
 
 {
