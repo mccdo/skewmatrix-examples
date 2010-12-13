@@ -32,14 +32,17 @@ bool transparentDisable( osg::Node* node, bool recursive=false );
 bool isTransparent( osg::Node* node );
 
 /** \brief Enable transparency for the given StateSet using the given alpha value.
+This is useful for setting transparency on Drawables instead of Nodes.
 */
 bool transparentEnable( osg::StateSet* stateSet, float alpha );
 
 /** \brief Restore opacity by undoing the effects of a prior call to reansparentEnable().
+This is useful for restoring opacity on Drawables instead of Nodes.
 */
 bool transparentDisable( osg::Drawable* drawable );
 
 /** \brief Return true if the given StateSet has the TRANSPARENT_BIN rendering hint.
+This is useful for testing the transparency of Drawables instead of Nodes.
 */
 bool isTransparent( osg::StateSet* stateSet );
 

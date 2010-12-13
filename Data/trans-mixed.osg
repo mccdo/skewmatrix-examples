@@ -1,0 +1,86 @@
+MatrixTransform {
+  name "mixed.osg"
+  nodeMask 0xffffffff
+  cullingActive TRUE
+  referenceFrame RELATIVE
+  Matrix {
+    1 0 0 0
+    0 1 0 0
+    0 0 1 0
+    0 -4 0 1
+  }
+  num_children 1
+  Geode {
+    nodeMask 0xffffffff
+    cullingActive TRUE
+    num_drawables 2
+    Geometry {
+      DataVariance STATIC
+      useDisplayList FALSE
+      useVertexBufferObjects TRUE
+      PrimitiveSets 1
+      {
+        DrawArrays TRIANGLES 0 6
+      }
+      VertexArray Vec3Array 6
+      {
+        1 0 -1
+        3 0 -1
+        1 0 1
+        1 0 1
+        3 0 -1
+        3 0 1
+      }
+      NormalBinding OVERALL
+      NormalArray Vec3Array 1
+      {
+        0 -1 0
+      }
+      ColorBinding OVERALL
+      ColorArray Vec4Array 1
+      {
+        1 1 1 1
+      }
+    }
+    Geometry {
+      DataVariance STATIC
+      StateSet {
+        DataVariance STATIC
+        rendering_hint TRANSPARENT_BIN
+        renderBinMode USE
+        binNumber 10
+        binName DepthSortedBin
+        GL_BLEND ON
+        BlendFunc {
+          source SRC_ALPHA
+          destination ONE_MINUS_SRC_ALPHA
+        }
+      }
+      useDisplayList FALSE
+      useVertexBufferObjects TRUE
+      PrimitiveSets 1
+      {
+        DrawArrays TRIANGLES 0 6
+      }
+      VertexArray Vec3Array 6
+      {
+        -1 0 -1
+        1 0 -1
+        -1 0 1
+        -1 0 1
+        1 0 -1
+        1 0 1
+      }
+      NormalBinding OVERALL
+      NormalArray Vec3Array 1
+      {
+        0 -1 0
+      }
+      ColorBinding OVERALL
+      ColorArray Vec4Array 1
+      {
+        1 1 1 .15
+      }
+    }
+  }
+}
