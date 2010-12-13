@@ -27,12 +27,8 @@ bool transparentEnable( osg::Node* node, float alpha )
         stateSet = new osg::StateSet();
     }
 
-    osg::BlendColor* bc = new osg::BlendColor( osg::Vec4( 0., 0., 0., alpha ) );
-    stateSet->setAttributeAndModes( bc, osg::StateAttribute::ON );
-    osg::BlendFunc* bf = new osg::BlendFunc( osg::BlendFunc::CONSTANT_ALPHA,
-        osg::BlendFunc::ONE_MINUS_CONSTANT_ALPHA );
-    stateSet->setAttributeAndModes( bf, osg::StateAttribute::ON );
-    stateSet->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );
+    if( !( transparentEnable( stateSet, alpha ) ) )
+        return( false );
 
     node->setStateSet( stateSet );
     return( true );
@@ -63,10 +59,50 @@ bool transparentDisable( osg::Node* node, bool recursive )
 bool isTransparent( osg::Node* node )
 {
     osg::StateSet* stateSet = node->getStateSet();
-    return( ( stateSet != NULL ) &&
-            ( stateSet->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN ) );
+    if( stateSet != NULL )
+    {
+        return( isTransparent( stateSet ) );
+    }
+    else
+    {
+        return( false );
+    }
 }
 
+bool transparentEnable( osg::StateSet* stateSet, float alpha )
+{
+    osg::BlendColor* bc = new osg::BlendColor( osg::Vec4( 0., 0., 0., alpha ) );
+    stateSet->setAttributeAndModes( bc, osg::StateAttribute::ON );
+    osg::BlendFunc* bf = new osg::BlendFunc( osg::BlendFunc::CONSTANT_ALPHA,
+        osg::BlendFunc::ONE_MINUS_CONSTANT_ALPHA );
+    stateSet->setAttributeAndModes( bf, osg::StateAttribute::ON );
+    stateSet->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );
+
+    return( true );
+}
+
+bool transparentDisable( osg::Drawable* drawable )
+{
+    if( drawable == NULL )
+        return( false );
+    if( drawable->getStateSet() == NULL )
+        // We don't have a StateSet, so we are not transparent.
+        return( false );
+    if( !isTransparent( drawable->getStateSet() ) )
+        // We have a StateSet, but it isn't transparent.
+        return( false );
+
+    osg::StateSet* origStateSet = dynamic_cast< osg::StateSet* >( drawable->getUserData() );
+    drawable->setStateSet( origStateSet );
+    drawable->setUserData( NULL );
+
+    return( true );
+}
+
+bool isTransparent( osg::StateSet* stateSet )
+{
+    return( stateSet->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN );
+}
 
 
 
@@ -97,19 +133,24 @@ RestoreOpacityVisitor::RestoreOpacityVisitor()
   : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN )
 {
 }
-RestoreOpacityVisitor::~RestoreOpacityVisitor()
-{
-}
 
 void RestoreOpacityVisitor::apply( osg::Node& node )
 {
+    if( isTransparent( &node ) )
+        transparentDisable( &node );
+
     traverse( node );
 }
 void RestoreOpacityVisitor::apply( osg::Geode& geode )
+
 {
+    if( isTransparent( &geode ) )
+        transparentDisable( &geode );
+
     unsigned int idx;
     for( idx=0; idx<geode.getNumDrawables(); idx++ )
     {
+        transparentDisable( geode.getDrawable( idx ) );
     }
 
     traverse( geode );

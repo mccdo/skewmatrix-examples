@@ -10,7 +10,7 @@
 osg::ref_ptr< osg::Group > root;
 osg::ref_ptr< osg::Node > cowModel;
 osg::ref_ptr< osg::Node > teapotModel;
-
+osg::ref_ptr< osg::Node > eightCornersModel;
 
 class KeyHandler: public osgGA::GUIEventHandler
 {
@@ -33,6 +33,9 @@ public:
         case 'r':
             toggle( root.get() );
             return( true );
+        case 'R':
+            transparentDisable( root.get(), true );
+            return( true );
         }
         return( false );
     }
@@ -50,10 +53,18 @@ osg::Node* createDefaultScene()
 {
     root = new osg::Group;
 
-    cowModel = osgDB::readNodeFile( "cow.osg" );
+    // cow
+    std::string modelName = std::string( "cow.osg" );
+    cowModel = osgDB::readNodeFile( modelName );
+    if( !cowModel.valid() )
+        osg::notify( osg::WARN ) << "Can't load model \"" << modelName << "\"" << std::endl;
     root->addChild( cowModel.get() );
 
-    teapotModel = osgDB::readNodeFile( "teapot.osg" );
+    // teapot
+    modelName = std::string( "teapot.osg" );
+    teapotModel = osgDB::readNodeFile( modelName );
+    if( !teapotModel.valid() )
+        osg::notify( osg::WARN ) << "Can't load model \"" << modelName << "\"" << std::endl;
     teapotModel->getOrCreateStateSet()->setMode( GL_NORMALIZE, osg::StateAttribute::ON );
     osg::MatrixTransform* mt = new osg::MatrixTransform(
         osg::Matrix::scale( 4., 4., 4. ) *
@@ -61,6 +72,13 @@ osg::Node* createDefaultScene()
         );
     mt->addChild( teapotModel.get() );
     root->addChild( mt );
+
+    // eight corners
+    modelName = std::string( "eightCorners.stl" );
+    eightCornersModel = osgDB::readNodeFile( modelName );
+    if( !eightCornersModel.valid() )
+        osg::notify( osg::WARN ) << "Can't load model \"" << modelName << "\"" << std::endl;
+    root->addChild( eightCornersModel.get() );
 
     return( root.get() );
 }
