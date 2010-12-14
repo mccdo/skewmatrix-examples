@@ -64,7 +64,7 @@ public:
 protected:
     void toggle( osg::Node* node )
     {
-        if( isTransparent( node ) )
+        if( isTransparent( node->getStateSet() ) )
             transparentDisable( node );
         else
             transparentEnable( node, .3f );

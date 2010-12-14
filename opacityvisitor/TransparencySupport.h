@@ -5,9 +5,21 @@
 
 
 #include <osg/NodeVisitor>
+#include <osg/BlendColor>
+#include <osg/BlendFunc>
+
+#include <string>
 
 
-/** \brief Set a transparent StateSet on the given node, saving its current StateSet as UserData.
+
+// When enabling transparency on a Node or Drawable that has no StateSet,
+// we addign this name to the Newly created StateSet. When transparency
+// is later disabled, if the name matches, we delete the StateSet.
+static std::string s_magicStateSetName( "TransparentDeleteMe" );
+
+
+
+/** \brief Set a transparent StateSet on the given Node or Drawable, saving its current StateSet as UserData.
 If UserData is NULL, current StateSet is saved as UserData for later restore.
 If there is no current StateSet, one is created.
 The current StateSet is modified as follows:
@@ -15,41 +27,107 @@ The current StateSet is modified as follows:
 \li BlendFunc is set to use the BlendColor alpha.
 \li The rendering hint is set to TRANSPARENT_BIN.
 */
-bool transparentEnable( osg::Node* node, float alpha );
+template< class T >
+bool transparentEnable( T* nodeOrDrawable, float alpha )
+{
+    if( nodeOrDrawable == NULL )
+        return( false );
+
+    osg::StateSet* stateSet( nodeOrDrawable->getStateSet() );
+    if( ( stateSet != NULL ) &&
+        ( nodeOrDrawable->getUserData() == NULL ) )
+    {
+        // We have a StateSet, and UserData is NULL, so make a copy of the StateSet.
+        // We'll store the original StateSet as UserData (for later restore) and modify
+        // the copy.
+        nodeOrDrawable->setUserData( stateSet );
+        stateSet = new osg::StateSet( *( stateSet ), osg::CopyOp::DEEP_COPY_ALL );
+        nodeOrDrawable->setStateSet( stateSet );
+    }
+    else if( stateSet == NULL )
+    {
+        // This node doesn't have a StateSet, so we create one and tag it
+        // with the magic name for later deletion.
+        stateSet = new osg::StateSet();
+        stateSet->setName( s_magicStateSetName );
+        nodeOrDrawable->setStateSet( stateSet );
+    }
+
+    const osg::StateAttribute::GLModeValue modeValue = 
+        osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE;
+
+    osg::BlendColor* bc = new osg::BlendColor( osg::Vec4( 0., 0., 0., alpha ) );
+    stateSet->setAttributeAndModes( bc, modeValue );
+    osg::BlendFunc* bf = new osg::BlendFunc( osg::BlendFunc::CONSTANT_ALPHA,
+        osg::BlendFunc::ONE_MINUS_CONSTANT_ALPHA );
+    stateSet->setAttributeAndModes( bf, modeValue );
+    stateSet->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );
+
+    return( true );
+}
 
 /** \brief Restores opacity by undoing the effects of a prior call to transparentEnable.
-If the node isn't transparent (as defined by the isTransparent call),
+If the Node or Drawable isn't transparent (as defined by the isTransparent call),
 do nothing and return false. Otherwise, copy the node's UserData
 to its StateSet.
 \param recursive If true, use the RestoreOpacityVisitor to recursively restore opacity. Default is false.
 \return false if \c node is NULL or \c node doesn't have a StateSet. Otherwise, returns true.
 */
-bool transparentDisable( osg::Node* node, bool recursive=false );
+template< class T >
+bool transparentDisable( T* nodeOrDrawable, bool recursive=false )
+{
+    if( nodeOrDrawable == NULL )
+        return( false );
 
-/** \brief Determine whether a node is transparent.
+    osg::Node* node( dynamic_cast< osg::Node* >( nodeOrDrawable ) );
+    if( recursive && ( node != NULL ) )
+    {
+        RestoreOpacityVisitor rov;
+        node->accept( rov );
+        return( true );
+    }
+
+    if( !isTransparent( nodeOrDrawable->getStateSet() ) )
+        return( false );
+
+    osg::Referenced* userData = nodeOrDrawable->getUserData();
+    osg::StateSet* origStateSet = dynamic_cast< osg::StateSet* >( userData );
+    if( origStateSet == NULL )
+    {
+        // Probably the node had something else attached to UserData, so we
+        // were unable to save the StateSet and had to modify the attached StateSet.
+        osg::StateSet* stateSet = nodeOrDrawable->getStateSet();
+        if( stateSet->getName() == s_magicStateSetName )
+        {
+            // We created the StateSet, so just delete it.
+            nodeOrDrawable->setStateSet( NULL );
+        }
+        else
+        {
+            // We didn't create this StateSet, and we weren't able to save it.
+            // Best thing we can do is delete the state we added and hope we haven't
+            // damaged anything.
+            stateSet->removeAttribute( osg::StateAttribute::BLENDCOLOR );
+            stateSet->removeAttribute( osg::StateAttribute::BLENDFUNC );
+            stateSet->removeMode( GL_BLEND );
+            stateSet->setRenderingHint( osg::StateSet::DEFAULT_BIN );
+        }
+    }
+    else
+    {
+        nodeOrDrawable->setStateSet( origStateSet );
+        nodeOrDrawable->setUserData( NULL );
+    }
+
+    return( true );
+}
+
+/** \brief Return true if the given StateSet is configured like one of our transparent StateSets.
 \return True if the node has a StateSet and the StateSet has the following signature:
 \li A BlendColor StateAttribute
 \li A BlendFunc StateAttribute
 \li GL_BLEND is enabled
 \li Rendering hint set to TRANSPARENT_BIN
-*/
-bool isTransparent( const osg::Node* node );
-
-
-
-
-/** \brief Enable transparency for the given StateSet using the given alpha value.
-This is useful for setting transparency on Drawables instead of Nodes.
-*/
-bool transparentEnable( osg::StateSet* stateSet, float alpha );
-
-/** \brief Restore opacity by undoing the effects of a prior call to reansparentEnable().
-This is useful for restoring opacity on Drawables instead of Nodes.
-*/
-bool transparentDisable( osg::Drawable* drawable );
-
-/** \brief Return true if the given StateSet has the TRANSPARENT_BIN rendering hint.
-This is useful for testing the transparency of Drawables instead of Nodes.
 */
 bool isTransparent( const osg::StateSet* stateSet );
 
