@@ -6,7 +6,7 @@
 #include <osg/MatrixTransform>
 #include <osgwTools/Shapes.h>
 
-#include "TransparencySupport.h"
+#include <osgwTools/TransparencyUtils.h>
 
 
 osg::ref_ptr< osg::Group > root;
@@ -34,7 +34,7 @@ public:
             return( true );
 
         case 'R':
-            transparentDisable( root.get(), true );
+            osgwTools::transparentDisable( root.get(), true );
             return( true );
 
         case 'r':
@@ -64,10 +64,10 @@ public:
 protected:
     void toggle( osg::Node* node )
     {
-        if( isTransparent( node->getStateSet() ) )
-            transparentDisable( node );
+        if( osgwTools::isTransparent( node->getStateSet() ) )
+            osgwTools::transparentDisable( node );
         else
-            transparentEnable( node, .3f );
+            osgwTools::transparentEnable( node, .3f );
     }
 };
 
@@ -136,7 +136,7 @@ osg::Node* createDefaultScene()
     if( !mixedModel.valid() )
         osg::notify( osg::WARN ) << "Can't load model \"" << modelName << "\"" << std::endl;
     root->addChild( mixedModel.get() );
-    ProtectTransparencyVisitor ptv;
+    osgwTools::ProtectTransparencyVisitor ptv;
     mixedModel->accept( ptv );
 
     return( root.get() );
