@@ -30,21 +30,45 @@ void optimizeForDrawElements( osg::Node& root, const float ratioThreshold=.05f )
     OptVisitor ov;
     ov.changeDAtoDEUI_ = true;
     ov.changeDLtoVBO_ = false;
+    ov.changeVBOtoDL_ = false;
     ov.changeDynamicToStatic_ = false;
     root.accept( ov );
     ov.dump( osg::notify( osg::ALWAYS ) );
 }
 
-int main()
+void convertToDL( osg::Node& root )
 {
-    std::string inFile( "graphicstest.ive" );
+    CountsVisitor cv;
+    root.accept( cv );
+    cv.dump();
+
+    osg::notify( osg::INFO ) << "Converting VBOs to DLs." << std::endl;
+    OptVisitor ov;
+    ov.changeDAtoDEUI_ = false;
+    ov.changeDLtoVBO_ = false;
+    ov.changeVBOtoDL_ = true;
+    ov.changeDynamicToStatic_ = false;
+    root.accept( ov );
+    ov.dump( osg::notify( osg::ALWAYS ) );
+}
+
+int main( int argc, char** argv )
+{
+    if( argc != 2 )
+    {
+        osg::notify( osg::FATAL ) << "Must specify input file." << std::endl;
+        return( 1 );
+    }
+
+    std::string inFile( argv[ 1 ] );
     std::string outFile( "out.ive" );
 
     osg::ref_ptr< osg::Node > root = osgDB::readNodeFile( inFile );
     if( !root.valid() )
         return 1;
 
-    optimizeForDrawElements( *root );
+    optimizeForDrawElements( *root, 0. );
+    //convertToDL( *root );
 
     osgDB::writeNodeFile( *root, outFile );
 

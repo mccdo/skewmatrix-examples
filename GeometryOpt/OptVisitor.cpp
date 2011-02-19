@@ -15,12 +15,15 @@
 OptVisitor::OptVisitor()
   : osg::NodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
     changeDLtoVBO_( false ),
+    changeVBOtoDL_( false ),
     changeDynamicToStatic_( false ),
     changeDAtoDEUI_( false ),
     triangles_( 0 ),
     triFans_( 0 ),
     triStrips_( 0 ),
-    newDEUIs_( 0 )
+    newDEUIs_( 0 ),
+    DLtoVBO_( 0 ),
+    VBOtoDL_( 0 )
 {
 }
 OptVisitor::~OptVisitor()
@@ -45,6 +48,13 @@ OptVisitor::apply( osg::Geode& geode )
         {
             draw->setUseDisplayList( false );
             draw->setUseVertexBufferObjects( true );
+            DLtoVBO_++;
+        }
+        if( changeVBOtoDL_ )
+        {
+            draw->setUseDisplayList( true );
+            draw->setUseVertexBufferObjects( false );
+            VBOtoDL_++;
         }
         if( changeDynamicToStatic_ )
         {
@@ -158,4 +168,8 @@ OptVisitor::dump( std::ostream& ostr )
     ostr << "\tTriFans:\t" << triFans_ << std::endl;
     ostr << "\tTriStripss:\t" << triStrips_ << std::endl;
     ostr << "Total DrawElementsUInt created: " << newDEUIs_ << std::endl;
+    if( changeDLtoVBO_ )
+        ostr << "DLs converted to VBOs: " << DLtoVBO_ << std::endl;
+    if( changeVBOtoDL_ )
+        ostr << "VBOs converted to DLs: " << VBOtoDL_ << std::endl;
 }

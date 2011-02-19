@@ -28,6 +28,7 @@ public:
     virtual void apply( osg::Geode& geode );
 
     bool changeDLtoVBO_;
+    bool changeVBOtoDL_;
     bool changeDynamicToStatic_;
     bool changeDAtoDEUI_;
 
@@ -42,6 +43,8 @@ protected:
     unsigned int triFans_;
     unsigned int triStrips_;
     unsigned int newDEUIs_;
+    unsigned int DLtoVBO_;
+    unsigned int VBOtoDL_;
 };
 
 
