@@ -188,7 +188,7 @@ int main(int argc, char **argv)
       {
       viewer.frame();
       // after each frame, fill the subimage with a new random color.
-      SetImageColor(subImg);
+      SetImageColor( subImg.get() );
       // the slow way. Transfer and reload the entire texture from system memory to video memory.
       if (useSlowMethod)
          {
