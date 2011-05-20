@@ -38,6 +38,7 @@ LINK_DIRECTORIES(
 ADD_SUBDIRECTORY( uniformperf )
 
 # examples
+ADD_SUBDIRECTORY( AutoTransform2 )
 ADD_SUBDIRECTORY( character )
 ADD_SUBDIRECTORY( CircleHighlight )
 ADD_SUBDIRECTORY( CircleHighlight2 )
@@ -60,9 +61,9 @@ ADD_SUBDIRECTORY( Slider )
 ADD_SUBDIRECTORY( streamlines1 )
 ADD_SUBDIRECTORY( streamlines2 )
 ADD_SUBDIRECTORY( streamlines3 )
+ADD_SUBDIRECTORY( TextureSubload )
 ADD_SUBDIRECTORY( VectorField )
 ADD_SUBDIRECTORY( WarpVertex )
-ADD_SUBDIRECTORY( AutoTransform2 )
 
 # Bullet examples
 # message( STATUS "Bullet: " ${BULLET_FOUND} )
