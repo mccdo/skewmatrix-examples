@@ -29,7 +29,7 @@ void optimizeForDrawElements( osg::Node& root, const float ratioThreshold=.05f )
     osg::notify( osg::INFO ) << "Converting DrawArrays to DrawElementsUInt." << std::endl;
     OptVisitor ov;
     ov.changeDAtoDEUI_ = true;
-    ov.changeDLtoVBO_ = false;
+    ov.changeDLtoVBO_ = true;
     ov.changeVBOtoDL_ = false;
     ov.changeDynamicToStatic_ = false;
     root.accept( ov );
@@ -52,6 +52,22 @@ void convertToDL( osg::Node& root )
     ov.dump( osg::notify( osg::ALWAYS ) );
 }
 
+void convertToVBO( osg::Node& root )
+{
+    CountsVisitor cv;
+    root.accept( cv );
+    cv.dump();
+
+    osg::notify( osg::INFO ) << "Converting DLs to VBOs." << std::endl;
+    OptVisitor ov;
+    ov.changeDAtoDEUI_ = false;
+    ov.changeDLtoVBO_ = true;
+    ov.changeVBOtoDL_ = false;
+    ov.changeDynamicToStatic_ = false;
+    root.accept( ov );
+    ov.dump( osg::notify( osg::ALWAYS ) );
+}
+
 int main( int argc, char** argv )
 {
     if( argc != 2 )
@@ -65,10 +81,14 @@ int main( int argc, char** argv )
 
     osg::ref_ptr< osg::Node > root = osgDB::readNodeFile( inFile );
     if( !root.valid() )
+    {
+        osg::notify( osg::FATAL ) << "Can't load " << inFile << std::endl;
         return 1;
+    }
 
-    optimizeForDrawElements( *root, 0. );
+    //optimizeForDrawElements( *root, 0. );
     //convertToDL( *root );
+    convertToVBO( *root );
 
     osgDB::writeNodeFile( *root, outFile );
 
