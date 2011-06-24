@@ -62,7 +62,7 @@ OptVisitor::apply( osg::Geode& geode )
         }
 
         osg::Geometry* geom = dynamic_cast< osg::Geometry* >( draw );
-        if( ( draw != NULL ) && changeDAtoDEUI_ )
+        if( ( geom != NULL ) && changeDAtoDEUI_ )
         {
             osg::ref_ptr< osg::DrawElementsUInt > deui = new osg::DrawElementsUInt( GL_TRIANGLES );
 
