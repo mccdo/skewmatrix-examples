@@ -181,7 +181,7 @@ GL2Scene::buildScene()
         BumpTexture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT );
 
         osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 10.f );
-        rootNode->addChild( model );
+        //rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_DARK, DarkenTexture);
@@ -219,7 +219,7 @@ GL2Scene::buildScene()
     // Grass Shader
 	{
         osg::Node* model = CreateModel( osg::Vec3( 0., -10., 0. ), 10.f );
-        rootNode->addChild( model );
+        //rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_PERM, PermTexture);
@@ -253,7 +253,8 @@ GL2Scene::buildScene()
 
     // Dirt Shader
     {
-        osg::Node* model = CreateModel( osg::Vec3( -5., 0., 0. ), 10.f );
+        osg::Node* model = osgDB::readNodeFile( "lzground.osg" );
+            //CreateModel( osg::Vec3( -5., 0., 0. ), 10.f );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
