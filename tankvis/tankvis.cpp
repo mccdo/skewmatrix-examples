@@ -28,8 +28,8 @@ int main( int argc, char** argv )
 
     TankData* td = new TankData( models );
     td->setColorMethod( TankData::COLOR_EXPLICIT );
-    td->setExplicitColor( osg::Vec4( .2, 1., .8, .4 ) );
-    td->setPercentOfCapacity( 0.7f );
+    td->setExplicitColor( osg::Vec4( 1., .5, .1, .8 ) );
+    td->setPercentOfCapacity( 0.6f );
 
     osgViewer::Viewer viewer;
     viewer.setSceneData( models );

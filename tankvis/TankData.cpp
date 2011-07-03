@@ -87,6 +87,15 @@ void TankData::updateAll()
     u->set( cbv.getBoundingBox()._min );
     u = stateSet->getOrCreateUniform( "maxExtent", osg::Uniform::FLOAT_VEC3 );
     u->set( cbv.getBoundingBox()._max );
+
+    osg::Matrix m = osg::Matrix::rotate( .5, 0., 0., 1. );
+    osg::Matrix2 m2 ( m( 0, 0 ), m( 0, 1 ), m( 1, 0 ), m( 1, 1 ) );
+    u = stateSet->getOrCreateUniform( "tcxform0", osg::Uniform::FLOAT_MAT2 );
+    u->set( m2 );
+    m = osg::Matrix::rotate( -1.5, 0., 0., 1. );
+    m2 = osg::Matrix2( m( 0, 0 ), m( 0, 1 ), m( 1, 0 ), m( 1, 1 ) );
+    u = stateSet->getOrCreateUniform( "tcxform1", osg::Uniform::FLOAT_MAT2 );
+    u->set( m2 );
 }
 void TankData::updateColor()
 {
