@@ -8,6 +8,8 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <vector>
+
 
 class TankData
 {
@@ -25,7 +27,7 @@ public:
 
     /** Normalized percent of capacity. Default is 1.0 (100%). */
     void setPercentOfCapacity( float percent );
-    float setPercentOfCapacity() const;
+    float getPercentOfCapacity() const;
 
     /** Method for coloring the tank fluid. COLOR_OFF (default)
     disables fluid coloring. COLOR_EXPLICIT uses the explicit color.
@@ -69,6 +71,8 @@ protected:
     std::string _fluidType;
     FluidTypeColorMap* _fluidMap;
 };
+
+typedef std::vector< TankData* > TankDataVector;
 
 
 // __TANK_DATA_H__

@@ -8,10 +8,15 @@ varying float levelCoord;
 
 void main( void )
 {
-    float lMax = length( maxExtent * up );
-    float lMin = length( minExtent * up );
-    float lPct = length( gl_Vertex.xyz * up );
-    levelCoord = ( lPct - lMin ) / ( lMax - lMin );
+    // up vector is already normalized.
+    float lMax = dot( maxExtent, up );
+    float lMin = dot( minExtent, up );
+    float lPct = dot( gl_Vertex.xyz, up );
+    // The 'if' supports +/- up vectors.
+    if( lMax > lMin )
+        levelCoord = ( lPct - lMin ) / ( lMax - lMin );
+    else
+        levelCoord = ( lPct - lMax ) / ( lMin - lMax );
     
     gl_TexCoord[ 0 ] = gl_MultiTexCoord0;
     gl_TexCoord[ 1 ] = gl_MultiTexCoord1;

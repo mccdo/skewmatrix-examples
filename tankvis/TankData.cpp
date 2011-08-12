@@ -150,7 +150,8 @@ const osg::Vec3& TankData::getUp() const
 
 void TankData::setPercentOfCapacity( float percent )
 {
-    _percent = percent;
+    float pct = osg::clampBetween< float >( percent, 0., 1. );
+    _percent = pct;
 
     if( _node.valid() )
     {
@@ -159,7 +160,7 @@ void TankData::setPercentOfCapacity( float percent )
         u->set( _percent );
     }
 }
-float TankData::setPercentOfCapacity() const
+float TankData::getPercentOfCapacity() const
 {
     return( _percent );
 }
