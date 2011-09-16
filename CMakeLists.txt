@@ -62,6 +62,7 @@ ADD_SUBDIRECTORY( streamlines3 )
 ADD_SUBDIRECTORY( tankvis )
 ADD_SUBDIRECTORY( textureatlas )
 ADD_SUBDIRECTORY( TextureSubload )
+ADD_SUBDIRECTORY( uniqifierstate )
 ADD_SUBDIRECTORY( VectorField )
 ADD_SUBDIRECTORY( WarpVertex )
 
