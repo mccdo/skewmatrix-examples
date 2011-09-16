@@ -65,6 +65,7 @@ int main( int argc, char** argv )
 
 
     osgwTools::FindNamedNode fnn( nodeName );
+    fnn.setMatchMethod( osgwTools::FindNamedNode::CONTAINS );
     root->accept( fnn );
     if( fnn._napl.empty() )
     {
