@@ -30,7 +30,14 @@
 
 void setState( const osg::NodePath& np )
 {
-    osg::StateSet* stateSet = np.back()->getOrCreateStateSet();
+    // Save original StateSet as UserData for possible later restore.
+    // (Note: Restoring original state is currently not implemented in this example.)
+    osg::StateSet* originalState = np.back()->getOrCreateStateSet();
+    np.back()->setUserData( originalState );
+
+    // Copy the original state; we'll modify it.
+    osg::StateSet* newState = new osg::StateSet( *originalState, osg::CopyOp::DEEP_COPY_ALL );
+    np.back()->setStateSet( newState );
 
     osg::Material* material = new osg::Material;
     material->setEmission( osg::Material::FRONT, osg::Vec4( 1., 0., 0., 1. ) );
@@ -38,7 +45,7 @@ void setState( const osg::NodePath& np )
     material->setDiffuse( osg::Material::FRONT, osg::Vec4( 0., 0., 0., 1. ) );
     material->setSpecular( osg::Material::FRONT, osg::Vec4( 0., 0., 0., 1. ) );
 
-    stateSet->setAttributeAndModes( material, osg::StateAttribute::ON |
+    newState->setAttributeAndModes( material, osg::StateAttribute::ON |
         osg::StateAttribute::OVERRIDE );
 }
 
@@ -72,6 +79,7 @@ int main( int argc, char** argv )
         osg::notify( osg::FATAL ) << "Couldn't find node \"" << nodeName << "\"." << std::endl;
         return( 1 );
     }
+    osg::notify( osg::ALWAYS ) << "Found " << fnn._napl.size() << " nodes." << std::endl;
 
 
     if( uniqify )
@@ -79,6 +87,10 @@ int main( int argc, char** argv )
         osg::notify( osg::ALWAYS ) << "Running Uniqifier." << std::endl;
         osgwTools::Uniqifier u;
         root->accept( u );
+
+        // Node addresses and paths have changed. Find the nodes again.
+        fnn.reset();
+        root->accept( fnn );
     }
 
 
