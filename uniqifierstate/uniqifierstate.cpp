@@ -82,19 +82,22 @@ int main( int argc, char** argv )
     osg::notify( osg::ALWAYS ) << "Found " << fnn._napl.size() << " nodes." << std::endl;
 
 
+    osg::NodePath targetNodePath;
     if( uniqify )
     {
         osg::notify( osg::ALWAYS ) << "Running Uniqifier." << std::endl;
-        osgwTools::Uniqifier u;
-        root->accept( u );
-
-        // Node addresses and paths have changed. Find the nodes again.
-        fnn.reset();
-        root->accept( fnn );
+        // Uniqify the first NodePath thatn the FNN found.
+        // Return value is a new NodePath containing the new node addresses.
+        targetNodePath = osgwTools::uniqify( fnn._napl[ 0 ].second );
     }
+    else
+        // Not running uniqifier. Target NodePath is the first
+        // NodePath that FNN found.
+        targetNodePath = fnn._napl[ 0 ].second;
 
 
-    setState( fnn._napl[ 0 ].second );
+    // Change state on the last node in the target NodePath.
+    setState( targetNodePath );
 
 
     osgViewer::Viewer viewer;
