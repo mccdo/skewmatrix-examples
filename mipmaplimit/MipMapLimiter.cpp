@@ -30,8 +30,8 @@
 #include <osg/Texture2dArray>
 #include <osg/Image>
 #include <osg/Math>
-
-
+#include <osgDB/WriteFile>
+#include <iostream>
 
 osg::Image* readImageFromCurrentTexture( unsigned int contextID, unsigned int levelToRead, GLenum type=GL_UNSIGNED_BYTE )
 {
@@ -328,6 +328,15 @@ void MipMapLimiter::apply( osg::Texture2D* tex )
     {
         // readImageFromCurrentTexture() displays a message; set notify DEBUG_FP to see it.
         return;
+    }
+
+    //write out the reduced dds files
+    osg::ref_ptr< osg::Image > image = tex->getImage();
+    std::string fileName = image->getFileName();
+    if( !(image->getFileName().empty()) )
+    {
+        fileName = "new/" + fileName;
+        osgDB::writeImageFile( *newImage, fileName );
     }
 
     tex->setImage( newImage );

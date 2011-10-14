@@ -66,8 +66,13 @@ int main( int argc, char** argv )
         osg::notify( osg::ALWAYS ) << "Total textures reduced: " << mml.totalTexturesExceedingMaxDimension << std::endl;
     osg::notify( osg::ALWAYS ) << "Total unsupported: " << mml.totalUnsupported << std::endl;
 
-    osgDB::writeNodeFile( *root, output );
-    osg::notify( osg::ALWAYS ) << "Output written to " << output << std::endl;
+    //do NOT embed the images in the ive
+    //osg::ref_ptr< osgDB::ReaderWriter::Options > noImgOpt = new osgDB::ReaderWriter::Options();
+    //noImgOpt->setOptionString( "noTexturesInIVEFile" );
+    //osgDB::Registry::instance()->setOptions( noImgOpt );
+    
+    //osgDB::writeNodeFile( *root, output );
+    //osg::notify( osg::ALWAYS ) << "Output written to " << output << std::endl;
 
 
     return( 0 );
