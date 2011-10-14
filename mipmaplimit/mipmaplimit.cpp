@@ -1,5 +1,7 @@
 
 #include "MipMapLimiter.h"
+#include "UnRefImageDataVisitor.h"
+
 #include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
 #include <osgDB/FileUtils>
@@ -26,7 +28,10 @@ int main( int argc, char** argv )
         osg::notify( osg::FATAL ) << "Can't load data file." << std::endl;
         return( 1 );
     }
-
+    
+    {
+        ves::xplorer::scenegraph::util::UnRefImageDataVisitor unrefImage( root );       
+    }
 
     osgViewer::Viewer viewer;
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );

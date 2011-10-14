@@ -191,6 +191,8 @@ void MipMapLimiter::apply( osg::StateSet* stateSet )
             continue;
         totalAllTextures++;
 
+        tex->setUnRefImageDataAfterApply( true );
+
         // Bind the texture object.
         osg::Texture::TextureObject* to = tex->getTextureObject( _contextID );
         if( to == NULL )
