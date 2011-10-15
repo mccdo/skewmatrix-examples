@@ -8,6 +8,7 @@
 #include <osgDB/FileNameUtils>
 #include <osgViewer/Viewer>
 
+#include <iostream>
 
 int main( int argc, char** argv )
 {
@@ -21,6 +22,7 @@ int main( int argc, char** argv )
     int maxDim( 256 );
     arguments.read( "--maxDim", maxDim );
 
+    bool outputTextures = arguments.read( "--outputTextures" );
 
     osg::Node* root = osgDB::readNodeFiles( arguments );
     if( root == NULL )
@@ -29,10 +31,12 @@ int main( int argc, char** argv )
         return( 1 );
     }
     
+    if( outputTextures )
     {
         ves::xplorer::scenegraph::util::UnRefImageDataVisitor unrefImage( root );       
     }
 
+    std::cout << outputTextures << std::endl;
     osgViewer::Viewer viewer;
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setUpViewInWindow( 10, 30, 768, 480 );
@@ -60,6 +64,8 @@ int main( int argc, char** argv )
 
     osgwTools::MipMapLimiter mml( contextID );
     mml.setLimitModeAndValue( osgwTools::MipMapLimiter::MAX_DIMENSION, maxDim );
+    mml.setTextureIOFlag( outputTextures );
+
     root->accept( mml );
     osg::notify( osg::ALWAYS ) << "Total # textures: " << mml.totalAllTextures << std::endl;
     if( mml.getLimitMode() == osgwTools::MipMapLimiter::MAX_DIMENSION )
@@ -67,13 +73,16 @@ int main( int argc, char** argv )
     osg::notify( osg::ALWAYS ) << "Total unsupported: " << mml.totalUnsupported << std::endl;
 
     //do NOT embed the images in the ive
-    //osg::ref_ptr< osgDB::ReaderWriter::Options > noImgOpt = new osgDB::ReaderWriter::Options();
-    //noImgOpt->setOptionString( "noTexturesInIVEFile" );
-    //osgDB::Registry::instance()->setOptions( noImgOpt );
+    if( outputTextures )
+    {
+        osg::ref_ptr< osgDB::ReaderWriter::Options > noImgOpt = 
+            new osgDB::ReaderWriter::Options();
+        noImgOpt->setOptionString( "noTexturesInIVEFile" );
+        osgDB::Registry::instance()->setOptions( noImgOpt );
+    }
     
-    //osgDB::writeNodeFile( *root, output );
-    //osg::notify( osg::ALWAYS ) << "Output written to " << output << std::endl;
-
+    osgDB::writeNodeFile( *root, output );
+    osg::notify( osg::ALWAYS ) << "Output written to " << output << std::endl;
 
     return( 0 );
 }

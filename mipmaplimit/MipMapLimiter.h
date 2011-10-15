@@ -94,6 +94,9 @@ public:
         _limitValue = limitValue;
     }
 
+    /** Convenience routine to set wether textures are written out to disk instead of the ive file. */
+    void setTextureIOFlag( bool enable ){ _outputTextures = enable; }
+    
     virtual void apply( osg::Node& node );
     virtual void apply( osg::Geode& node );
 
@@ -115,8 +118,9 @@ protected:
 
     unsigned int _limitValue;
     LimitMode _limitMode;
+    
+    bool _outputTextures;
 };
-
 
 // osgwTools
 }

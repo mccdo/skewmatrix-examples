@@ -150,7 +150,8 @@ MipMapLimiter::MipMapLimiter( unsigned int contextID, osg::NodeVisitor::Traversa
   : osg::NodeVisitor( mode ),
     _contextID( contextID ),
     _limitValue( 1 ),
-    _limitMode( REMOVE_LEVELS )
+    _limitMode( REMOVE_LEVELS ),
+    _outputTextures( false )
 {
     totalAllTextures = 0;
     totalTexturesExceedingMaxDimension = 0;
@@ -331,12 +332,16 @@ void MipMapLimiter::apply( osg::Texture2D* tex )
     }
 
     //write out the reduced dds files
-    osg::ref_ptr< osg::Image > image = tex->getImage();
-    std::string fileName = image->getFileName();
-    if( !(image->getFileName().empty()) )
+    if( _outputTextures )
     {
-        fileName = "new/" + fileName;
-        osgDB::writeImageFile( *newImage, fileName );
+        osg::ref_ptr< osg::Image > image = tex->getImage();
+        std::string fileName = image->getFileName();
+        if( !(image->getFileName().empty()) )
+        {
+            newImage->setFileName( fileName );
+            fileName = "new/" + fileName;
+            osgDB::writeImageFile( *newImage, fileName );
+        }
     }
 
     tex->setImage( newImage );
