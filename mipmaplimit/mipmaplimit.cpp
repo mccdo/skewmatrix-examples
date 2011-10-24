@@ -78,7 +78,7 @@ int main( int argc, char** argv )
         osg::ref_ptr< osgDB::ReaderWriter::Options > noImgOpt = 
             new osgDB::ReaderWriter::Options();
         noImgOpt->setOptionString( "noTexturesInIVEFile" );
-        osgDB::Registry::instance()->setOptions( noImgOpt );
+        osgDB::Registry::instance()->setOptions( noImgOpt.get() );
     }
     
     osgDB::writeNodeFile( *root, output );
