@@ -33,6 +33,8 @@
 #include <osgDB/WriteFile>
 #include <iostream>
 
+
+
 osg::Image* readImageFromCurrentTexture( unsigned int contextID, unsigned int levelToRead, GLenum type=GL_UNSIGNED_BYTE )
 {
     osg::ref_ptr< osg::Image > image = new osg::Image;
@@ -116,9 +118,21 @@ osg::Image* readImageFromCurrentTexture( unsigned int contextID, unsigned int le
     }
     else
     {
-        pixelFormat = osg::Image::computePixelFormat( internalFormat );
+        if( ( internalFormat == 3 ) || ( internalFormat == GL_RGB8 ) )
+        {
+            // OSG doesn't support GL_RGB8 for texel size computation.
+            // internalFormat of 3 might actually be an error, but is also unsupported.
+            pixelFormat = internalFormat = GL_RGB;
+        }
+        else if( ( internalFormat == 4 ) || ( internalFormat == GL_RGBA8 ) )
+        {
+            // Ditto.
+            pixelFormat = internalFormat = GL_RGBA;
+        }
+        else
+            pixelFormat = osg::Image::computePixelFormat( internalFormat );
 
-        const GLint totalSize = osg::Image::computeRowWidthInBytes( texW, internalFormat, type, packing ) * texH * texD;
+        GLint totalSize = osg::Image::computeRowWidthInBytes( texW, internalFormat, type, packing ) * texH * texD;
 
         data = new unsigned char[ totalSize ];
         if( data == NULL )
@@ -133,7 +147,11 @@ osg::Image* readImageFromCurrentTexture( unsigned int contextID, unsigned int le
 
     GLenum err = glGetError();
     if( err != GL_NO_ERROR )
-        osg::notify( osg::WARN ) << "ERROR" << std::endl;
+    {
+        osg::notify( osg::WARN ) << "intFmt: " << std::hex << internalFormat <<
+            "  pixFmt: " << std::hex << pixelFormat << std::endl;
+        osg::notify( osg::WARN ) << "OpenGL error: " << std::hex << err << std::endl;
+    }
 
     return( image.release() );
 }
