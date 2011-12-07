@@ -32,6 +32,10 @@ typedef std::map< std::string, osg::ref_ptr< osg::TexEnv > > TexEnvMap;
 
 struct MyParallelCallback : public ParallelVisitor::ParallelVisitorCallback
 {
+    MyParallelCallback();
+
+    bool _searchObjName;
+
     UnitMap _uvMap;
     UnitMap _texMap;
     TexEnvMap _texEnvMap;
@@ -46,10 +50,13 @@ struct MyParallelCallback : public ParallelVisitor::ParallelVisitorCallback
     typedef std::vector< osg::ref_ptr< osg::Texture > > TextureVec;
 };
 
+MyParallelCallback::MyParallelCallback()
+  : _searchObjName( false )
+{
+}
+
 bool MyParallelCallback::operator()( osg::Node& grpA, osg::Node& grpB )
 {
-    osg::notify( osg::ALWAYS ) << "Found a Node." << std::endl;
-
     if( ( grpA.getStateSet() != NULL ) ||
         ( grpB.getStateSet() != NULL ) )
         processStateSet( grpA.getOrCreateStateSet(), grpB.getOrCreateStateSet() );
@@ -75,8 +82,6 @@ bool MyParallelCallback::operator()( osg::Node& grpA, osg::Node& grpB )
 
 void MyParallelCallback::processStateSet( osg::StateSet* ssA, osg::StateSet* ssB )
 {
-    osg::notify( osg::ALWAYS ) << "    Found a StateSet." << std::endl;
-
     TextureVec ssAtex;
     ssAtex.resize( 16 );
     unsigned int idx;
@@ -103,10 +108,16 @@ void MyParallelCallback::processStateSet( osg::StateSet* ssA, osg::StateSet* ssB
 }
 void MyParallelCallback::processTexEnv( osg::StateSet* ss, osg::Texture* tex, unsigned int unit )
 {
+    std::string texName;
+    osg::Image* image = tex->getImage( 0 ); // cubemap face number.
+    if( image != NULL )
+        texName = image->getFileName();
+    if( _searchObjName || texName.empty() )
+        texName = tex->getName();
+
     TexEnvMap::const_iterator envIt;
     for( envIt = _texEnvMap.begin(); envIt != _texEnvMap.end(); envIt++ )
     {
-        const std::string& texName( tex->getName() );
         if( texName.find( envIt->first ) != texName.npos )
         {
             if( envIt->second.valid() )
@@ -121,8 +132,6 @@ void MyParallelCallback::processTexEnv( osg::StateSet* ss, osg::Texture* tex, un
 }
 void MyParallelCallback::processGeometry( osg::Geometry* geomA, osg::Geometry* geomB )
 {
-    osg::notify( osg::ALWAYS ) << "  Found a Geometry." << std::endl;
-
     if( ( geomA->getStateSet() != NULL ) ||
         ( geomB->getStateSet() != NULL ) )
         processStateSet( geomA->getOrCreateStateSet(), geomB->getOrCreateStateSet() );
@@ -177,7 +186,8 @@ int main( int argc, char** argv )
             "\t-e Specify TexEnv values for matched search strings. Example:\n" <<
             "\t\t\"-e VES_Shadow=MODULATE\" means \"if the texture file name\n" <<
             "\t\tcontains 'VES_Shadow', store a TexEnv MODULATE object in the\n" <<
-            "\t\tsame StateSet and texture unit as that texture.\n" <<
+            "\t\tsame StateSet and texture unit as that texture. Specify \"OFF\"\n" <<
+            "\t\tin place of <mode> to disable a texture.\n" <<
 
             "\t--objName If present, texmerge serarches for the \"-e\" search string\n" <<
             "\t\tin the osg::Texture Object name. By default, texmerge\n" <<
@@ -186,7 +196,7 @@ int main( int argc, char** argv )
 
             "Typical usage:\n" <<
             "\ttexmerge infile0.osg infile1.osg -u 0=a.0 -u 1=b.0 -t 0=a.0 -t 1=b.0\n" <<
-            "\t\t-e VES_Diffuse=REPLACE -e VES_Shadow=MODULATE\n" <<
+            "\t\t-e VES_Diffuse=REPLACE -e VES_Shadow=MODULATE -e VES_Normal=OFF\n" <<
             std::endl;
         return( 0 );
     }
@@ -241,10 +251,9 @@ int main( int argc, char** argv )
         arguments.remove( texEnvPos, 2 );
     }
 
-    bool searchTextureObjectName( false );
     if( arguments.find( "--objName" ) > 0 )
     {
-        searchTextureObjectName = true;
+        mpc._searchObjName = true;
         arguments.remove( arguments.find( "--objName" ) );
     }
 
