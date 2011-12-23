@@ -160,3 +160,56 @@ set( CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH_SAVE} )
 
 # Mark Bullet variables as advanced
 mark_as_advanced( BULLET_INCLUDE_DIR )
+
+
+# If we had to look for Bullet, *and* we found it,
+# then let's see whether Bullet was built using
+# double precision or not...
+#
+if( _needToFindBullet AND BULLET_FOUND )
+    message( STATUS "Testing Bullet for use of double precision..." )
+    set( OSGBULLET_USE_DOUBLE_PRECISION FALSE CACHE BOOL "Select to force compiling with -DBT_USE_DOUBLE_PRECISION." )
+    set( _result )
+    set( _buildOut )
+    
+    # Configure for the correct build type to allow successful VS 2010 links
+    # if Bullet was built release-only.
+    if( BULLET_DYNAMICS_LIBRARY )
+        set( CMAKE_TRY_COMPILE_CONFIGURATION Release )
+    else()
+        set( CMAKE_TRY_COMPILE_CONFIGURATION Debug )
+    endif()
+    
+    try_compile( _result ${PROJECT_BINARY_DIR}
+        ${PROJECT_SOURCE_DIR}/CMakeModules/bulletDoublePrecisionTest.cpp
+        CMAKE_FLAGS
+            "-DINCLUDE_DIRECTORIES:string=${BULLET_INCLUDE_DIRS}"
+            "-DLINK_LIBRARIES:string=${BULLET_LIBRARIES}"
+        COMPILE_DEFINITIONS
+            "-DBT_USE_DOUBLE_PRECISION"
+        OUTPUT_VARIABLE _buildOut
+    )
+    if( _result )
+        message( STATUS "Bullet double precision detected. Automatically defining BT_USE_DOUBLE_PRECISION for osgBullet." )
+        set( OSGBULLET_USE_DOUBLE_PRECISION ON CACHE BOOL "" FORCE )
+    else()
+        # Try it *without* -DBT_USE_DOUBLE_PRECISION to make sure it's single...
+        set( _result )
+        set( _buildOut )
+        try_compile( _result ${PROJECT_BINARY_DIR}
+            ${PROJECT_SOURCE_DIR}/CMakeModules/bulletDoublePrecisionTest.cpp
+            CMAKE_FLAGS
+                "-DINCLUDE_DIRECTORIES:string=${BULLET_INCLUDE_DIRS}"
+                "-DLINK_LIBRARIES:string=${BULLET_LIBRARIES}"
+            OUTPUT_VARIABLE _buildOut
+        )
+        if( _result )
+            message( STATUS "Bullet single precision detected. Not defining BT_USE_DOUBLE_PRECISION for osgBullet." )
+            set( OSGBULLET_USE_DOUBLE_PRECISION OFF CACHE BOOL "" FORCE )
+        else()
+            message( WARNING "Unable to determine single or double precision. Contact development staff." )
+            message( "Build output follows:" )
+            message( "${_buildOut}" )
+        endif()
+    endif()
+endif()

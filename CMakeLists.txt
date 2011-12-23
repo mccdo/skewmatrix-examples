@@ -21,6 +21,8 @@ FIND_PACKAGE( OpenGL REQUIRED )
 FIND_PACKAGE( OSGBullet )
 FIND_PACKAGE( OpenAL )
 FIND_PACKAGE( OSGAudio )
+find_package( DirectInput QUIET )
+
 
 GET_FILENAME_COMPONENT( OSG_LIBRARIES_DIR ${OSG_LIBRARY} PATH)
 INCLUDE_DIRECTORIES(
@@ -68,34 +70,37 @@ ADD_SUBDIRECTORY( uniqifierstate )
 ADD_SUBDIRECTORY( VectorField )
 ADD_SUBDIRECTORY( WarpVertex )
 
+
 # Bullet examples
 # message( STATUS "Bullet: " ${BULLET_FOUND} )
 # message( STATUS "osgBullet " ${OSGBULLET_FOUND} )
-# message( STATUS "osgBulletPlus " ${OSGBULLETPLUS_FOUND} )
-IF( BULLET_FOUND AND OSGBULLET_FOUND AND OSGBULLETPLUS_FOUND )
-    OPTION( EXAMPLES_USE_DOUBLE_PRECISION "Use Bullet built with double precision" OFF )
-    IF( EXAMPLES_USE_DOUBLE_PRECISION )
-        ADD_DEFINITIONS( -DBT_USE_DOUBLE_PRECISION)
-    ENDIF( EXAMPLES_USE_DOUBLE_PRECISION )
+
+if( BULLET_FOUND AND OSGBULLET_FOUND )
+
+#   OSGBULLET_USE_DOUBLE_PRECISION gets set to TRUE or FALSE in FindBulletHelper.cmake.
+#   If TRUE, add the BT double precision definition globally.
+    if( OSGBULLET_USE_DOUBLE_PRECISION )
+        add_definitions( -DBT_USE_DOUBLE_PRECISION )
+    endif()
 
     INCLUDE_DIRECTORIES(
         ${BULLET_INCLUDE_DIRS}
         ${OSGBULLET_INCLUDE_DIR}
-        ${OSGBULLETPLUS_INCLUDE_DIR}
     )
     # TBD add bullet-specific examples here
     #ADD_SUBDIRECTORY( bullet_tbd )
+    add_subdirectory( ghostchar )
 
 #   Collision-triggered sound examples
-    IF( OSGAUDIO_FOUND AND OPENAL_FOUND )
+    if( OSGAUDIO_FOUND AND OPENAL_FOUND )
         INCLUDE_DIRECTORIES(
             ${OPENAL_INCLUDE_DIR}
             ${OSGAUDIO_INCLUDE_DIR}
         )
         ADD_SUBDIRECTORY( bulletsound )
-    ENDIF( OSGAUDIO_FOUND AND OPENAL_FOUND )
-ENDIF( BULLET_FOUND AND OSGBULLET_FOUND AND OSGBULLETPLUS_FOUND )
+    endif()
+endif()
 
-IF( OSGAUDIO_FOUND )
+if( OSGAUDIO_FOUND )
 #    ADD_SUBDIRECTORY( SoundStateCull )
-ENDIF( OSGAUDIO_FOUND )
+endif()
