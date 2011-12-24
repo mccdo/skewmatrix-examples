@@ -74,21 +74,33 @@ public:
         {
             switch (ea.getKey())
             {
-            case osgGA::GUIEventAdapter::KEY_F1:
+            case osgGA::GUIEventAdapter::KEY_F5:
             {
                 _viewMode = LOCAL;
                 handled = true;
                 break;
             }
-            case osgGA::GUIEventAdapter::KEY_F2:
+            case osgGA::GUIEventAdapter::KEY_F6:
             {
                 _viewMode = FOLLOW;
                 handled = true;
                 break;
             }
-            case osgGA::GUIEventAdapter::KEY_F3:
+            case osgGA::GUIEventAdapter::KEY_F7:
             {
                 _viewMode = GLOBAL;
+                handled = true;
+                break;
+            }
+            case osgGA::GUIEventAdapter::KEY_F8:
+            {
+                // Cycle
+                switch( _viewMode )
+                {
+                case LOCAL: _viewMode = FOLLOW; break;
+                case FOLLOW: _viewMode = GLOBAL; break;
+                case GLOBAL: _viewMode = LOCAL; break;
+                }
                 handled = true;
                 break;
             }
@@ -113,6 +125,25 @@ protected:
 /** \endcond */
 
 
+btDynamicsWorld* initPhysics()
+{
+    btDefaultCollisionConfiguration * collisionConfiguration = new btDefaultCollisionConfiguration();
+    btCollisionDispatcher * dispatcher = new btCollisionDispatcher( collisionConfiguration );
+    btConstraintSolver * solver = new btSequentialImpulseConstraintSolver;
+
+    btVector3 worldAabbMin( -10000, -10000, -10000 );
+    btVector3 worldAabbMax( 10000, 10000, 10000 );
+    btBroadphaseInterface* inter = new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 );
+
+    btDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
+
+    // Set gravity in ft/sec^2: accl due to gravity is ~9.8 m/s^2 * 3.28 ft/m = 32.14
+    dynamicsWorld->setGravity( btVector3( 0., 0., -32.14 ) );
+
+    return( dynamicsWorld );
+}
+
+
 int main( int argc, char** argv )
 {
     osg::ArgumentParser arguments( &argc, argv );
@@ -122,6 +153,8 @@ int main( int argc, char** argv )
     std::string mapFile( "" );
     arguments.read( "--map", mapFile );
 
+
+    btDynamicsWorld* bw = initPhysics();
 
     osg::Group* root = new osg::Group;
     if( buildWorld )
@@ -133,6 +166,9 @@ int main( int argc, char** argv )
         osg::notify( osg::FATAL ) << "No world to render." << std::endl;
         return( 1 );
     }
+
+    EnablePhysicsVisitor epv( bw );
+    root->accept( epv );
 
     // Add character.
     Character worker;
@@ -180,6 +216,8 @@ int main( int argc, char** argv )
         workerControl->poll( currSimTime - prevSimTime );
 
         worker.setMatrix( mxCore->getMatrix() );
+
+        bw->stepSimulation( currSimTime - prevSimTime );
 
         viewer.updateTraversal();
         viewer.renderingTraversals();
