@@ -9,10 +9,16 @@
 #include <string>
 
 
+class btDynamicsWorld;
+class btKinematicCharacterController;
+class btPairCachingGhostObject;
+class btConvexShape;
+
+
 class Character
 {
 public:
-    Character();
+    Character( btDynamicsWorld* bw );
     ~Character();
 
     /**
@@ -22,29 +28,37 @@ public:
     */
     osg::Group* setModel( const std::string& fileName, bool transform=true );
 
-    void setModelVisible( bool visible=true ) { _modelVisible = visible; }
-    bool getModelVisible() const { return( _modelVisible ); }
+    void setModelVisible( bool visible=true );
+    bool getModelVisible() const;
 
-    void setCapsuleVisible( bool visible=true ) { _capsuleVisible = visible; }
-    bool getCapsuleVisible() const { return( _capsuleVisible ); }
+    void setCapsuleVisible( bool visible=true );
+    bool getCapsuleVisible() const;
 
     void setHeight( double height );
     double getHeight() const;
 
-    void setMatrix( const osg::Matrix m );
+    void setMatrix( const osg::Matrix& m );
+
+    osg::Vec3 getPosition() const;
 
 protected:
     osg::ref_ptr< osg::MatrixTransform > _root;
     osg::Node* _model;
     osg::Node* _capsule;
 
-    bool _modelVisible;
-    bool _capsuleVisible;
-
     double _capsuleRadius;
     double _capsuleHeight;
 
     void generateCapsule();
+
+
+    osg::Vec3 _lastPosition;
+
+
+    btDynamicsWorld* _bw;
+    btKinematicCharacterController* _btChar;
+    btPairCachingGhostObject* _btGhost;
+    btConvexShape* _capsuleShape;
 };
 
 

@@ -132,7 +132,20 @@ void EnablePhysicsVisitor::apply( osg::Transform& node )
 
     //node.setUserData( new osgbCollision::RefRigidBody( rb ) );
 
-    _bw->addRigidBody( rb );
+    short group, mask;
+    if( cr->_mass == 0. )
+    {
+        group = btBroadphaseProxy::StaticFilter;
+        mask = btBroadphaseProxy::CharacterFilter | btBroadphaseProxy::DefaultFilter;
+        rb->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
+    }
+    else
+    {
+        group = btBroadphaseProxy::DefaultFilter;
+        mask = btBroadphaseProxy::CharacterFilter | btBroadphaseProxy::StaticFilter;
+    }
+
+    _bw->addRigidBody( rb );//, group, mask );
 
     traverse( node );
     return;

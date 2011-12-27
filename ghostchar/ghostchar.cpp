@@ -9,6 +9,10 @@
 #include <osgwTools/AbsoluteModelTransform.h>
 #include <osgwTools/Shapes.h>
 #include <osgbDynamics/CreationRecord.h>
+#include <osgbCollision/GLDebugDrawer.h>
+
+#include <btBulletDynamicsCommon.h>
+#include <BulletCollision/CollisionDispatch/btGhostObject.h>
 
 #ifdef DIRECTINPUT_ENABLED
 #include <osgwMx/MxGamePadDX.h>
@@ -18,6 +22,9 @@
 
 #include "world.h"
 #include "character.h"
+
+#include <osg/io_utils>
+
 
 
 /** \cond */
@@ -33,15 +40,15 @@ public:
     KeyHandler( osg::Camera* camera, osgwMx::MxCore* mxCore )
       : _camera( camera ),
         _mxCore( mxCore ),
-        _viewMode( LOCAL )
+        _viewMode( FOLLOW )
     {
         _localOffsetEC = osg::Matrix::translate( 0., -5.5, .5 ) *
             osg::Matrix::rotate( .05, 1., 0., 0. );
         _followOffsetEC = osg::Matrix::translate( 0., -10., -11. ) *
             osg::Matrix::rotate( .5, 1., 0., 0. );
-        osg::Vec3 dir( 0., 10., -5. );
+        osg::Vec3 dir( 5., 10., -5. );
         dir.normalize();
-        _globalDirWC = dir * 50.;
+        _globalDirWC = dir * 40.;
     }
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us )
@@ -128,12 +135,15 @@ protected:
 btDynamicsWorld* initPhysics()
 {
     btDefaultCollisionConfiguration * collisionConfiguration = new btDefaultCollisionConfiguration();
-    btCollisionDispatcher * dispatcher = new btCollisionDispatcher( collisionConfiguration );
-    btConstraintSolver * solver = new btSequentialImpulseConstraintSolver;
+    btCollisionDispatcher* dispatcher = new btCollisionDispatcher( collisionConfiguration );
+    btConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
     btVector3 worldAabbMin( -10000, -10000, -10000 );
     btVector3 worldAabbMax( 10000, 10000, 10000 );
     btBroadphaseInterface* inter = new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 );
+
+    // Support for ghost objects
+    inter->getOverlappingPairCache()->setInternalGhostPairCallback( new btGhostPairCallback() );
 
     btDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
 
@@ -153,6 +163,8 @@ int main( int argc, char** argv )
     std::string mapFile( "" );
     arguments.read( "--map", mapFile );
 
+    const bool debugDisplay( arguments.read( "--debug" ) );
+
 
     btDynamicsWorld* bw = initPhysics();
 
@@ -171,7 +183,7 @@ int main( int argc, char** argv )
     root->accept( epv );
 
     // Add character.
-    Character worker;
+    Character worker( bw );
     osg::Node* modelRoot = worker.setModel( "ps-worker.osg" );
     if( modelRoot == NULL ) return( 1 );
     root->addChild( modelRoot );
@@ -200,7 +212,20 @@ int main( int argc, char** argv )
 #endif
 
     osgwMx::MxCore* mxCore = workerControl->getMxCore();
+    mxCore->setInitialValues( osg::Vec3( 0., 0., 1. ), osg::Vec3( 0., 1., 0. ),
+        osg::Vec3( 0., 0., 5. ) );
+    mxCore->reset();
+
     viewer.addEventHandler( new KeyHandler( viewer.getCamera(), mxCore ) );
+
+    osgbCollision::GLDebugDrawer* dbgDraw( NULL );
+    if( debugDisplay )
+    {
+        dbgDraw = new osgbCollision::GLDebugDrawer();
+        dbgDraw->setDebugMode( ~btIDebugDraw::DBG_DrawText );
+        bw->setDebugDrawer( dbgDraw );
+        root->addChild( dbgDraw->getSceneGraph() );
+    }
 
     viewer.frame();
     double prevSimTime = 0.;
@@ -208,20 +233,33 @@ int main( int argc, char** argv )
     {
         viewer.advance();
         const double currSimTime = viewer.getFrameStamp()->getSimulationTime();
+        const double deltaTime = currSimTime - prevSimTime;
+        prevSimTime = currSimTime;
 
         // Handle events before setting worker matrix. This means workerControl
         // handles its events, configures the MxCore, then KeyHandler FRAME and
         // the construction worker will get the same (updated) matrix.
+#ifdef DIRECTINPUT_ENABLED
+        workerControl->poll( deltaTime );
+#endif
         viewer.eventTraversal();
-        workerControl->poll( currSimTime - prevSimTime );
 
         worker.setMatrix( mxCore->getMatrix() );
+        //osg::notify( osg::ALWAYS ) << worker.getPosition() << std::endl;
 
-        bw->stepSimulation( currSimTime - prevSimTime );
+
+        if( dbgDraw != NULL )
+            dbgDraw->BeginDraw();
+        bw->stepSimulation( deltaTime );
+        if( dbgDraw != NULL )
+        {
+            bw->debugDrawWorld();
+            dbgDraw->EndDraw();
+        }
+
+        mxCore->setPosition( worker.getPosition() );
 
         viewer.updateTraversal();
         viewer.renderingTraversals();
-
-        prevSimTime = currSimTime;
     }
 }
