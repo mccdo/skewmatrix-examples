@@ -37,18 +37,35 @@ public:
         GLOBAL
     };
 
-    KeyHandler( osg::Camera* camera, osgwMx::MxCore* mxCore )
-      : _camera( camera ),
-        _mxCore( mxCore ),
+    KeyHandler( osgwMx::MxCore* mxCore )
+      : _mxCore( mxCore ),
         _viewMode( FOLLOW )
     {
         _localOffsetEC = osg::Matrix::translate( 0., -5.5, .5 ) *
             osg::Matrix::rotate( .05, 1., 0., 0. );
         _followOffsetEC = osg::Matrix::translate( 0., -10., -11. ) *
             osg::Matrix::rotate( .5, 1., 0., 0. );
-        osg::Vec3 dir( 5., 10., -5. );
+        osg::Vec3 dir( -5., 10., -5. );
         dir.normalize();
         _globalDirWC = dir * 40.;
+    }
+
+    void setViewMatrix( osg::Camera* camera )
+    {
+        switch( _viewMode )
+        {
+        case LOCAL:
+            camera->setViewMatrix( _mxCore->getInverseMatrix() * _localOffsetEC );
+            break;
+        case FOLLOW:
+            camera->setViewMatrix( _mxCore->getInverseMatrix() * _followOffsetEC );
+            break;
+        case GLOBAL:
+            const osg::Vec3 pos = _mxCore->getPosition();
+            const osg::Vec3 eye = pos - _globalDirWC;
+            camera->setViewMatrix( osg::Matrix::lookAt( eye, pos, osg::Vec3( 0., 0., 1. ) ) );
+            break;
+        }
     }
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us )
@@ -56,27 +73,6 @@ public:
         bool handled( false );
         switch( ea.getEventType() )
         {
-        case osgGA::GUIEventAdapter::FRAME:
-        {
-            switch( _viewMode )
-            {
-            case LOCAL:
-                _camera->setViewMatrix( _mxCore->getInverseMatrix() * _localOffsetEC );
-                handled = true;
-                break;
-            case FOLLOW:
-                _camera->setViewMatrix( _mxCore->getInverseMatrix() * _followOffsetEC );
-                handled = true;
-                break;
-            case GLOBAL:
-                const osg::Vec3 pos = _mxCore->getPosition();
-                const osg::Vec3 eye = pos - _globalDirWC;
-                _camera->setViewMatrix( osg::Matrix::lookAt( eye, pos, osg::Vec3( 0., 0., 1. ) ) );
-                handled = true;
-                break;
-            }
-            break;
-        }
         case osgGA::GUIEventAdapter::KEYDOWN:
         {
             switch (ea.getKey())
@@ -121,7 +117,6 @@ public:
 protected:
     ~KeyHandler() {};
 
-    osg::ref_ptr< osg::Camera > _camera;
     osg::ref_ptr< osgwMx::MxCore > _mxCore;
     ViewMode _viewMode;
 
@@ -134,20 +129,22 @@ protected:
 
 btDynamicsWorld* initPhysics()
 {
-    btDefaultCollisionConfiguration * collisionConfiguration = new btDefaultCollisionConfiguration();
+    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
     btCollisionDispatcher* dispatcher = new btCollisionDispatcher( collisionConfiguration );
-    btConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+    btConstraintSolver* solver = new btSequentialImpulseConstraintSolver();
 
-    btVector3 worldAabbMin( -10000, -10000, -10000 );
-    btVector3 worldAabbMax( 10000, 10000, 10000 );
-    btBroadphaseInterface* inter = new btAxisSweep3( worldAabbMin, worldAabbMax, 1000 );
-
-    // Support for ghost objects
-    inter->getOverlappingPairCache()->setInternalGhostPairCallback( new btGhostPairCallback() );
+    btVector3 worldAabbMin( -1000, -1000, -1000 );
+    btVector3 worldAabbMax( 1000, 1000, 1000 );
+    btBroadphaseInterface* inter = new btAxisSweep3( worldAabbMin, worldAabbMax );
 
     btDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld( dispatcher, inter, solver, collisionConfiguration );
+    dynamicsWorld->getDispatchInfo().m_allowedCcdPenetration = 0.0001f;
 
-    // Set gravity in ft/sec^2: accl due to gravity is ~9.8 m/s^2 * 3.28 ft/m = 32.14
+    // Support for ghost objects
+    inter->getOverlappingPairCache()->setInternalGhostPairCallback(
+        new btGhostPairCallback() );
+
+    // Set gravity in ft/sec^2: accel due to gravity is ~9.8 m/s^2 * 3.28 ft/m = 32.14
     dynamicsWorld->setGravity( btVector3( 0., 0., -32.14 ) );
 
     return( dynamicsWorld );
@@ -195,6 +192,7 @@ int main( int argc, char** argv )
 
 #ifdef DIRECTINPUT_ENABLED
     osg::ref_ptr< osgwMx::MxGamePadDX > workerControl = new osgwMx::MxGamePadDX;
+    workerControl->setStickRate( 5. );
 
 	// Load the optional functional mapping, if specified.
 	if( !( mapFile.empty() ) )
@@ -216,7 +214,8 @@ int main( int argc, char** argv )
         osg::Vec3( 0., 0., 5. ) );
     mxCore->reset();
 
-    viewer.addEventHandler( new KeyHandler( viewer.getCamera(), mxCore ) );
+    osg::ref_ptr< KeyHandler > keyHandler = new KeyHandler( mxCore );
+    viewer.addEventHandler( keyHandler.get() );
 
     osgbCollision::GLDebugDrawer* dbgDraw( NULL );
     if( debugDisplay )
@@ -236,18 +235,18 @@ int main( int argc, char** argv )
         const double deltaTime = currSimTime - prevSimTime;
         prevSimTime = currSimTime;
 
-        // Handle events before setting worker matrix. This means workerControl
-        // handles its events, configures the MxCore, then KeyHandler FRAME and
-        // the construction worker will get the same (updated) matrix.
+        // Get events from either the game pad or the kbd/mouse to control the
+        // worker and update the MxCore.
 #ifdef DIRECTINPUT_ENABLED
         workerControl->poll( deltaTime );
 #endif
         viewer.eventTraversal();
 
-        worker.setMatrix( mxCore->getMatrix() );
+        // Set the target position for the worker from the MxCore.
+        worker.setPhysicsWorldTransform( mxCore->getMatrix() );
         //osg::notify( osg::ALWAYS ) << worker.getPosition() << std::endl;
 
-
+        // Run the physics simultation.
         if( dbgDraw != NULL )
             dbgDraw->BeginDraw();
         bw->stepSimulation( deltaTime );
@@ -257,7 +256,12 @@ int main( int argc, char** argv )
             dbgDraw->EndDraw();
         }
 
+        // The physics simultation has now adjusted the position of the
+        // worker. Set the MxCore position from the worker position.
         mxCore->setPosition( worker.getPosition() );
+        // Now update the worker's OSG transform, and the OSG Camera.
+        worker.setMatrix( mxCore->getMatrix() );
+        keyHandler->setViewMatrix( viewer.getCamera() );
 
         viewer.updateTraversal();
         viewer.renderingTraversals();

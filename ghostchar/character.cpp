@@ -104,7 +104,7 @@ double Character::getHeight() const
     return( _capsuleHeight );
 }
 
-void Character::setMatrix( const osg::Matrix& m )
+void Character::setPhysicsWorldTransform( const osg::Matrix& m )
 {
     if( _btGhost == NULL )
         return;
@@ -112,7 +112,6 @@ void Character::setMatrix( const osg::Matrix& m )
     // Account for MxCore orientation.
     osg::Matrix orient = osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
     osg::Matrix worldMatrix = orient * m;
-    _root->setMatrix( worldMatrix );
 
     osg::Vec3 deltaStep = worldMatrix.getTrans() - _lastPosition;
     _lastPosition = worldMatrix.getTrans();
@@ -120,6 +119,14 @@ void Character::setMatrix( const osg::Matrix& m )
     {
         _btChar->setWalkDirection( osgbCollision::asBtVector3( deltaStep ) );
     }
+}
+
+void Character::setMatrix( const osg::Matrix& m )
+{
+    // Account for MxCore orientation.
+    osg::Matrix orient = osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
+    osg::Matrix worldMatrix = orient * m;
+    _root->setMatrix( worldMatrix );
 }
 
 osg::Vec3 Character::getPosition() const
@@ -159,6 +166,7 @@ void Character::generateCapsule()
     }
 	_btChar = new btKinematicCharacterController( _btGhost, _capsuleShape, 1.0, 2 );
 
-    _bw->addCollisionObject( _btGhost );//, btBroadphaseProxy::CharacterFilter, btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
+    _bw->addCollisionObject( _btGhost, btBroadphaseProxy::CharacterFilter,
+        btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
 	_bw->addAction( _btChar );
 }

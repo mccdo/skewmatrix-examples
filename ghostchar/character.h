@@ -37,6 +37,8 @@ public:
     void setHeight( double height );
     double getHeight() const;
 
+    void setPhysicsWorldTransform( const osg::Matrix& m );
+
     void setMatrix( const osg::Matrix& m );
 
     osg::Vec3 getPosition() const;

@@ -48,6 +48,7 @@ osg::Node* build()
     root->addChild( amt );
     amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
 
+
     amt = new osgwTools::AbsoluteModelTransform;
     geode = new osg::Geode;
     m = osg::Matrix::translate( -25., -25., 1.75 );
@@ -88,6 +89,7 @@ osg::Node* build()
     root->addChild( amt );
     amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
 
+
     // Floor height at top of stairs platform is 3.5.
     // Put some dynamic objects up here to walk into.
 
@@ -100,6 +102,12 @@ osg::Node* build()
     amt->addChild( geode );
     root->addChild( amt );
     amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 1. ) );
+
+    // Debug: wire grid to make movement plain and obvious.
+    geode = new osg::Geode;
+    geode->addDrawable( osgwTools::makeWirePlane( osg::Vec3( -20., -20., 1.1 ), osg::Vec3( 40., 0., 0. ),
+        osg::Vec3( 0., 40., 0. ), osg::Vec2s( 8, 8 ) ) );
+    root->addChild( geode );
 
     return( root.release() );
 }
