@@ -121,10 +121,11 @@ void Character::setPhysicsWorldTransform( const osg::Matrix& m )
     }
 }
 
-void Character::setMatrix( const osg::Matrix& m )
+void Character::setOSGMatrix( const osg::Matrix& m )
 {
     // Account for MxCore orientation.
-    osg::Matrix orient = osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
+    osg::Matrix orient = osg::Matrix::translate( 0., 0., _capsuleHeight * -.5 ) *
+        osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
     osg::Matrix worldMatrix = orient * m;
     _root->setMatrix( worldMatrix );
 }
@@ -148,7 +149,8 @@ void Character::generateCapsule()
 
     if( _capsuleShape != NULL )
         delete( _capsuleShape );
-    _capsuleShape = new btCapsuleShapeZ( _capsuleRadius, _capsuleHeight );
+    _capsuleShape = new btCapsuleShapeZ( _capsuleRadius,
+        _capsuleHeight - ( _capsuleRadius * 2. ) );
 
     if( _btGhost != NULL )
     {

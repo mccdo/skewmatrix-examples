@@ -39,7 +39,7 @@ public:
 
     void setPhysicsWorldTransform( const osg::Matrix& m );
 
-    void setMatrix( const osg::Matrix& m );
+    void setOSGMatrix( const osg::Matrix& m );
 
     osg::Vec3 getPosition() const;
 

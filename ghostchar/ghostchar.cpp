@@ -41,11 +41,11 @@ public:
       : _mxCore( mxCore ),
         _viewMode( FOLLOW )
     {
-        _localOffsetEC = osg::Matrix::translate( 0., -5.5, .5 ) *
+        _localOffsetEC = osg::Matrix::translate( 0., -2.5, .5 ) *
             osg::Matrix::rotate( .05, 1., 0., 0. );
-        _followOffsetEC = osg::Matrix::translate( 0., -10., -11. ) *
+        _followOffsetEC = osg::Matrix::translate( 0., -7., -11. ) *
             osg::Matrix::rotate( .5, 1., 0., 0. );
-        osg::Vec3 dir( -5., 10., -5. );
+        osg::Vec3 dir( -7.5, 8., -5. );
         dir.normalize();
         _globalDirWC = dir * 40.;
     }
@@ -260,7 +260,7 @@ int main( int argc, char** argv )
         // worker. Set the MxCore position from the worker position.
         mxCore->setPosition( worker.getPosition() );
         // Now update the worker's OSG transform, and the OSG Camera.
-        worker.setMatrix( mxCore->getMatrix() );
+        worker.setOSGMatrix( mxCore->getMatrix() );
         keyHandler->setViewMatrix( viewer.getCamera() );
 
         viewer.updateTraversal();
