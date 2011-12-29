@@ -1,8 +1,13 @@
 // Copyright (c) 2011 Skew Matrix Software LLC. All rights reserved.
 
 #include "character.h"
-//#include "LocalKinematicCharacterController.h"
-#include <BulletDynamics/Character/btKinematicCharacterController.h>
+
+//#define USE_BULLET_KINEMATIC_CHARACTER 1
+#ifdef USE_BULLET_KINEMATIC_CHARACTER
+#  include <BulletDynamics/Character/btKinematicCharacterController.h>
+#else
+#  include "LocalKinematicCharacterController.h"
+#endif
 
 #include <osgDB/ReadFile>
 #include <osg/ComputeBoundsVisitor>

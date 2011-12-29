@@ -9,4 +9,6 @@ MAKE_EXECUTABLE( ghostchar
     world.h
     character.cpp
     character.h
+    LocalKinematicCharacterController.cpp
+    LocalKinematicCharacterController.h
 )
