@@ -1,6 +1,8 @@
 // Copyright (c) 2011 Skew Matrix Software LLC. All rights reserved.
 
 #include "character.h"
+//#include "LocalKinematicCharacterController.h"
+#include <BulletDynamics/Character/btKinematicCharacterController.h>
 
 #include <osgDB/ReadFile>
 #include <osg/ComputeBoundsVisitor>
@@ -11,7 +13,6 @@
 #include <osgwTools/Transform.h>
 
 #include <btBulletDynamicsCommon.h>
-#include <BulletDynamics/Character/btKinematicCharacterController.h>
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
 
 #include <osgbCollision/Utils.h>
@@ -114,7 +115,6 @@ void Character::setPhysicsWorldTransform( const osg::Matrix& m )
     osg::Matrix worldMatrix = orient * m;
 
     osg::Vec3 deltaStep = worldMatrix.getTrans() - _lastPosition;
-    _lastPosition = worldMatrix.getTrans();
     if( _btChar != NULL )
     {
         _btChar->setWalkDirection( osgbCollision::asBtVector3( deltaStep ) );
@@ -128,6 +128,7 @@ void Character::setOSGMatrix( const osg::Matrix& m )
         osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
     osg::Matrix worldMatrix = orient * m;
     _root->setMatrix( worldMatrix );
+    _lastPosition = m.getTrans();
 }
 
 osg::Vec3 Character::getPosition() const

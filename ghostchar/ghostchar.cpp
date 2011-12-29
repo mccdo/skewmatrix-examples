@@ -9,6 +9,7 @@
 #include <osgwTools/AbsoluteModelTransform.h>
 #include <osgwTools/Shapes.h>
 #include <osgbDynamics/CreationRecord.h>
+#include <osgbInteraction/LaunchHandler.h>
 #include <osgbCollision/GLDebugDrawer.h>
 
 #include <btBulletDynamicsCommon.h>
@@ -185,6 +186,9 @@ int main( int argc, char** argv )
     if( modelRoot == NULL ) return( 1 );
     root->addChild( modelRoot );
 
+    osg::Group* launchHandlerAttachPoint = new osg::Group;
+    root->addChild( launchHandlerAttachPoint );
+
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 10, 30, 800, 450 );
     viewer.setSceneData( root );
@@ -216,6 +220,18 @@ int main( int argc, char** argv )
 
     osg::ref_ptr< KeyHandler > keyHandler = new KeyHandler( mxCore );
     viewer.addEventHandler( keyHandler.get() );
+
+    osgbInteraction::LaunchHandler* lh = new osgbInteraction::LaunchHandler(
+        bw, launchHandlerAttachPoint, viewer.getCamera() );
+    {
+        // Use a custom launch model: Sphere with radius 0.2 (instead of default 1.0).
+        osg::Geode* geode = new osg::Geode;
+        const double radius( .2 );
+        geode->addDrawable( osgwTools::makeGeodesicSphere( radius ) );
+        lh->setLaunchModel( geode, new btSphereShape( radius ) );
+        lh->setInitialVelocity( 40. );
+    }
+    viewer.addEventHandler( lh );
 
     osgbCollision::GLDebugDrawer* dbgDraw( NULL );
     if( debugDisplay )

@@ -94,6 +94,61 @@ osg::Node* build()
     // Put some dynamic objects up here to walk into.
 
 
+
+    // Wall pile
+    osg::Group* wallGroup = new osg::Group;
+    root->addChild( wallGroup );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 10., -10., 2. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 12., -10., 2. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 14., -10., 2. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 11., -10., 4. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 13., -10., 4. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( 12., -10., 6. );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+    amt->addChild( geode );
+    wallGroup->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+
+
+
     // Test: Dynamic object right in front of the viewer.
     amt = new osgwTools::AbsoluteModelTransform;
     geode = new osg::Geode;
