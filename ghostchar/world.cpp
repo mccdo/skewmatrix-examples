@@ -99,53 +99,28 @@ osg::Node* build()
     osg::Group* wallGroup = new osg::Group;
     root->addChild( wallGroup );
 
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 10., -10., 2. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 12., -10., 2. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 14., -10., 2. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 11., -10., 4. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 13., -10., 4. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-
-    amt = new osgwTools::AbsoluteModelTransform;
-    geode = new osg::Geode;
-    m = osg::Matrix::translate( 12., -10., 6. );
-    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
-    amt->addChild( geode );
-    wallGroup->addChild( amt );
-    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+    {
+        float xPos( 10. ), zPos( 2. );
+        int xCount( 4 );
+        int xIdx;
+        while( xCount > 0 )
+        {
+            for( xIdx=0; xIdx<xCount; xIdx++ )
+            {
+                amt = new osgwTools::AbsoluteModelTransform;
+                geode = new osg::Geode;
+                m = osg::Matrix::translate( xPos, -10., zPos );
+                geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+                amt->addChild( geode );
+                wallGroup->addChild( amt );
+                amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
+                xPos += 2.;
+            }
+            xPos = xPos - ( 2. * xCount ) + 1.;
+            zPos += 2.;
+            xCount--;
+        }
+    }
 
 
 
@@ -157,6 +132,7 @@ osg::Node* build()
     amt->addChild( geode );
     root->addChild( amt );
     amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 1. ) );
+
 
     // Debug: wire grid to make movement plain and obvious.
     geode = new osg::Geode;
