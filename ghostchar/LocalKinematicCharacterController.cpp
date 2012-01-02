@@ -425,7 +425,17 @@ void btKinematicCharacterController::stepDown ( btCollisionWorld* collisionWorld
 
 	if (callback.hasHit())
 	{
-		// we dropped a fraction of the height -> hit floor
+        if( ( callback.m_hitCollisionObject->getCollisionFlags() &
+            btCollisionObject::CF_STATIC_OBJECT ) == 0 )
+        {
+            // It's dynamic. Make it respond a little.
+            btVector3 response = ( m_targetPosition - m_currentPosition ) * callback.m_closestHitFraction * .01;
+            btTransform wt = callback.m_hitCollisionObject->getWorldTransform();
+            wt.setOrigin( wt.getOrigin() + response );
+            callback.m_hitCollisionObject->setWorldTransform( wt );
+        }
+
+        // we dropped a fraction of the height -> hit floor
 		m_currentPosition.setInterpolate3 (m_currentPosition, m_targetPosition, callback.m_closestHitFraction);
 		m_verticalVelocity = 0.0;
 		m_verticalOffset = 0.0;
