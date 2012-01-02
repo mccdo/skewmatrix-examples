@@ -145,6 +145,7 @@ osg::Node* build()
         float xPos( 10. ), zPos( 2. );
         int xCount( 5 );
         int xIdx;
+        float mass( 2. );
         while( xCount > 0 )
         {
             for( xIdx=0; xIdx<xCount; xIdx++ )
@@ -152,15 +153,16 @@ osg::Node* build()
                 amt = new osgwTools::AbsoluteModelTransform;
                 geode = new osg::Geode;
                 m = osg::Matrix::translate( xPos, -10., zPos );
-                geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .25, 1. ) ) );
+                geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .35, 1. ) ) );
                 amt->addChild( geode );
                 wallGroup->addChild( amt );
-                amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .4 ) );
-                xPos += 2.;
+                amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, mass ) );
+                xPos += 2.05;
             }
             xPos = xPos - ( 2. * xCount ) + 1.;
             zPos += 2.;
             xCount--;
+            mass *= .9;
         }
     }
 
@@ -340,6 +342,8 @@ void EnablePhysicsVisitor::apply( osg::Transform& node )
     np.pop_back();
     cr->_parentTransform = osg::computeLocalToWorld( np );
     btRigidBody* rb = osgbDynamics::createRigidBody( cr.get() );
+
+    rb->setSleepingThresholds( .05, .025 );
 
     //node.setUserData( new osgbCollision::RefRigidBody( rb ) );
 

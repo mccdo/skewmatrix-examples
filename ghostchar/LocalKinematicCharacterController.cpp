@@ -429,10 +429,18 @@ void btKinematicCharacterController::stepDown ( btCollisionWorld* collisionWorld
             btCollisionObject::CF_STATIC_OBJECT ) == 0 )
         {
             // It's dynamic. Make it respond a little.
+            // This allows the fulcrum / lever to work; otherwise, the lever would
+            // be completely immobile when we're standing on the end.
             btVector3 response = ( m_targetPosition - m_currentPosition ) * callback.m_closestHitFraction * .01;
             btTransform wt = callback.m_hitCollisionObject->getWorldTransform();
             wt.setOrigin( wt.getOrigin() + response );
             callback.m_hitCollisionObject->setWorldTransform( wt );
+
+            // Now that we've moved the dynamic object just slightly, make sure we leave
+            // the kinematic character at the collision point, leaving just a slight gap
+            // between the character and the object we just moved. That allows the dynamic
+            // object to "spring back" if it is over-constrained (such as, pinned between
+            // the character and the ground).
         }
 
         // we dropped a fraction of the height -> hit floor
