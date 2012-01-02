@@ -26,6 +26,43 @@ osg::Object* makeCreationRecord( osg::Transform* node, BroadphaseNativeTypes sha
     return( cr.release() );
 }
 
+
+osg::Node* duckHazard( float x, float y, float height )
+{
+    osgwTools::AbsoluteModelTransform* amt;
+    osg::Geode* geode;
+    osg::Matrix m;
+
+    osg::Group* root = new osg::Group;
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( x-2., y, 1. + ( height * .5 ) );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( .125, .125, height * .5 ), osg::Vec3s( 1, 1, (short)height ) ) );
+    amt->addChild( geode );
+    root->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( x+2., y, 1. + ( height * .5 ) );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( .125, .125, height * .5 ), osg::Vec3s( 1, 1, (short)height ) ) );
+    amt->addChild( geode );
+    root->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
+
+    amt = new osgwTools::AbsoluteModelTransform;
+    geode = new osg::Geode;
+    m = osg::Matrix::translate( x, y, height + 1.2 );
+    geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 2.5, .2, .2 ), osg::Vec3s( 3, 1, 1 ) ) );
+    amt->addChild( geode );
+    root->addChild( amt );
+    amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, .5 ) );
+
+    return( root );
+}
+
+
 osg::Node* build()
 {
     osg::ref_ptr< osg::Group > root = new osg::Group;
@@ -292,19 +329,30 @@ osg::Node* build()
 
         amt = new osgwTools::AbsoluteModelTransform;
         geode = new osg::Geode;
-        m = osg::Matrix::translate( 0., 10., 1.5 );
-        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1.05, .25, .5 ), osg::Vec3s( 1, 1, 1 ) ) );
+        m = osg::Matrix::translate( -12., 6., 1.5 );
+        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( .25, 1.55, .5 ) ) );
         amt->addChild( geode );
         fulcrumGroup->addChild( amt );
         amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
 
         amt = new osgwTools::AbsoluteModelTransform;
         geode = new osg::Geode;
-        m = osg::Matrix::translate( 0., 9., 2.5 );
-        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., 6., .25 ), osg::Vec3s( 1, 6, 1 ) ) );
+        m = osg::Matrix::translate( -11., 6.025, 2.5 );
+        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 6., 1.5, .25 ), osg::Vec3s( 6, 1, 1 ) ) );
         amt->addChild( geode );
         fulcrumGroup->addChild( amt );
         amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 1. ) );
+    }
+
+
+    // Duck hazards
+    {
+        osg::Group* duckGroup = new osg::Group;
+        root->addChild( duckGroup );
+
+        duckGroup->addChild( duckHazard( 10., 30., 4. ) );
+        duckGroup->addChild( duckHazard( 10., 20., 5. ) );
+        duckGroup->addChild( duckHazard( 10., 10., 6. ) );
     }
 
 
