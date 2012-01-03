@@ -71,7 +71,6 @@ osg::Group* Character::setModel( const std::string& fileName, bool transform )
     _capsuleRadius = bbz * 1.25 / 6.; // For 6 foot tall, this gives us 1.25 foot radius.
     _capsuleHeight = bbz;
     generateCapsule();
-    _root->addChild( _capsule );
 
     _lastPosition.set( 0., 0., 5. );
     _btGhost->setWorldTransform( osgbCollision::asBtTransform(
@@ -148,24 +147,34 @@ osg::Vec3 Character::getPosition() const
 
 void Character::generateCapsule()
 {
+    osg::notify( osg::ALWAYS ) << "H: " << _capsuleHeight << " R: " << _capsuleRadius << std::endl;
+
+    if( _capsule != NULL )
+        _root->removeChild( _capsule );
+
     osg::Geode* geode = new osg::Geode;
     osg::Geometry* geom = osgwTools::makeWireCapsule( _capsuleHeight, _capsuleRadius );
     geode->addDrawable( geom );
     _capsule = geode;
+    _root->addChild( _capsule );
 
     if( _capsuleShape != NULL )
         delete( _capsuleShape );
     _capsuleShape = new btCapsuleShapeZ( _capsuleRadius,
         _capsuleHeight - ( _capsuleRadius * 2. ) );
 
-    if( _btGhost != NULL )
+    if( _btGhost == NULL )
     {
-        _bw->removeCollisionObject( _btGhost );
-        delete _btGhost;
+        _btGhost = new btPairCachingGhostObject();
+	    _btGhost->setCollisionShape( _capsuleShape );
+	    _btGhost->setCollisionFlags( btCollisionObject::CF_CHARACTER_OBJECT );
+        _bw->addCollisionObject( _btGhost, btBroadphaseProxy::CharacterFilter,
+            btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
     }
-    _btGhost = new btPairCachingGhostObject();
-	_btGhost->setCollisionShape( _capsuleShape );
-	_btGhost->setCollisionFlags( btCollisionObject::CF_CHARACTER_OBJECT );
+    else
+    {
+	    _btGhost->setCollisionShape( _capsuleShape );
+    }
 
     if( _btChar != NULL )
     {
@@ -173,8 +182,5 @@ void Character::generateCapsule()
         delete _btChar;
     }
 	_btChar = new btKinematicCharacterController( _btGhost, _capsuleShape, 1.0, 2 );
-
-    _bw->addCollisionObject( _btGhost, btBroadphaseProxy::CharacterFilter,
-        btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
 	_bw->addAction( _btChar );
 }

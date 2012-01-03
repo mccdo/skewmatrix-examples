@@ -179,7 +179,7 @@ osg::Node* build()
         osg::Group* wallGroup = new osg::Group;
         root->addChild( wallGroup );
 
-        float xPos( 10. ), zPos( 2. );
+        float xPos( 10. ), zPos( 1.6 );
         int xCount( 5 );
         int xIdx;
         float mass( 2. );
@@ -190,14 +190,14 @@ osg::Node* build()
                 amt = new osgwTools::AbsoluteModelTransform;
                 geode = new osg::Geode;
                 m = osg::Matrix::translate( xPos, -10., zPos );
-                geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .35, 1. ) ) );
+                geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1., .35, .6 ) ) );
                 amt->addChild( geode );
                 wallGroup->addChild( amt );
                 amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, mass ) );
-                xPos += 2.05;
+                xPos += 2.;
             }
             xPos = xPos - ( 2. * xCount ) + 1.;
-            zPos += 2.;
+            zPos += 1.2;
             xCount--;
             mass *= .9;
         }
@@ -329,16 +329,16 @@ osg::Node* build()
 
         amt = new osgwTools::AbsoluteModelTransform;
         geode = new osg::Geode;
-        m = osg::Matrix::translate( -12., 6., 1.5 );
-        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( .25, 1.55, .5 ) ) );
+        m = osg::Matrix::translate( 30., 10., 1.5 );
+        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1.55, .25, .5 ) ) );
         amt->addChild( geode );
         fulcrumGroup->addChild( amt );
         amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 0. ) );
 
         amt = new osgwTools::AbsoluteModelTransform;
         geode = new osg::Geode;
-        m = osg::Matrix::translate( -11., 6.025, 2.5 );
-        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 6., 1.5, .25 ), osg::Vec3s( 6, 1, 1 ) ) );
+        m = osg::Matrix::translate( 30., 9, 2.5 );
+        geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1.5, 6., .25 ), osg::Vec3s( 1, 6, 1 ) ) );
         amt->addChild( geode );
         fulcrumGroup->addChild( amt );
         amt->setUserData( makeCreationRecord( amt, BOX_SHAPE_PROXYTYPE, 1. ) );

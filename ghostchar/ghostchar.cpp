@@ -38,8 +38,9 @@ public:
         GLOBAL
     };
 
-    KeyHandler( osgwMx::MxCore* mxCore )
+    KeyHandler( osgwMx::MxCore* mxCore, Character* character )
       : _mxCore( mxCore ),
+        _character( character ),
         _viewMode( FOLLOW )
     {
         _localOffsetEC = osg::Matrix::translate( 0., -2.5, .5 ) *
@@ -108,6 +109,24 @@ public:
                 handled = true;
                 break;
             }
+            case osgGA::GUIEventAdapter::KEY_Up:
+            {
+                _character->setHeight( _character->getHeight() * 1.1 );
+                handled = true;
+                break;
+            }
+            case osgGA::GUIEventAdapter::KEY_Down:
+            {
+                _character->setHeight( _character->getHeight() * .9 );
+                handled = true;
+                break;
+            }
+            case 'c':
+            {
+                _character->setCapsuleVisible( !( _character->getCapsuleVisible() ) );
+                handled = true;
+                break;
+            }
             }
             break;
         }
@@ -119,6 +138,7 @@ protected:
     ~KeyHandler() {};
 
     osg::ref_ptr< osgwMx::MxCore > _mxCore;
+    Character* _character;
     ViewMode _viewMode;
 
     osg::Matrix _localOffsetEC;
@@ -147,6 +167,8 @@ btDynamicsWorld* initPhysics()
 
     // Set gravity in ft/sec^2: accel due to gravity is ~9.8 m/s^2 * 3.28 ft/m = 32.14
     dynamicsWorld->setGravity( btVector3( 0., 0., -32.14 ) );
+
+    gDeactivationTime = btScalar( 0.2 );
 
     return( dynamicsWorld );
 }
@@ -218,7 +240,7 @@ int main( int argc, char** argv )
         osg::Vec3( 0., 0., 5. ) );
     mxCore->reset();
 
-    osg::ref_ptr< KeyHandler > keyHandler = new KeyHandler( mxCore );
+    osg::ref_ptr< KeyHandler > keyHandler = new KeyHandler( mxCore, &worker );
     viewer.addEventHandler( keyHandler.get() );
 
     osgbInteraction::LaunchHandler* lh = new osgbInteraction::LaunchHandler(
