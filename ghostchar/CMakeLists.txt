@@ -5,10 +5,12 @@ endif()
 set( CATEGORY Example )
 MAKE_EXECUTABLE( ghostchar
     ghostchar.cpp
-    world.cpp
-    world.h
     character.cpp
     character.h
+    tracker.cpp
+    tracker.h
+    world.cpp
+    world.h
     LocalKinematicCharacterController.cpp
     LocalKinematicCharacterController.h
 )

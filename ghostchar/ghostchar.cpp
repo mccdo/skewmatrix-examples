@@ -23,6 +23,7 @@
 
 #include "world.h"
 #include "character.h"
+#include "tracker.h"
 
 #include <osg/io_utils>
 
@@ -269,6 +270,8 @@ int main( int argc, char** argv )
         root->addChild( dbgDraw->getSceneGraph() );
     }
 
+    HeadTracker headTracker;
+
     viewer.frame();
     double prevSimTime = 0.;
     while( !( viewer.done() ) )
@@ -277,6 +280,9 @@ int main( int argc, char** argv )
         const double currSimTime = viewer.getFrameStamp()->getSimulationTime();
         const double deltaTime = currSimTime - prevSimTime;
         prevSimTime = currSimTime;
+
+        // Get head tracker matrix.
+        osg::Vec3 head = headTracker.getMatrix( currSimTime );
 
         // Get events from either the game pad or the kbd/mouse to control the
         // worker and update the MxCore.
