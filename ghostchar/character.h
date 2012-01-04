@@ -44,12 +44,15 @@ public:
     osg::Vec3 getPosition() const;
 
 protected:
-    osg::ref_ptr< osg::MatrixTransform > _root;
-    osg::Node* _model;
-    osg::Node* _capsule;
+    osg::ref_ptr< osg::Group > _root;
+    osg::ref_ptr< osg::MatrixTransform > _modelTransform;
+    osg::ref_ptr< osg::MatrixTransform > _capsuleTransform;
+    osg::ref_ptr< osg::Node > _model;
+    osg::ref_ptr< osg::Node > _capsule;
 
-    double _capsuleRadius;
+    double _modelHeight;
     double _capsuleHeight;
+    double _capsuleRadius;
 
     void generateCapsule();
 

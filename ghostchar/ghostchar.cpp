@@ -43,10 +43,6 @@ public:
         _character( character ),
         _viewMode( FOLLOW )
     {
-        _localOffsetEC = osg::Matrix::translate( 0., -2.5, .5 ) *
-            osg::Matrix::rotate( .05, 1., 0., 0. );
-        _followOffsetEC = osg::Matrix::translate( 0., -7., -11. ) *
-            osg::Matrix::rotate( .5, 1., 0., 0. );
         osg::Vec3 dir( -7.5, 8., -5. );
         dir.normalize();
         _globalDirWC = dir * 40.;
@@ -57,16 +53,27 @@ public:
         switch( _viewMode )
         {
         case LOCAL:
-            camera->setViewMatrix( _mxCore->getInverseMatrix() * _localOffsetEC );
+        {
+            const double halfHeight = _character->getHeight() * .45;
+            const osg::Matrix localOffsetEC = osg::Matrix::translate( 0., -halfHeight, .5 ) *
+                osg::Matrix::rotate( .05, 1., 0., 0. );
+            camera->setViewMatrix( _mxCore->getInverseMatrix() * localOffsetEC );
             break;
+        }
         case FOLLOW:
-            camera->setViewMatrix( _mxCore->getInverseMatrix() * _followOffsetEC );
+        {
+            const osg::Matrix followOffsetEC = osg::Matrix::translate( 0., -7., -11. ) *
+                osg::Matrix::rotate( .5, 1., 0., 0. );
+            camera->setViewMatrix( _mxCore->getInverseMatrix() * followOffsetEC );
             break;
+        }
         case GLOBAL:
+        {
             const osg::Vec3 pos = _mxCore->getPosition();
             const osg::Vec3 eye = pos - _globalDirWC;
             camera->setViewMatrix( osg::Matrix::lookAt( eye, pos, osg::Vec3( 0., 0., 1. ) ) );
             break;
+        }
         }
     }
 
@@ -117,7 +124,7 @@ public:
             }
             case osgGA::GUIEventAdapter::KEY_Down:
             {
-                _character->setHeight( _character->getHeight() * .9 );
+                _character->setHeight( _character->getHeight() / 1.1 );
                 handled = true;
                 break;
             }
@@ -141,8 +148,6 @@ protected:
     Character* _character;
     ViewMode _viewMode;
 
-    osg::Matrix _localOffsetEC;
-    osg::Matrix _followOffsetEC;
     osg::Vec3 _globalDirWC;
 };
 /** \endcond */

@@ -28,6 +28,7 @@
 Character::Character( btDynamicsWorld* bw )
   : _model( NULL ),
     _capsule( NULL ),
+    _modelHeight( 6. ),
     _capsuleHeight( 6. ),
     _capsuleRadius( 1.25 ),
     _bw( bw ),
@@ -60,16 +61,21 @@ osg::Group* Character::setModel( const std::string& fileName, bool transform )
     else
         _model = model;
 
-    _root = new osg::MatrixTransform;
-    _root->addChild( _model );
+    _root = new osg::Group;
+    _modelTransform = new osg::MatrixTransform;
+    _root->addChild( _modelTransform.get() );
+    _modelTransform->addChild( _model.get() );
 
 
     osg::ComputeBoundsVisitor cbv;
     _model->accept( cbv );
     const osg::BoundingBox& bb = cbv.getBoundingBox();
-    double bbz = bb._max[2] - bb._min[2];
-    _capsuleRadius = bbz * 1.25 / 6.; // For 6 foot tall, this gives us 1.25 foot radius.
-    _capsuleHeight = bbz;
+    _modelHeight = bb._max[2] - bb._min[2];
+    _capsuleRadius = _modelHeight * 1.25 / 6.; // For 6 foot tall, this gives us 1.25 foot radius.
+    _capsuleHeight = _modelHeight;
+
+    _capsuleTransform = new osg::MatrixTransform;
+    _root->addChild( _capsuleTransform.get() );
     generateCapsule();
 
     _lastPosition.set( 0., 0., 5. );
@@ -101,6 +107,9 @@ bool Character::getCapsuleVisible() const
 
 void Character::setHeight( double height )
 {
+    if( !( _root.valid() ) )
+        return;
+
     _capsuleHeight = height;
     generateCapsule();
 }
@@ -127,11 +136,20 @@ void Character::setPhysicsWorldTransform( const osg::Matrix& m )
 
 void Character::setOSGMatrix( const osg::Matrix& m )
 {
+    // Clamp capsule height minimum at 2x capsule radius.
+    // Otherwise, Bullet collision shape appears to perform poorly.
+    const double capsuleHeight = osg::maximum< double >( _capsuleHeight, _capsuleRadius * 2. );
+
     // Account for MxCore orientation.
-    osg::Matrix orient = osg::Matrix::translate( 0., 0., _capsuleHeight * -.5 ) *
+    double z = -( ( 2. * _modelHeight - capsuleHeight ) * .5 );
+    osg::Matrix orient = osg::Matrix::translate( 0., 0., z ) *
         osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
-    osg::Matrix worldMatrix = orient * m;
-    _root->setMatrix( worldMatrix );
+    _modelTransform->setMatrix( orient * m );
+
+    orient = osg::Matrix::translate( 0., 0., capsuleHeight * -.5 ) *
+        osg::Matrix::rotate( -osg::PI_2, 1., 0., 0. );
+    _capsuleTransform->setMatrix( orient * m );
+
     _lastPosition = m.getTrans();
 }
 
@@ -147,21 +165,34 @@ osg::Vec3 Character::getPosition() const
 
 void Character::generateCapsule()
 {
-    osg::notify( osg::ALWAYS ) << "H: " << _capsuleHeight << " R: " << _capsuleRadius << std::endl;
+    // Clamp capsule height minimum at 2x capsule radius.
+    // Otherwise, Bullet collision shape appears to perform poorly.
+    const double capsuleHeight = osg::maximum< double >( _capsuleHeight, _capsuleRadius * 2. );
 
+    osg::notify( osg::ALWAYS ) << "H: " << capsuleHeight << " R: " << _capsuleRadius << std::endl;
+
+    unsigned int nodeMask( 0xffffffff );
     if( _capsule != NULL )
-        _root->removeChild( _capsule );
+    {
+        // We're going to delete and recreate the capsule geometry.
+        // Save the nodemask for possible restore, so that if the user
+        // turns it off, it stays off after we regenerate the geometry.
+        nodeMask = _capsule->getNodeMask();
+        _capsuleTransform->removeChild( _capsule.get() );
+    }
 
     osg::Geode* geode = new osg::Geode;
-    osg::Geometry* geom = osgwTools::makeWireCapsule( _capsuleHeight, _capsuleRadius );
+    osg::Geometry* geom = osgwTools::makeWireCapsule( capsuleHeight, _capsuleRadius );
     geode->addDrawable( geom );
     _capsule = geode;
-    _root->addChild( _capsule );
+    _capsuleTransform->addChild( _capsule.get() );
+    if( nodeMask != _capsule->getNodeMask() )
+        _capsule->setNodeMask( nodeMask );
 
     if( _capsuleShape != NULL )
         delete( _capsuleShape );
     _capsuleShape = new btCapsuleShapeZ( _capsuleRadius,
-        _capsuleHeight - ( _capsuleRadius * 2. ) );
+        capsuleHeight - ( _capsuleRadius * 2. ) );
 
     if( _btGhost == NULL )
     {
