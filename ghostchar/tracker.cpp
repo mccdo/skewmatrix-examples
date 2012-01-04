@@ -2,7 +2,6 @@
 
 #include "tracker.h"
 
-#include <osg/Matrix>
 #include <osg/Notify>
 #include <osg/io_utils>
 #include <deque>
@@ -19,7 +18,7 @@ HeadTracker::~HeadTracker()
 {
 }
 
-osg::Vec3 HeadTracker::getMatrix( double t )
+osg::Vec3 HeadTracker::getPosition( const double t )
 {
     osg::Vec3 sum( 0., 0., 0. );
     double levelTime( _baseDuration );
@@ -38,7 +37,7 @@ osg::Vec3 HeadTracker::getMatrix( double t )
                 _posStack.pop_back();
             // Generate new vector for this stack level. Multiple z by 0.5
             // for more stable head up/down position.
-            _posStack.push_back( osg::Vec3( randNeg1To1(), randNeg1To1(), randNeg1To1() * .5 ) );
+            _posStack.push_back( randPulledVector( (float)( idx + 1 ) ) );
             // Note that if we popped multiple levels, we only need to push
             // one vector, and successive iterations of the for loop will
             // push more vectors until we are back to a full _depth stack.
@@ -47,11 +46,19 @@ osg::Vec3 HeadTracker::getMatrix( double t )
         levelTime *= .5;
     }
 
-    double deltaTime = t - _lastTime;
+    const double deltaTime = t - _lastTime;
     _lastTime = t;
-    _lastPos += ( sum * deltaTime );
+    _deltaPos = sum * deltaTime;
+    _lastPos += _deltaPos;
 
-    return( sum );
+    return( _lastPos );
+}
+
+osg::Vec3 HeadTracker::getDeltaPosition( const double t )
+{
+    if( t != _lastTime )
+        getPosition( t );
+    return( _deltaPos );
 }
 
 float HeadTracker::randNeg1To1()
@@ -61,3 +68,14 @@ float HeadTracker::randNeg1To1()
     return( ( (float)( r ) / (float)( mask ) ) * 2.f - 1.f );
 }
 
+osg::Vec3 HeadTracker::randPulledVector( const float magnitude ) const
+{
+    // Generate a random vector
+    const osg::Vec3 randVec( randNeg1To1(), randNeg1To1(), randNeg1To1() );
+
+    // Redirect it back to the origin, Pull z twice as hard to reduce head up/down motion.
+    const float pull = -.4f / magnitude;
+    const osg::Vec3 pullVec( _lastPos[0] * pull, _lastPos[1] * pull, _lastPos[2] * pull * 2. );
+
+    return( randVec + pullVec );
+}

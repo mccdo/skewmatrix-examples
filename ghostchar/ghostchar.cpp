@@ -23,7 +23,11 @@
 
 #include "world.h"
 #include "character.h"
+
+#define USE_HEAD_TRACKER
+#ifdef USE_HEAD_TRACKER
 #include "tracker.h"
+#endif
 
 #include <osg/io_utils>
 
@@ -42,7 +46,9 @@ public:
     KeyHandler( osgwMx::MxCore* mxCore, Character* character )
       : _mxCore( mxCore ),
         _character( character ),
-        _viewMode( FOLLOW )
+        _viewMode( FOLLOW ),
+        _heightUp( false ),
+        _heightDown( false )
     {
         osg::Vec3 dir( -7.5, 8., -5. );
         dir.normalize();
@@ -76,6 +82,18 @@ public:
             break;
         }
         }
+    }
+    void processPendingHeightChanges( const float delta )
+    {
+        double h = _character->getHeight() + delta;
+        if( _heightUp )
+            h *= 1.1;
+        if( _heightDown )
+            h /= 1.1;
+        _heightUp = _heightDown = false;
+
+        if( h != _character->getHeight() )
+            _character->setHeight( h );
     }
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us )
@@ -119,13 +137,13 @@ public:
             }
             case osgGA::GUIEventAdapter::KEY_Up:
             {
-                _character->setHeight( _character->getHeight() * 1.1 );
+                _heightUp = true;
                 handled = true;
                 break;
             }
             case osgGA::GUIEventAdapter::KEY_Down:
             {
-                _character->setHeight( _character->getHeight() / 1.1 );
+                _heightDown = true;
                 handled = true;
                 break;
             }
@@ -148,6 +166,8 @@ protected:
     osg::ref_ptr< osgwMx::MxCore > _mxCore;
     Character* _character;
     ViewMode _viewMode;
+
+    bool _heightUp, _heightDown;
 
     osg::Vec3 _globalDirWC;
 };
@@ -270,7 +290,9 @@ int main( int argc, char** argv )
         root->addChild( dbgDraw->getSceneGraph() );
     }
 
-    HeadTracker headTracker;
+#ifdef USE_HEAD_TRACKER
+    HeadTracker headTracker( 1., 3 );
+#endif
 
     viewer.frame();
     double prevSimTime = 0.;
@@ -281,8 +303,19 @@ int main( int argc, char** argv )
         const double deltaTime = currSimTime - prevSimTime;
         prevSimTime = currSimTime;
 
+
+        //
+        // Process all potential changes to the mxCore matrix.
+        //
+
         // Get head tracker matrix.
-        osg::Vec3 head = headTracker.getMatrix( currSimTime );
+        float deltaHeight( 0. );
+#ifdef USE_HEAD_TRACKER
+        osg::Vec3 headDeltaPos = headTracker.getDeltaPosition( currSimTime );
+        deltaHeight = headDeltaPos.z();
+        headDeltaPos.z() = 0.;
+        mxCore->setPosition( mxCore->getPosition() + headDeltaPos );
+#endif
 
         // Get events from either the game pad or the kbd/mouse to control the
         // worker and update the MxCore.
@@ -295,6 +328,11 @@ int main( int argc, char** argv )
         worker.setPhysicsWorldTransform( mxCore->getMatrix() );
         //osg::notify( osg::ALWAYS ) << worker.getPosition() << std::endl;
 
+
+        //
+        // Physics simulation step
+        //
+
         // Run the physics simultation.
         if( dbgDraw != NULL )
             dbgDraw->BeginDraw();
@@ -305,12 +343,26 @@ int main( int argc, char** argv )
             dbgDraw->EndDraw();
         }
 
+
+        //
+        // Update scene to reflect the ghost body position, plus any
+        // changes in character height.
+        //
+
         // The physics simultation has now adjusted the position of the
         // worker. Set the MxCore position from the worker position.
         mxCore->setPosition( worker.getPosition() );
         // Now update the worker's OSG transform, and the OSG Camera.
         worker.setOSGMatrix( mxCore->getMatrix() );
+        // Change height of chanracter, if requested.
+        keyHandler->processPendingHeightChanges( deltaHeight );
+        // Specify the view matrix (uses the worker position and height)
         keyHandler->setViewMatrix( viewer.getCamera() );
+
+
+        //
+        // Render
+        //
 
         viewer.updateTraversal();
         viewer.renderingTraversals();

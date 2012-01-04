@@ -169,8 +169,6 @@ void Character::generateCapsule()
     // Otherwise, Bullet collision shape appears to perform poorly.
     const double capsuleHeight = osg::maximum< double >( _capsuleHeight, _capsuleRadius * 2. );
 
-    osg::notify( osg::ALWAYS ) << "H: " << capsuleHeight << " R: " << _capsuleRadius << std::endl;
-
     unsigned int nodeMask( 0xffffffff );
     if( _capsule != NULL )
     {
