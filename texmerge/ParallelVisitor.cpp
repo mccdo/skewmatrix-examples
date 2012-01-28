@@ -54,6 +54,9 @@ void ParallelVisitor::traverse()
 
 bool ParallelVisitor::recurseTraverse( osg::Node* nodeA, osg::Node* nodeB )
 {
+    if( ( nodeA == NULL ) || ( nodeB == NULL ) )
+        return( false );
+
     osg::Group* grpA( nodeA->asGroup() );
     osg::Group* grpB( nodeB->asGroup() );
     if( (grpA == NULL) || (grpB == NULL) )

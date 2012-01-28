@@ -180,7 +180,7 @@ int main( int argc, char** argv )
             "\t\tand write it to output unit 1\n" <<
 
             "\t-t Specify Texture object mappings. Example:\n" <<
-            "\t\t\"-u 0=a.2\" means \"take the Texture object from fileA's\n" <<
+            "\t\t\"-t 0=a.2\" means \"take the Texture object from fileA's\n" <<
             "\t\tunit 2 and write it to output unit 0\n" <<
 
             "\t-e Specify TexEnv values for matched search strings. Example:\n" <<
@@ -265,6 +265,11 @@ int main( int argc, char** argv )
 
     osg::ref_ptr< osg::Node > sgA = osgDB::readNodeFile( arguments[ 1 ] );
     osg::ref_ptr< osg::Node > sgB = osgDB::readNodeFile( arguments[ 2 ] );
+    if( !( sgA.valid() ) || !( sgB.valid() ) )
+    {
+        osg::notify( osg::FATAL ) << "Can't load model files." << std::endl;
+        return( 1 );
+    }
 
     ParallelVisitor pv( sgA.get(), sgB.get() );
     pv.setCallback( &mpc );
