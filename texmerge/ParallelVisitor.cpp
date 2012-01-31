@@ -62,7 +62,7 @@ bool ParallelVisitor::recurseTraverse( osg::Node* nodeA, osg::Node* nodeB )
     if( ( (grpA == NULL) && (grpB != NULL) ) ||
         ( (grpA != NULL) && (grpB == NULL) ) )
     {
-        osg::notify( osg::WARN ) << "ParallelVisitor: Structural inconsistancy. Can't traverse." << std::endl;
+        osg::notify( osg::WARN ) << "ParallelVisitor: Structural inconsistency. Can't traverse." << std::endl;
         osg::notify( osg::WARN ) << "\t\"" << nodeA->getName() << "\" is class " << nodeA->className() << std::endl;
         osg::notify( osg::WARN ) << "\t\"" << nodeB->getName() << "\" is class " << nodeB->className() << std::endl;
         return( false );
