@@ -67,9 +67,17 @@ bool MyParallelCallback::operator()( osg::Node& grpA, osg::Node& grpB )
     osg::Geode* geodeA = static_cast< osg::Geode* >( &grpA );
     osg::Geode* geodeB = static_cast< osg::Geode* >( &grpB );
 
-    const unsigned int numDrawables = osg::minimum< unsigned int >( geodeA->getNumDrawables(), geodeB->getNumDrawables() );
+    const unsigned int minDrawables = osg::minimum< unsigned int >( geodeA->getNumDrawables(), geodeB->getNumDrawables() );
+    if( geodeA->getNumDrawables() != geodeB->getNumDrawables() )
+    {
+        osg::notify( osg::WARN ) << "MyParallelCallback: Drawable count mismatch:" << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << geodeA->getName() << "\" " << geodeA->getNumDrawables() << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << geodeB->getName() << "\" " << geodeB->getNumDrawables() << std::endl;
+        osg::notify( osg::WARN ) << "\tProcessing the minimum " << minDrawables << "; possible loss of geometry." << std::endl;
+    }
+
     unsigned int idx;
-    for( idx=0; idx<numDrawables; idx++ )
+    for( idx=0; idx<minDrawables; idx++ )
     {
         osg::Geometry* geomA = geodeA->getDrawable( idx )->asGeometry();
         osg::Geometry* geomB = geodeB->getDrawable( idx )->asGeometry();

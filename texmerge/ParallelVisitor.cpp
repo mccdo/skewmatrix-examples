@@ -59,13 +59,39 @@ bool ParallelVisitor::recurseTraverse( osg::Node* nodeA, osg::Node* nodeB )
 
     osg::Group* grpA( nodeA->asGroup() );
     osg::Group* grpB( nodeB->asGroup() );
+    if( ( (grpA == NULL) && (grpB != NULL) ) ||
+        ( (grpA != NULL) && (grpB == NULL) ) )
+    {
+        osg::notify( osg::WARN ) << "ParallelVisitor: Structural inconsistancy. Can't traverse." << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << nodeA->getName() << "\" is class " << nodeA->className() << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << nodeB->getName() << "\" is class " << nodeB->className() << std::endl;
+        return( false );
+    }
+
     if( (grpA == NULL) || (grpB == NULL) )
         return( true );
 
+    if( grpA->getName() != grpB->getName() )
+    {
+        osg::notify( osg::WARN ) << "ParallelVisitor: Node name mismatch:";
+        osg::notify( osg::WARN ) << "\t\"" << grpA->getName() << "\" != \"" << grpB->getName() << "\"." << std::endl;
+    }
+    if( grpA->className() != grpB->className() )
+    {
+        osg::notify( osg::WARN ) << "ParallelVisitor: Class name mismatch:";
+        osg::notify( osg::WARN ) << "\t\"" << grpA->className() << "\" != \"" << grpB->className() << "\"." << std::endl;
+    }
+    const unsigned int minChildren = osg::minimum( grpA->getNumChildren(), grpB->getNumChildren() );
+    if( grpA->getNumChildren() != grpB->getNumChildren() )
+    {
+        osg::notify( osg::WARN ) << "ParallelVisitor: Child count mismatch:" << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << grpA->getName() << "\" " << grpA->getNumChildren() << std::endl;
+        osg::notify( osg::WARN ) << "\t\"" << grpB->getName() << "\" " << grpB->getNumChildren() << std::endl;
+        osg::notify( osg::WARN ) << "\tProcessing the minimum " << minChildren << "; possible loss of geometry." << std::endl;
+    }
+
     unsigned int idx;
-    for( idx=0;
-         idx < osg::minimum( grpA->getNumChildren(), grpB->getNumChildren() );
-         idx++ )
+    for( idx=0; idx < minChildren; ++idx )
     {
         osg::ref_ptr< osg::Node > childA( grpA->getChild( idx ) );
         osg::ref_ptr< osg::Node > childB( grpB->getChild( idx ) );
@@ -75,8 +101,7 @@ bool ParallelVisitor::recurseTraverse( osg::Node* nodeA, osg::Node* nodeB )
         }
     }
 
-    const unsigned int numChildren( osg::minimum( grpA->getNumChildren(), grpB->getNumChildren() ) );
-    for( idx=0; idx<numChildren; idx++ )
+    for( idx=0; idx<minChildren; idx++ )
     {
         recurseTraverse( grpA->getChild( idx ), grpB->getChild( idx ) );
     }
