@@ -143,6 +143,7 @@ void MyParallelCallback::processGeometry( osg::Geometry* geomA, osg::Geometry* g
     for( idx=0; idx<16; idx++ )
         geomAuv[ idx ] = geomA->getTexCoordArray( idx );
 
+    const unsigned int vertexSize = geomA->getVertexArray()->getNumElements();
     UnitMap::const_iterator it;
     for( it = _uvMap.begin(); it != _uvMap.end(); it++ )
     {
@@ -152,6 +153,13 @@ void MyParallelCallback::processGeometry( osg::Geometry* geomA, osg::Geometry* g
             srcArray = geomAuv[ it->second._unit ].get();
         else
             srcArray = geomB->getTexCoordArray( it->second._unit );
+        if( srcArray->getNumElements() != vertexSize )
+        {
+            osg::notify( osg::WARN ) << "MyParallelCallback: processGeometry: Unexpected uv array size." << std::endl;
+            osg::notify( osg::WARN ) << "\tdestUnit: " << destUnit << ", geom parent \"" << geomA->getParent( 0 )->getName() << "\"" << std::endl;
+            osg::notify( osg::WARN ) << "\tuv size: " << srcArray->getNumElements() << " != vertex array size: " << vertexSize << std::endl;
+        }
+
         geomA->setTexCoordArray( destUnit, srcArray );
     }
 }
@@ -272,9 +280,11 @@ int main( int argc, char** argv )
         return( 1 );
     }
 
-    ParallelVisitor pv( sgA.get(), sgB.get() );
-    pv.setCallback( &mpc );
-    pv.traverse();
+    {
+        ParallelVisitor pv( sgA.get(), sgB.get() );
+        pv.setCallback( &mpc );
+        pv.traverse();
+    }
 
     osgDB::writeNodeFile( *sgA, "out.osg" );
 

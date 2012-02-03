@@ -99,11 +99,7 @@ bool ParallelVisitor::recurseTraverse( osg::Node* nodeA, osg::Node* nodeB )
         {
             const bool retVal( (*_pvcb)( *childA, *childB ) );
         }
-    }
-
-    for( idx=0; idx<minChildren; idx++ )
-    {
-        recurseTraverse( grpA->getChild( idx ), grpB->getChild( idx ) );
+        recurseTraverse( childA.get(), childB.get() );
     }
     return( true );
 }
