@@ -27,18 +27,16 @@ struct SourceInfo
 };
 typedef std::map< unsigned int, SourceInfo > UnitMap;
 
-typedef std::map< std::string, osg::ref_ptr< osg::TexEnv > > TexEnvMap;
+typedef std::vector< osg::ref_ptr< osg::TexEnv > > TexEnvMap;
 
 
 struct MyParallelCallback : public ParallelVisitor::ParallelVisitorCallback
 {
     MyParallelCallback();
 
-    bool _searchObjName;
-
     UnitMap _uvMap;
     UnitMap _texMap;
-    TexEnvMap _texEnvMap;
+    TexEnvMap _texEnv;
 
     virtual bool operator()( osg::Node& grpA, osg::Node& grpB );
 
@@ -51,7 +49,6 @@ struct MyParallelCallback : public ParallelVisitor::ParallelVisitorCallback
 };
 
 MyParallelCallback::MyParallelCallback()
-  : _searchObjName( false )
 {
 }
 
@@ -116,26 +113,22 @@ void MyParallelCallback::processStateSet( osg::StateSet* ssA, osg::StateSet* ssB
 }
 void MyParallelCallback::processTexEnv( osg::StateSet* ss, osg::Texture* tex, unsigned int unit )
 {
-    std::string texName;
-    osg::Image* image = tex->getImage( 0 ); // cubemap face number.
-    if( image != NULL )
-        texName = image->getFileName();
-    if( _searchObjName || texName.empty() )
-        texName = tex->getName();
-
-    TexEnvMap::const_iterator envIt;
-    for( envIt = _texEnvMap.begin(); envIt != _texEnvMap.end(); envIt++ )
+    if( unit+1 > _texEnv.size() )
     {
-        if( texName.find( envIt->first ) != texName.npos )
-        {
-            if( envIt->second.valid() )
-            {
-                ss->setTextureAttribute( unit, envIt->second.get() );
-                ss->setTextureMode( unit, tex->getTextureTarget(), osg::StateAttribute::ON );
-            }
-            else
-                ss->setTextureMode( unit, tex->getTextureTarget(), osg::StateAttribute::OFF );
-        }
+        osg::notify( osg::WARN ) << "MyparallelCallback: processTexEnc: unit " << unit << std::endl;
+        osg::notify( osg::WARN ) << "    > _texEnc.size(). Possible missing -e paramter?" << std::endl;
+        return;
+    }
+
+    osg::TexEnv* te = _texEnv[ unit ].get();
+    if( te != NULL )
+    {
+        ss->setTextureAttribute( unit, te );
+        ss->setTextureMode( unit, tex->getTextureTarget(), osg::StateAttribute::ON );
+    }
+    else
+    {
+        ss->setTextureMode( unit, tex->getTextureTarget(), osg::StateAttribute::OFF );
     }
 }
 void MyParallelCallback::processGeometry( osg::Geometry* geomA, osg::Geometry* geomB )
@@ -181,7 +174,7 @@ int main( int argc, char** argv )
             "\t-u <outUnit>=\"a\"|\"b\".<srcUnit>\n" <<
             "\t-t <outUnit>=\"a\"|\"b\".<srcUnit>\n" <<
             "\t-e <string>=<mode>|\"OFF\"\n" <<
-            "\t--objName\n" <<
+            "\t--view\tIf present, display the resulting model.\n" <<
             "\n" <<
             "\t-u Specify uv texcoord array mappings. Example:\n" <<
             "\t\t\"-u 1=b.0\" means \"take the uv array from fileB's unit 0\n" <<
@@ -191,20 +184,14 @@ int main( int argc, char** argv )
             "\t\t\"-t 0=a.2\" means \"take the Texture object from fileA's\n" <<
             "\t\tunit 2 and write it to output unit 0\n" <<
 
-            "\t-e Specify TexEnv values for matched search strings. Example:\n" <<
-            "\t\t\"-e VES_Shadow=MODULATE\" means \"if the texture file name\n" <<
-            "\t\tcontains 'VES_Shadow', store a TexEnv MODULATE object in the\n" <<
-            "\t\tsame StateSet and texture unit as that texture. Specify \"OFF\"\n" <<
-            "\t\tin place of <mode> to disable a texture.\n" <<
-
-            "\t--objName If present, texmerge serarches for the \"-e\" search string\n" <<
-            "\t\tin the osg::Texture Object name. By default, texmerge\n" <<
-            "\t\tsearches in the osg::Texture's Image::getFileName() string.\n" <<
+            "\t-e Specify TexEnv values for texture units. Example:\n" <<
+            "\t\t\"-e 1=MODULATE\" means \"set unit 1 to MODULATE. Specify\n" <<
+            "\t\t\"OFF\" in place of <mode> to disable a texture.\n" <<
             "\n" <<
 
             "Typical usage:\n" <<
             "\ttexmerge infile0.osg infile1.osg -u 0=a.0 -u 1=b.0 -t 0=a.0 -t 1=b.0\n" <<
-            "\t\t-e VES_Diffuse=REPLACE -e VES_Shadow=MODULATE -e VES_Normal=OFF\n" <<
+            "\t\t-e 0=REPLACE -e 1=MODULATE -e 2=OFF\n" <<
             std::endl;
         return( 0 );
     }
@@ -242,8 +229,10 @@ int main( int argc, char** argv )
     {
         const std::string str( arguments[ texEnvPos + 1 ] );
         const std::string::size_type loc = str.find( '=' );
-        const std::string objectName( str.substr( 0, loc ) );
+        const std::string unitNumber( str.substr( 0, loc ) );
         const std::string modeStr( str.substr( loc+1 ) );
+
+        const unsigned int unit = (unsigned int)( unitNumber[ 0 ] - '0' );
 
         osg::ref_ptr< osg::TexEnv > te = new osg::TexEnv;
         if( modeStr == std::string( "DECAL" ) ) te->setMode( osg::TexEnv::DECAL );
@@ -254,15 +243,19 @@ int main( int argc, char** argv )
         else if( modeStr == std::string( "OFF" ) ) te = NULL;
         else osg::notify( osg::WARN ) << "Unknown mode string: \"" << modeStr << "\"." << std::endl;
 
-        mpc._texEnvMap[ objectName ] = te;
+        if( unit+1 > mpc._texEnv.size() )
+            mpc._texEnv.resize( unit+1 );
+        mpc._texEnv[ unit ] = te;
 
         arguments.remove( texEnvPos, 2 );
     }
 
-    if( arguments.find( "--objName" ) > 0 )
+    bool view( false );
+    int viewPos;
+    if( ( viewPos = arguments.find( "--view" ) ) > 0 )
     {
-        mpc._searchObjName = true;
-        arguments.remove( arguments.find( "--objName" ) );
+        view = true;
+        arguments.remove( viewPos, 1 );
     }
 
     if( arguments.argc() != 3 )
@@ -284,6 +277,10 @@ int main( int argc, char** argv )
     pv.traverse();
 
     osgDB::writeNodeFile( *sgA, "out.osg" );
+
+    if( !view )
+        return( 0 );
+
 
     osg::Group* root = new osg::Group;
     root->getOrCreateStateSet()->setMode( GL_LIGHTING, osg::StateAttribute::OFF );

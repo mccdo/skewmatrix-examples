@@ -1,4 +1,4 @@
-SET( CATEGORY Example )
+SET( CATEGORY Maya Tools )
 MAKE_EXECUTABLE( texmerge
     texmerge.cpp
     ParallelVisitor.cpp
