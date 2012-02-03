@@ -4,6 +4,7 @@
 #include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
 #include <osgViewer/Viewer>
+#include <osgUtil/Optimizer>
 #include <osgwMx/MxCore.h>
 #include <osg/StateSet>
 #include <osg/Geode>
@@ -56,7 +57,17 @@ bool MyParallelCallback::operator()( osg::Node& grpA, osg::Node& grpB )
 {
     if( ( grpA.getStateSet() != NULL ) ||
         ( grpB.getStateSet() != NULL ) )
+    {
+        if( grpA.getStateSet() != NULL )
+        {
+            // Make a shallow copy of grpA's StateSet to ensure there is
+            // no StateSet sharing in the grpA model. Otherwise we might
+            // process a StateSet that has already been processed.
+            grpA.setStateSet( new osg::StateSet( *( grpA.getStateSet() ) ) );
+        }
+
         processStateSet( grpA.getOrCreateStateSet(), grpB.getOrCreateStateSet() );
+    }
 
     if( ( grpA.className() != std::string( "Geode" ) ) ||
         ( grpB.className() != std::string( "Geode" ) ) )
@@ -135,7 +146,17 @@ void MyParallelCallback::processGeometry( osg::Geometry* geomA, osg::Geometry* g
 {
     if( ( geomA->getStateSet() != NULL ) ||
         ( geomB->getStateSet() != NULL ) )
+    {
+        if( geomA->getStateSet() != NULL )
+        {
+            // Make a shallow copy of grpA's StateSet to ensure there is
+            // no StateSet sharing in the grpA model. Otherwise we might
+            // process a StateSet that has already been processed.
+            geomA->setStateSet( new osg::StateSet( *( geomA->getStateSet() ) ) );
+        }
+
         processStateSet( geomA->getOrCreateStateSet(), geomB->getOrCreateStateSet() );
+    }
 
     ArrayVec geomAuv;
     geomAuv.resize( 16 );
@@ -284,6 +305,13 @@ int main( int argc, char** argv )
         ParallelVisitor pv( sgA.get(), sgB.get() );
         pv.setCallback( &mpc );
         pv.traverse();
+
+        // We made shallow copies of all the StateSets so that the merge
+        // process didn't overwrite any previously processed state.
+        // Now run the optimizer to share state again.
+        osgUtil::Optimizer optimizer;
+        optimizer.optimize( sgA.get(),
+            osgUtil::Optimizer::SHARE_DUPLICATE_STATE );
     }
 
     osgDB::writeNodeFile( *sgA, "out.osg" );
