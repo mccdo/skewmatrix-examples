@@ -38,6 +38,10 @@ LINK_DIRECTORIES(
 # benchmarks
 ADD_SUBDIRECTORY( uniformperf )
 
+# Support for Tony's Maya models
+ADD_SUBDIRECTORY( mayaviewer )
+ADD_SUBDIRECTORY( texmerge )
+
 # examples
 ADD_SUBDIRECTORY( AutoTransform2 )
 ADD_SUBDIRECTORY( character )
@@ -63,7 +67,6 @@ ADD_SUBDIRECTORY( streamlines1 )
 ADD_SUBDIRECTORY( streamlines2 )
 ADD_SUBDIRECTORY( streamlines3 )
 ADD_SUBDIRECTORY( tankvis )
-ADD_SUBDIRECTORY( texmerge )
 ADD_SUBDIRECTORY( textureatlas )
 ADD_SUBDIRECTORY( TextureSubload )
 ADD_SUBDIRECTORY( uniqifierstate )
