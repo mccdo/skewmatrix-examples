@@ -5,6 +5,7 @@
 
 #include <osgDB/ReadFile>
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 
 
 
@@ -34,6 +35,7 @@ int main( int argc, char** argv )
 
     osgViewer::Viewer viewer;
     viewer.addEventHandler( lightManip.get() );
+    viewer.addEventHandler( new osgViewer::RecordCameraPathHandler );
     viewer.setUpViewInWindow( 10, 30, 800, 450 );
     viewer.setSceneData( root.get() );
 

@@ -24,16 +24,45 @@ uniform bool noTexture;
 uniform bool shadowOnly;
 
 
-vec3 specularLighting()
+varying vec3 v_lightVector;
+varying vec3 v_viewVector;
+varying vec3 v_normal;
+
+varying vec3 v_emissive;
+varying vec3 v_ambient;
+varying vec3 v_diffuse;
+varying vec3 v_specular;
+varying float v_specExp;
+
+
+vec3 specularLighting( in vec3 N, in vec3 L )
 {
-    return( vec3( 0., 0., 0. ) );
+    vec3 V = normalize( v_viewVector );
+
+    vec3 R = reflect( V, N );
+    float RdotL = max( dot( R, L ), 0.0 );
+
+    // Seem to be getting a lot of '0.0' for v_specExp; clamp at 16.0.
+    float specExp = max( v_specExp, 16.0 );
+    vec3 specular = v_specular * pow( RdotL, specExp );
+
+    return( specular );
 }
 
-vec3 fullLighting()
+float diffuseLighting( in vec3 N, in vec3 L )
 {
-    vec3 color = vec3( 1., 1., 1. );
-    // do the lighting computations.
-    color += specularLighting();
+    float NdotL = max( dot( N, L ), 0.0 );
+    return( NdotL );
+}
+
+vec3 fullLighting( in vec3 N )
+{
+    vec3 L = normalize( v_lightVector );
+    float NdotL = diffuseLighting( N, L );
+
+    vec3 color = v_emissive + v_ambient +
+        ( v_diffuse * NdotL ) + specularLighting( N, L );
+
     return( color );
 }
 
@@ -47,27 +76,41 @@ void main( void )
         gl_FragData[ 0 ] = vec4( color, alpha );
         return;
     }
-    
+
     if( noTexture )
     {
-        color = fullLighting();
-        gl_FragData[ 0 ] = vec4( color, 1. );
+        gl_FragData[ 0 ] = vec4( fullLighting( normalize( v_normal ) ), 1. );
         return;
     }
 
-    vec4 shadowSample = texture2D( shadowMap, gl_TexCoord[ 1 ].st );
     if( shadowOnly )
     {
-        color = fullLighting();
-        gl_FragData[ 0 ] = vec4( 1., 0., 0., 1. );// vec4( color * shadowSample.rgb, 1. );
+        vec4 shadowSample = texture2D( shadowMap, gl_TexCoord[ 1 ].st );
+        gl_FragData[ 0 ] = vec4( fullLighting( normalize( v_normal ) ), 1. ) * shadowSample;
         return;
     }
 
-    vec4 diffuseSample = texture2D( diffuseMap, gl_TexCoord[ 0 ].st );
-    // Bump and normal are TBD.
-    //vec4 bumpSample = texture2D( bumpMap, gl_TexCoord[ 0 ].st );
-    //vec4 normalSample = texture2D( normalMap, gl_TexCoord[ 0 ].st );
-    color = diffuseSample.rgb * shadowSample.rgb + specularLighting();
+    float height = texture2D( bumpMap, gl_TexCoord[ 0 ].st ).r;
+    vec2 scaleBias = vec2( 0.06, 0.03 );
+    float v = height * scaleBias.s - scaleBias.t;
+    v = 0.;
 
+    vec3 V = normalize( v_viewVector ) * v;
+    vec2 diffTC = gl_TexCoord[ 0 ].st + V.xy;
+    vec2 shadTC = gl_TexCoord[ 1 ].st + V.xy;
+
+    float bumpiness = 1.0;
+    vec3 smoothOut = vec3( 0.5, 0.5, 1.0 );
+    vec3 N = texture2D( normalMap, diffTC ).rgb;
+    N = mix( smoothOut, N, bumpiness );
+    N = normalize( ( N * 2.0 ) - 1.0 );
+
+    vec3 L = normalize( v_lightVector );
+    float diffuse = diffuseLighting( N, L );
+    
+    vec4 diffuseSample = texture2D( diffuseMap, diffTC ) * diffuse;
+    vec4 shadowSample = texture2D( shadowMap, shadTC );
+
+    color = diffuseSample.rgb * shadowSample.rgb + specularLighting( N, L );
     gl_FragData[ 0 ] = vec4( color, 1.0 );
 }
