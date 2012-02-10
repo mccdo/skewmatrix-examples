@@ -8,26 +8,55 @@ uniform sampler2D shadowMap;
 uniform sampler2D bumpMap;
 uniform sampler2D normalMap;
 
-// Simplify fragment shader when this is true and just apply
-// a texture from unit 0.
-// ISSUE will the text be lit? RESOLVED: No.
-// ISSUE would it be better to have a separate shader for this?
+
+/** Simplify fragment shader when this is true and just apply
+a texture from unit 0.
+
+ISSUE will the text be lit? RESOLVED: No.
+
+ISSUE would it be better to have a separate shader for this? */
 uniform bool isOsgText;
 
-// Light with material properties when this is true.
-// ISSUE would it be better to have a separate shader for this?
+
+/** Light with material properties when this is true.
+
+ISSUE would it be better to have a separate shader for this? */
 uniform bool noTexture;
 
-// Light with material properties and combine with shadow map
-// when this is true.
-// ISSUE would it be better to have a separate shader for this?
+
+/** Light with material properties and combine with shadow map
+when this is true.
+
+ISSUE would it be better to have a separate shader for this? */
 uniform bool shadowOnly;
 
 
-varying vec3 v_lightVector;
-varying vec3 v_viewVector;
-varying vec3 v_normal;
 
+/** Intensity of the live light source. Should be between 0.0 and 1.0.
+The live light color computation result is multiplied by this value
+ before being added to the (unlit) diffuse + shadow map lookups. */
+uniform float lightIntensity;
+
+
+/** Linear attenuation distance value. If the distance between the
+fragment and the live light source is greater than this value, the
+resulting color has zero contribution from the live light source.
+When that distance is zero, the resulting color has full contribution
+from the live light source. */
+uniform float attenuation;
+
+
+/** Tangent space vector from fragment to light. */
+varying vec3 v_lightVector;
+/** Tangent space vector from eye to fragment. */
+varying vec3 v_viewVector;
+/** Eye coordinate normal. Used to light objects that lack a normal map. */
+varying vec3 v_normal;
+/** World coordinate distance from fragment to live light source. Used
+to compute the attenuation coefficient. */
+varying float v_distanceToLight;
+
+/** Material properties */
 varying vec3 v_emissive;
 varying vec3 v_ambient;
 varying vec3 v_diffuse;
@@ -107,10 +136,28 @@ void main( void )
 
     vec3 L = normalize( v_lightVector );
     float diffuse = diffuseLighting( N, L );
+
+    // Lighting equation:
+    // result = ( diffMap * shadMap ) +
+    //     ( ( diffMap * D * + S ) * I * attCoef )
+    //
+    // D = diffuse dot product
+    // S = result of specular computation
+    // I = lightIntensity uniform
+
+    // Compute attCoeff such that v_distanceToLight == 0 produces 1.0
+    // (next to the live light), and v_distanceToLight >= attenuation
+    // produces 0.0 (away from the live light).
+    float attCoeff = -v_distanceToLight / attenuation + 1.0;
+    attCoeff = max( attCoeff, 0.0 );
     
-    vec4 diffuseSample = texture2D( diffuseMap, diffTC ) * diffuse;
+    vec4 diffuseSample = texture2D( diffuseMap, diffTC );
     vec4 shadowSample = texture2D( shadowMap, shadTC );
 
-    color = diffuseSample.rgb * shadowSample.rgb + specularLighting( N, L );
+    vec3 texColor = diffuseSample.rgb * shadowSample.rgb;
+    vec3 liveLightColor = diffuseSample.rgb * diffuse + specularLighting( N, L );
+    color = texColor + ( liveLightColor * lightIntensity * attCoeff );
+
     gl_FragData[ 0 ] = vec4( color, 1.0 );
+    //gl_FragData[ 0 ] = vec4( normalize( v_lightVector ), 1.0 );
 }

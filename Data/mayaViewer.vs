@@ -11,6 +11,7 @@ attribute vec4 a_binormal;
 varying vec3 v_lightVector;
 varying vec3 v_viewVector;
 varying vec3 v_normal;
+varying float v_distanceToLight;
 
 varying vec3 v_emissive;
 varying vec3 v_ambient;
@@ -19,45 +20,13 @@ varying vec3 v_specular;
 varying float v_specExp;
 
 
-vec3 specularLighting()
-{
-    //vec3 V = normalize( v_viewVector );
-
-    return( vec3( 0., 0., 0. ) );
-}
-
-vec3 fullLighting( in vec3 normal, in vec3 lVec )
-{
-    vec3 N = normal;
-
-    vec3 L = normalize( lVec );
-    float NdotL = max( dot( N, L ), 0.0 );
-
-    vec3 color = gl_FrontMaterial.emission.rgb + gl_FrontMaterial.ambient.rgb +
-        ( gl_FrontMaterial.diffuse.rgb * NdotL );
-    color += specularLighting();
-
-    return( color );
-}
-
 void main( void )
 {
     gl_Position = ftransform();
     vec3 ecPosition = ( gl_ModelViewMatrix * gl_Vertex ).xyz;
 
-/*
-    if( noTexture || shadowOnly )
-    {
-        vec3 normal = normalize( gl_NormalMatrix * gl_Normal );
-        vec3 lVec = gl_LightSource[ 0 ].position.xyz - ecPosition;
-        gl_FrontColor = vec4( fullLighting( normal, lVec ), 1. );
-    }
-    else
-*/
-    {
-        gl_FrontColor = gl_Color;
-        v_normal = gl_NormalMatrix * gl_Normal;
-    }
+    gl_FrontColor = gl_Color;
+    v_normal = gl_NormalMatrix * gl_Normal;
     
     v_emissive = gl_FrontMaterial.emission.rgb;
     v_ambient = gl_FrontMaterial.ambient.rgb;
@@ -74,11 +43,9 @@ void main( void )
 
     // Convert light vector into tangent space
     v_lightVector = gl_LightSource[ 0 ].position.xyz;
-    if( gl_LightSource[ 0 ].position.w == 1.0 )
-    {
-        // positional
-        v_lightVector -= ecPosition;
-    }
+    // Force positional light source.
+    v_lightVector -= ecPosition;
+    v_distanceToLight = length( v_lightVector );
     v_lightVector *= TBNMatrix;
 
     // Convert view vector into tangent space

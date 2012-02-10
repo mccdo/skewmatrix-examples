@@ -67,6 +67,11 @@ RenderPrep::RenderPrep( osg::Node* root )
     u = new osg::Uniform( "shadowOnly", false );
     stateSet->addUniform( u.get() );
 
+    u = new osg::Uniform( "lightIntensity", .5f );
+    stateSet->addUniform( u.get() );
+    u = new osg::Uniform( "attenuation", 1500.f );
+    stateSet->addUniform( u.get() );
+
     osg::ref_ptr< osg::Program > prog = new osg::Program;
     prog->addBindAttribLocation( "a_tangent", 6 );
     prog->addBindAttribLocation( "a_binormal", 7 );
