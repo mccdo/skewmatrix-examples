@@ -197,8 +197,8 @@ void Character::generateCapsule()
         _btGhost = new btPairCachingGhostObject();
 	    _btGhost->setCollisionShape( _capsuleShape );
 	    _btGhost->setCollisionFlags( btCollisionObject::CF_CHARACTER_OBJECT );
-        _bw->addCollisionObject( _btGhost, btBroadphaseProxy::CharacterFilter,
-            btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
+        _bw->addCollisionObject( _btGhost ); //, btBroadphaseProxy::CharacterFilter,
+            //btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter );
     }
     else
     {
