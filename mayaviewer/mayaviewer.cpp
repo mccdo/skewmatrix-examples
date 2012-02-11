@@ -13,6 +13,19 @@ int main( int argc, char** argv )
 {
     osg::ArgumentParser arguments( &argc, argv );
 
+    int pos;
+    float textSize( 100.f );
+    if( ( pos = arguments.find( "--textSize" ) ) > 1 )
+    {
+        arguments.read( pos, "--textSize", textSize );
+    }
+
+    float lightSize( 10.f );
+    if( ( pos = arguments.find( "--lightSize" ) ) > 1 )
+    {
+        arguments.read( pos, "--lightSize", lightSize );
+    }
+
     osg::ref_ptr< osgDB::ReaderWriter::Options > options = new osgDB::ReaderWriter::Options;
     options->setOptionString( "dds_flip" );
 
@@ -25,12 +38,12 @@ int main( int argc, char** argv )
     }
 
     // Main prep work for rendering.
-    RenderPrep renderPrep( models.get() );
+    RenderPrep renderPrep( models.get(), textSize );
 
     root->addChild( models.get() );
 
 
-    osg::ref_ptr< LightManipulator > lightManip = new LightManipulator;
+    osg::ref_ptr< LightManipulator > lightManip = new LightManipulator( lightSize );
     root->addChild( lightManip->getLightSubgraph() );
 
     osgViewer::Viewer viewer;

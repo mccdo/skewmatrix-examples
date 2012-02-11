@@ -12,8 +12,9 @@
 #include <osgText/Text>
 
 
-RenderPrep::RenderPrep( osg::Node* root )
-  : osgwTools::StateTrackingNodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN )
+RenderPrep::RenderPrep( osg::Node* root, const float textSize )
+  : osgwTools::StateTrackingNodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
+    _textSize( textSize )
 {
     //
     // Init internal variables.
@@ -25,6 +26,7 @@ RenderPrep::RenderPrep( osg::Node* root )
 
     //
     // Debugging. Add some osgText.
+    if( _textSize > 0. )
     {
         osg::Geode* geode = new osg::Geode;
         osgText::Text* text = new osgText::Text;
@@ -37,7 +39,7 @@ RenderPrep::RenderPrep( osg::Node* root )
         text->setColor( osg::Vec4( 1.f, .6f, 0.f, 1.0f ) );
         text->setAlignment( osgText::Text::LEFT_BOTTOM );
         text->setAxisAlignment( osgText::Text::XZ_PLANE );
-        text->setCharacterSize( 100.f );
+        text->setCharacterSize( _textSize );
     }
 
 

@@ -10,13 +10,15 @@
 class RenderPrep : public osgwTools::StateTrackingNodeVisitor
 {
 public:
-    RenderPrep( osg::Node* root );
+    RenderPrep( osg::Node* root, const float textSize=100.f );
     ~RenderPrep();
 
     virtual void apply( osg::Node& node );
     virtual void apply( osg::Geode& node );
 
 protected:
+    float _textSize;
+
     osg::ref_ptr< osg::Uniform > _isOsgTextUniform;
     osg::ref_ptr< osg::Uniform > _noTextureUniform;
     osg::ref_ptr< osg::Uniform > _shadowOnlyUniform;

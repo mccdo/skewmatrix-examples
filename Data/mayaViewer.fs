@@ -159,5 +159,4 @@ void main( void )
     color = texColor + ( liveLightColor * lightIntensity * attCoeff );
 
     gl_FragData[ 0 ] = vec4( color, 1.0 );
-    //gl_FragData[ 0 ] = vec4( normalize( v_lightVector ), 1.0 );
 }

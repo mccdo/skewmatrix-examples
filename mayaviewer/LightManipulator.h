@@ -9,7 +9,7 @@
 class LightManipulator : public osgGA::GUIEventHandler
 {
 public:
-    LightManipulator();
+    LightManipulator( const float lightSize=10.f );
 
     bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa );
 
@@ -17,6 +17,8 @@ public:
 
 protected:
     virtual ~LightManipulator();
+
+    float _lightSize;
 
     osg::ref_ptr< osg::Node > _lightSubgraph;
     float _scale;

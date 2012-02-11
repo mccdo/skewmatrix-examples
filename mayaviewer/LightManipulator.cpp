@@ -8,8 +8,9 @@
 #include <osg/Geode>
 
 
-LightManipulator::LightManipulator()
-  : _scale( 1.f )
+LightManipulator::LightManipulator( const float lightSize )
+  : _lightSize( lightSize ),
+    _scale( 1.f )
 {
     osg::MatrixTransform* mt = new osg::MatrixTransform;
     _lightSubgraph = mt;
@@ -22,9 +23,12 @@ LightManipulator::LightManipulator()
     light->setLightNum( 0 );
     light->setPosition( osg::Vec4( 0., 0., 0., 1. ) );
 
-    osg::Geode* geode = new osg::Geode;
-    mt->addChild( geode );
-    geode->addDrawable( osgwTools::makeGeodesicSphere( 10.f ) );
+    if( _lightSize > 0. )
+    {
+        osg::Geode* geode = new osg::Geode;
+        mt->addChild( geode );
+        geode->addDrawable( osgwTools::makeGeodesicSphere( _lightSize ) );
+    }
 }
 LightManipulator::~LightManipulator()
 {
