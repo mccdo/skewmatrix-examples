@@ -42,12 +42,10 @@ void main( void )
                      mat3( a_tangent.xyz, a_binormal.xyz, gl_Normal );
 
     // Convert light vector into tangent space
-    v_lightVector = gl_LightSource[ 0 ].position.xyz;
-    // Force positional light source.
-    v_lightVector -= ecPosition;
+    v_lightVector = gl_LightSource[ 0 ].position.xyz - ecPosition;
     v_distanceToLight = length( v_lightVector );
     v_lightVector *= TBNMatrix;
 
     // Convert view vector into tangent space
-    v_viewVector = TBNMatrix * ecPosition;
+    v_viewVector = ecPosition * TBNMatrix;
 }

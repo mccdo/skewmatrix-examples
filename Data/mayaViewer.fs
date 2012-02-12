@@ -34,7 +34,7 @@ uniform bool shadowOnly;
 
 /** Intensity of the live light source. Should be between 0.0 and 1.0.
 The live light color computation result is multiplied by this value
- before being added to the (unlit) diffuse + shadow map lookups. */
+before being added to the (unlit) diffuse + shadow map lookups. */
 uniform float lightIntensity;
 
 
@@ -67,7 +67,7 @@ varying float v_specExp;
 vec3 specularLighting( in vec3 N, in vec3 L )
 {
     vec3 V = normalize( v_viewVector );
-
+    
     vec3 R = reflect( V, N );
     float RdotL = max( dot( R, L ), 0.0 );
 
@@ -120,9 +120,8 @@ void main( void )
     }
 
     float height = texture2D( bumpMap, gl_TexCoord[ 0 ].st ).r;
-    vec2 scaleBias = vec2( 0.06, 0.03 );
+    vec2 scaleBias = vec2( 0.06, 0.03 ) * 3.;
     float v = height * scaleBias.s - scaleBias.t;
-    v = 0.;
 
     vec3 V = normalize( v_viewVector ) * v;
     vec2 diffTC = gl_TexCoord[ 0 ].st + V.xy;
@@ -148,7 +147,7 @@ void main( void )
     // Compute attCoeff such that v_distanceToLight == 0 produces 1.0
     // (next to the live light), and v_distanceToLight >= attenuation
     // produces 0.0 (away from the live light).
-    float attCoeff = -v_distanceToLight / attenuation + 1.0;
+    float attCoeff = -v_distanceToLight / max( attenuation, 0.01 ) + 1.0;
     attCoeff = max( attCoeff, 0.0 );
     
     vec4 diffuseSample = texture2D( diffuseMap, diffTC );
