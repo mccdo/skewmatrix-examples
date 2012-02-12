@@ -19,6 +19,9 @@ varying vec3 v_diffuse;
 varying vec3 v_specular;
 varying float v_specExp;
 
+varying vec3 v_lightDiffuse;
+varying vec3 v_lightSpecular;
+
 
 void main( void )
 {
@@ -33,6 +36,9 @@ void main( void )
     v_diffuse = gl_FrontMaterial.diffuse.rgb;
     v_specular = gl_FrontMaterial.specular.rgb;
     v_specExp = gl_FrontMaterial.shininess;
+    
+    v_lightDiffuse = gl_LightSource[ 0 ].diffuse.rgb;
+    v_lightSpecular = gl_LightSource[ 0 ].specular.rgb;
 
     gl_TexCoord[ 0 ] = gl_MultiTexCoord0; // Diffuse/Bump/Normal
     gl_TexCoord[ 1 ] = gl_MultiTexCoord1; // Shadow

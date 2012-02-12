@@ -22,6 +22,8 @@ LightManipulator::LightManipulator( const float lightSize )
     osg::Light* light = ls->getLight();
     light->setLightNum( 0 );
     light->setPosition( osg::Vec4( 0., 0., 0., 1. ) );
+    light->setDiffuse( osg::Vec4( .5, .5, .5, 1. ) );
+    light->setSpecular( osg::Vec4( 1., 1., 1., 1. ) );
 
     if( _lightSize > 0. )
     {

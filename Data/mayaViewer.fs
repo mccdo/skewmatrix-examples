@@ -63,6 +63,9 @@ varying vec3 v_diffuse;
 varying vec3 v_specular;
 varying float v_specExp;
 
+varying vec3 v_lightDiffuse;
+varying vec3 v_lightSpecular;
+
 
 vec3 specularLighting( in vec3 N, in vec3 L )
 {
@@ -90,7 +93,8 @@ vec3 fullLighting( in vec3 N )
     float NdotL = diffuseLighting( N, L );
 
     vec3 color = v_emissive + v_ambient +
-        ( v_diffuse * NdotL ) + specularLighting( N, L );
+        ( v_diffuse * v_lightDiffuse * NdotL ) +
+        ( v_lightSpecular * specularLighting( N, L ) );
 
     return( color );
 }
@@ -154,8 +158,9 @@ void main( void )
     vec4 shadowSample = texture2D( shadowMap, shadTC );
 
     vec3 texColor = diffuseSample.rgb * shadowSample.rgb;
-    vec3 liveLightColor = diffuseSample.rgb * diffuse + specularLighting( N, L );
-    color = texColor + ( liveLightColor * lightIntensity * attCoeff );
+    vec3 liveLightColor = diffuseSample.rgb * v_lightDiffuse * diffuse +
+        specularLighting( N, L ) * v_lightSpecular;
+    color = texColor + ( liveLightColor * attCoeff );
 
     gl_FragData[ 0 ] = vec4( color, 1.0 );
 }

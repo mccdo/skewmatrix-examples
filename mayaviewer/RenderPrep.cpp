@@ -69,8 +69,6 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     u = new osg::Uniform( "shadowOnly", false );
     stateSet->addUniform( u.get() );
 
-    u = new osg::Uniform( "lightIntensity", .5f );
-    stateSet->addUniform( u.get() );
     u = new osg::Uniform( "attenuation", 1500.f );
     stateSet->addUniform( u.get() );
 
