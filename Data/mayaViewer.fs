@@ -2,10 +2,13 @@
 
 #version 120
 
+//#define COMBINED_NORMAL_BUMP
 
 uniform sampler2D diffuseMap;
 uniform sampler2D shadowMap;
-uniform sampler2D bumpMap;
+#ifndef COMBINED_NORMAL_BUMP
+  uniform sampler2D bumpMap;
+#endif
 uniform sampler2D normalMap;
 
 
@@ -123,7 +126,11 @@ void main( void )
         return;
     }
 
+#ifdef COMBINED_NORMAL_BUMP
+    float height = texture2D( normalMap, gl_TexCoord[ 0 ].st ).a;
+#else
     float height = texture2D( bumpMap, gl_TexCoord[ 0 ].st ).r;
+#endif
     vec2 scaleBias = vec2( 0.06, 0.03 ) * 3.;
     float v = height * scaleBias.s - scaleBias.t;
 
@@ -141,16 +148,19 @@ void main( void )
     float diffuse = diffuseLighting( N, L );
 
     // Lighting equation:
-    // result = ( diffMap * shadMap ) +
-    //     ( ( diffMap * D * + S ) * I * attCoef )
+    //   result = ( diffMap * shadMap ) +
+    //       ( ( diffMap * Ld * D + Ls * S ) * attCoef )
     //
-    // D = diffuse dot product
-    // S = result of specular computation
-    // I = lightIntensity uniform
+    // where:
+    //   Ld and Ls = GL_LIGHT0 diffuse and specular colors
+    //   D = diffuse dot product
+    //   S = result of specular computation
 
     // Compute attCoeff such that v_distanceToLight == 0 produces 1.0
     // (next to the live light), and v_distanceToLight >= attenuation
     // produces 0.0 (away from the live light).
+    // ISSUE: Support "real" attenuation (FFP lighting) and take attenuation
+    //   parameters from GL_LIGHT0.
     float attCoeff = -v_distanceToLight / max( attenuation, 0.01 ) + 1.0;
     attCoeff = max( attCoeff, 0.0 );
     
@@ -159,7 +169,7 @@ void main( void )
 
     vec3 texColor = diffuseSample.rgb * shadowSample.rgb;
     vec3 liveLightColor = diffuseSample.rgb * v_lightDiffuse * diffuse +
-        specularLighting( N, L ) * v_lightSpecular;
+        v_lightSpecular * specularLighting( N, L );
     color = texColor + ( liveLightColor * attCoeff );
 
     gl_FragData[ 0 ] = vec4( color, 1.0 );
