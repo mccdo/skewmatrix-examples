@@ -53,6 +53,15 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     osg::ref_ptr< osg::Material > mat = new osg::Material;
     stateSet->setAttribute( mat.get() );
 
+#define COMBINED_NORMAL_BUMP
+#ifdef COMBINED_NORMAL_BUMP
+    osg::ref_ptr< osg::Uniform > u = new osg::Uniform( "diffuseMap", 2 );
+    stateSet->addUniform( u.get() );
+    u = new osg::Uniform( "shadowMap", 1 );
+    stateSet->addUniform( u.get() );
+    u = new osg::Uniform( "normalMap", 0 );
+    stateSet->addUniform( u.get() );
+#else
     osg::ref_ptr< osg::Uniform > u = new osg::Uniform( "diffuseMap", 0 );
     stateSet->addUniform( u.get() );
     u = new osg::Uniform( "shadowMap", 1 );
@@ -61,6 +70,7 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     stateSet->addUniform( u.get() );
     u = new osg::Uniform( "normalMap", 3 );
     stateSet->addUniform( u.get() );
+#endif
 
     u = new osg::Uniform( "isOsgText", false );
     stateSet->addUniform( u.get() );

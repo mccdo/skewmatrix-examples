@@ -2,7 +2,7 @@
 
 #version 120
 
-//#define COMBINED_NORMAL_BUMP
+#define COMBINED_NORMAL_BUMP
 
 uniform sampler2D diffuseMap;
 uniform sampler2D shadowMap;
@@ -167,7 +167,9 @@ void main( void )
     vec4 diffuseSample = texture2D( diffuseMap, diffTC );
     vec4 shadowSample = texture2D( shadowMap, shadTC );
 
-    vec3 texColor = diffuseSample.rgb * shadowSample.rgb;
+    // Shadow map is single channel / luminance. Retrieve luminance
+    // value from the r value.
+    vec3 texColor = diffuseSample.rgb * shadowSample.r;
     vec3 liveLightColor = diffuseSample.rgb * v_lightDiffuse * diffuse +
         v_lightSpecular * specularLighting( N, L );
     color = texColor + ( liveLightColor * attCoeff );
