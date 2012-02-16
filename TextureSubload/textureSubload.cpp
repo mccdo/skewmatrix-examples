@@ -10,6 +10,7 @@
 // STL includes
 #include <string>
 #include <iostream>
+#include <set>
 
 // OSG includes
 #include <osg/Texture2D>
@@ -48,7 +49,7 @@ void OverlayImage(osg::Image *dest, const osg::Image *subImg, int xOffset, int y
 class TextureSubloader : public osg::Texture2D::SubloadCallback
    {
    public:
-      TextureSubloader() : xOffset(0), yOffset(0), doSubload(false) {}
+      TextureSubloader() : xOffset(0), yOffset(0) {}
       ~TextureSubloader() {}
 
       // create the OpenGL texture. A necessary override of osg::Texture2D::SubloadCallback (overrides a pure virtual).
@@ -62,8 +63,12 @@ class TextureSubloader : public osg::Texture2D::SubloadCallback
       // overlay the image onto the texture. A necessary override of osg::Texture2D::SubloadCallback (overrides a pure virtual).
       virtual void subload(const osg::Texture2D &texture, osg::State &state) const
          {
-         if ((doSubload == false) || (subImg.get() == 0))
+         const unsigned int contextID = state.getContextID();
+         if( ( _contexts.find( contextID ) != _contexts.end() ) ||
+             ( !( subImg.valid() ) ) )
             return;
+         _contexts.insert( contextID );
+
          // copy the image into the current texture (the one currently bound / selected) at the given offsets.
          glEnable(GL_TEXTURE_2D);         // make sure 2D textures are enabled.
          glPixelStorei(GL_UNPACK_ALIGNMENT, subImg->getPacking());      // image unpacking.
@@ -74,7 +79,6 @@ class TextureSubloader : public osg::Texture2D::SubloadCallback
          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
          // copy the image into place.
          glTexSubImage2D(GL_TEXTURE_2D, 0, xOffset, yOffset, subImg->s(), subImg->t(), subImg->getPixelFormat(), subImg->getDataType(), subImg->data());
-         doSubload = false;               // completed the subload. Need another call to DoImageUpdate() before the next one.
          subImg = 0;                      // don't hold on to the image pointer any longer.
          }
 
@@ -85,14 +89,16 @@ class TextureSubloader : public osg::Texture2D::SubloadCallback
          subImg = img;
          xOffset = xOff;
          yOffset = yOff;
-         doSubload = true;
+         _contexts.clear();
          }
 
    protected:
       int xOffset;                              // the X offset for the next subload operation.
       int yOffset;                              // the Y offset for the next subload operation.
-      mutable bool doSubload;                   // true if should do a subload copy with next subload() callback for the texture.
       mutable osg::ref_ptr<osg::Image> subImg;  // a pointer to an image to overlay onto the texture for this.
+
+      typedef std::set< unsigned int > ContextSet;
+      mutable ContextSet _contexts;
    };
 
 // **************************************************************************
@@ -182,6 +188,18 @@ int main(int argc, char **argv)
 
    // view the scene.
    osgViewer::Viewer viewer;
+
+   // osgViewer app will need to do one of these:
+   //  - set SingleThreaded
+   //  - use a mutex / exclusion lock around access to TextureSubloader::_contexts
+   //  - add a rendering operations barrier to ensure all draw thread have
+   //    completed before calling TextureSubloader::Update().
+   // VRJ needs none of these, as long as all draw threads complete before calling
+   // Update().
+   //
+   // Shortcut: We take the path of least resistance and use SingleThreaded.
+   viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );\
+
    viewer.setSceneData(root.get());
    viewer.setCameraManipulator(new osgGA::TrackballManipulator);
    while (viewer.done() == false)
