@@ -5,10 +5,12 @@
 #include <osgDB/ReadFile>
 #include <osgGA/TrackballManipulator>
 
-#include <osgbBullet/OSGToCollada.h>
-#include <osgbBullet/MotionState.h>
-#include <osgbBullet/CollisionShapes.h>
-#include <osgbBullet/Utils.h>
+#include <osgbDynamics/RigidBody.h>
+#include <osgbDynamics/MotionState.h>
+#include <osgbDynamics/GroundPlane.h>
+
+#include <osgbCollision/CollisionShapes.h>
+#include <osgbCollision/Utils.h>
 
 #include <osgAudio/SoundManager.h>
 #include <osgAudio/SoundRoot.h>
@@ -17,6 +19,7 @@
 #include <osgwTools/FindNamedNode.h>
 #include <osgwTools/InsertRemove.h>
 #include <osgwTools/Shapes.h>
+#include <osgwTools/AbsoluteModelTransform.h>
 
 #include <btBulletDynamicsCommon.h>
 
@@ -24,6 +27,8 @@
 #include "Material.h"
 
 #include <osg/io_utils>
+#include <osg/MatrixTransform>
+
 #include <iostream>
 
 
@@ -116,7 +121,7 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
                 Material* mc = ( Material* )( co->getUserPointer() );
                 if( mc != NULL )
                     SoundUtilities::instance()->move( mc->_mat,
-                        osgbBullet::asOsgVec3( co->getWorldTransform().getOrigin() ) );
+                        osgbCollision::asOsgVec3( co->getWorldTransform().getOrigin() ) );
             }
         }
         else
@@ -146,7 +151,7 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
 		for( jdx=0; jdx < numContacts; jdx++ )
 		{
 			const btManifoldPoint& pt( contactManifold->getContactPoint( jdx) );
-            location = osgbBullet::asOsgVec3( pt.getPositionWorldOnA() );
+            location = osgbCollision::asOsgVec3( pt.getPositionWorldOnA() );
             if( pt.m_lifeTime < 3 )
             {
                 if( pt.m_appliedImpulse > 5. ) // Kind of a hack.
@@ -154,8 +159,8 @@ void triggerSounds( const btDynamicsWorld* world, btScalar timeStep )
             }
             else
             {
-                osg::Vec3 vA( osgbBullet::asOsgVec3( obA->getInterpolationLinearVelocity() ) );
-                osg::Vec3 vB( osgbBullet::asOsgVec3( obB->getInterpolationLinearVelocity() ) );
+                osg::Vec3 vA( osgbCollision::asOsgVec3( obA->getInterpolationLinearVelocity() ) );
+                osg::Vec3 vB( osgbCollision::asOsgVec3( obB->getInterpolationLinearVelocity() ) );
                 if( (vA-vB).length2() > .1 )
                     slide = true;
             }
@@ -245,7 +250,7 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDiscreteDynamicsW
     osgwTools::insertAbove( node, model.get() );
 
     btRigidBody* rb = converter.getRigidBody();
-    osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     rb->setUserPointer( new Material( Material::SILLY_PUTTY ) );
 
     motion->setTransform( model.get() );
@@ -329,7 +334,7 @@ protected:
         for( it=_posMap.begin(); it!=_posMap.end(); it++ )
         {
             btRigidBody* rb = it->first;
-            btTransform t = osgbBullet::asBtTransform( it->second );
+            btTransform t = osgbCollision::asBtTransform( it->second );
             rb->setWorldTransform( t );
         }
     }
@@ -344,7 +349,7 @@ protected:
 
         btSphereShape* collision = new btSphereShape( .5 );
 
-        osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+        osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
         motion->setTransform( amt.get() );
 
         motion->setParentTransform( osg::Matrix::translate( _viewPos ) );
@@ -354,7 +359,7 @@ protected:
         collision->calculateLocalInertia( mass, inertia );
         btRigidBody::btRigidBodyConstructionInfo rbinfo( mass, motion, collision, inertia );
         btRigidBody* body = new btRigidBody( rbinfo );
-        body->setLinearVelocity( osgbBullet::asBtVector3( _viewDir * 50. ) );
+        body->setLinearVelocity( osgbCollision::asBtVector3( _viewDir * 50. ) );
         body->setUserPointer( new Material( Material::FLUBBER ) );
         _world->addRigidBody( body, COL_DEFAULT, defaultCollidesWith );
 
@@ -400,7 +405,7 @@ makeDoorFrame( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     converter.convert();
 
     btRigidBody* rb = converter.getRigidBody();
-    osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     motion->setTransform( amt );
     rb->setMotionState( motion );
 
@@ -454,7 +459,7 @@ makeDoor( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     converter.convert();
 
     btRigidBody* rb = converter.getRigidBody();
-    osgbBullet::MotionState* motion = new osgbBullet::MotionState;
+    osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     motion->setTransform( amt );
     rb->setMotionState( motion );
 
@@ -497,7 +502,7 @@ int main( int argc,
     viewer.addEventHandler( im );
 
     btRigidBody* groundRB;
-    root->addChild( osgbBullet::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -1.f ), bw, &groundRB ) );
+    root->addChild( osgbDynamics::generateGroundPlane( osg::Vec4( 0.f, 0.f, 1.f, -1.f ), bw, &groundRB ) );
     groundRB->setUserPointer( new Material( Material::CEMENT ) );
 
     osg::MatrixTransform* mt( new osg::MatrixTransform( osg::Matrix::translate( 0.5, 0., 14. ) ) );
