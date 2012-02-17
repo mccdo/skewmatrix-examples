@@ -2,19 +2,14 @@
 
 #version 120
 
-uniform bool noTexture;
-uniform bool shadowOnly;
 
 attribute vec4 a_tangent;
 attribute vec4 a_binormal;
 
 varying vec3 v_lightVector;
 varying vec3 v_viewVector;
-varying vec3 v_normal;
 varying float v_distanceToLight;
 
-varying vec3 v_emissive;
-varying vec3 v_ambient;
 varying vec3 v_diffuse;
 varying vec3 v_specular;
 varying float v_specExp;
@@ -29,10 +24,7 @@ void main( void )
     vec3 ecPosition = ( gl_ModelViewMatrix * gl_Vertex ).xyz;
 
     gl_FrontColor = gl_Color;
-    v_normal = gl_NormalMatrix * gl_Normal;
     
-    v_emissive = gl_FrontMaterial.emission.rgb;
-    v_ambient = gl_FrontMaterial.ambient.rgb;
     v_diffuse = gl_FrontMaterial.diffuse.rgb;
     v_specular = gl_FrontMaterial.specular.rgb;
     v_specExp = gl_FrontMaterial.shininess;

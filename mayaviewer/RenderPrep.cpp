@@ -19,8 +19,6 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     //
     // Init internal variables.
     _isOsgTextUniform = new osg::Uniform( "isOsgText", true );
-    _noTextureUniform = new osg::Uniform( "noTexture", true );
-    _shadowOnlyUniform = new osg::Uniform( "shadowOnly", true );
 
 
 
@@ -35,7 +33,7 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
 
         text->setPosition( osg::Vec3( 0., 0., 260. ) );
         text->setFont( "arial.ttf" );
-        text->setText( "Go Giants" );
+        text->setText( "Tony Rawkz!" );
         text->setColor( osg::Vec4( 1.f, .6f, 0.f, 1.0f ) );
         text->setAlignment( osgText::Text::LEFT_BOTTOM );
         text->setAxisAlignment( osgText::Text::XZ_PLANE );
@@ -53,30 +51,14 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     osg::ref_ptr< osg::Material > mat = new osg::Material;
     stateSet->setAttribute( mat.get() );
 
-#define COMBINED_NORMAL_BUMP
-#ifdef COMBINED_NORMAL_BUMP
     osg::ref_ptr< osg::Uniform > u = new osg::Uniform( "diffuseMap", 2 );
     stateSet->addUniform( u.get() );
     u = new osg::Uniform( "shadowMap", 1 );
     stateSet->addUniform( u.get() );
     u = new osg::Uniform( "normalMap", 0 );
     stateSet->addUniform( u.get() );
-#else
-    osg::ref_ptr< osg::Uniform > u = new osg::Uniform( "diffuseMap", 0 );
-    stateSet->addUniform( u.get() );
-    u = new osg::Uniform( "shadowMap", 1 );
-    stateSet->addUniform( u.get() );
-    u = new osg::Uniform( "bumpMap", 2 );
-    stateSet->addUniform( u.get() );
-    u = new osg::Uniform( "normalMap", 3 );
-    stateSet->addUniform( u.get() );
-#endif
 
     u = new osg::Uniform( "isOsgText", false );
-    stateSet->addUniform( u.get() );
-    u = new osg::Uniform( "noTexture", false );
-    stateSet->addUniform( u.get() );
-    u = new osg::Uniform( "shadowOnly", false );
     stateSet->addUniform( u.get() );
 
     u = new osg::Uniform( "attenuation", 1500.f );
@@ -161,44 +143,8 @@ void RenderPrep::processStateSet( osg::Node& node )
 
 void RenderPrep::processStateSet( osg::Drawable* draw )
 {
+    // Currently a no-op.
+
     // Get top of stack.
-    osg::StateSet* tos = _stateStack.back().get();
-
-    if( detectNoTexture( tos ) )
-    {
-        osg::StateSet* stateSet = draw->getOrCreateStateSet();
-        stateSet->addUniform( _noTextureUniform.get() );
-    }
-    else if( detectShadowOnly( tos ) )
-    {
-        osg::StateSet* stateSet = draw->getOrCreateStateSet();
-        stateSet->addUniform( _shadowOnlyUniform.get() );
-    }
-}
-
-bool RenderPrep::detectNoTexture( const osg::StateSet* stateSet ) const
-{
-    const osg::StateAttribute* tex0 = stateSet->getTextureAttribute( 0, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex1 = stateSet->getTextureAttribute( 1, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex2 = stateSet->getTextureAttribute( 2, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex3 = stateSet->getTextureAttribute( 3, osg::StateAttribute::TEXTURE );
-
-    bool noTexture( ( tex0 == NULL ) &&
-        ( tex1 == NULL ) &&
-        ( tex2 == NULL ) &&
-        ( tex3 == NULL ) );
-    return( noTexture );
-}
-bool RenderPrep::detectShadowOnly( const osg::StateSet* stateSet ) const
-{
-    const osg::StateAttribute* tex0 = stateSet->getTextureAttribute( 0, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex1 = stateSet->getTextureAttribute( 1, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex2 = stateSet->getTextureAttribute( 2, osg::StateAttribute::TEXTURE );
-    const osg::StateAttribute* tex3 = stateSet->getTextureAttribute( 3, osg::StateAttribute::TEXTURE );
-
-    bool shadowOnly( ( tex0 == NULL ) &&
-        ( tex1 != NULL ) &&
-        ( tex2 == NULL ) &&
-        ( tex3 == NULL ) );
-    return( shadowOnly );
+    //osg::StateSet* tos = _stateStack.back().get();
 }
