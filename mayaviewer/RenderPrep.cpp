@@ -12,7 +12,7 @@
 #include <osgText/Text>
 
 
-RenderPrep::RenderPrep( osg::Node* root, const float textSize )
+RenderPrep::RenderPrep( osg::Node* root, const float textSize, bool noPM )
   : osgwTools::StateTrackingNodeVisitor( osg::NodeVisitor::TRAVERSE_ALL_CHILDREN ),
     _textSize( textSize )
 {
@@ -59,6 +59,8 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize )
     stateSet->addUniform( u.get() );
 
     u = new osg::Uniform( "isOsgText", false );
+    stateSet->addUniform( u.get() );
+    u = new osg::Uniform( "parallaxMap", !noPM );
     stateSet->addUniform( u.get() );
 
     u = new osg::Uniform( "attenuation", 1500.f );

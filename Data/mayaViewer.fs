@@ -16,6 +16,12 @@ ISSUE will the text be lit? RESOLVED: No.
 ISSUE would it be better to have a separate shader for this? */
 uniform bool isOsgText;
 
+/** When true, perform parallax mapping (obtain height value
+from the normal map alpha channel, then offset the diffuse and
+shadow uv coords based on view vector and height value). When
+false, disable parallax mapping. */
+uniform bool parallaxMap;
+
 
 
 /** Linear attenuation distance value. If the distance between the
@@ -75,8 +81,10 @@ void main( void )
 
     // height value is in normal map alpha channel.
     float height = texture2D( normalMap, gl_TexCoord[ 0 ].st ).a;
-    vec2 scaleBias = vec2( 0.06, 0.03 ) * 3.;
+    vec2 scaleBias = vec2( 0.06, 0.03 );
     float v = height * scaleBias.s - scaleBias.t;
+    if( !parallaxMap )
+        v = 0.;
 
     vec3 V = normalize( v_viewVector );
     vec2 diffTC = gl_TexCoord[ 0 ].st + ( V.xy * v );

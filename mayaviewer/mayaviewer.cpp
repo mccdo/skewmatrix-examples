@@ -14,7 +14,7 @@ int main( int argc, char** argv )
     osg::ArgumentParser arguments( &argc, argv );
 
     int pos;
-    float textSize( 100.f );
+    float textSize( 0.f );
     if( ( pos = arguments.find( "--textSize" ) ) > 1 )
     {
         arguments.read( pos, "--textSize", textSize );
@@ -24,6 +24,13 @@ int main( int argc, char** argv )
     if( ( pos = arguments.find( "--lightSize" ) ) > 1 )
     {
         arguments.read( pos, "--lightSize", lightSize );
+    }
+
+    bool noPM( false );
+    if( ( pos = arguments.find( "--noPM" ) ) > 1 )
+    {
+        noPM = true;
+        arguments.remove( pos, 1 );
     }
 
     osg::ref_ptr< osgDB::ReaderWriter::Options > options = new osgDB::ReaderWriter::Options;
@@ -38,7 +45,7 @@ int main( int argc, char** argv )
     }
 
     // Main prep work for rendering.
-    RenderPrep renderPrep( models.get(), textSize );
+    RenderPrep renderPrep( models.get(), textSize, noPM );
 
     root->addChild( models.get() );
 
