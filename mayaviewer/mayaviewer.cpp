@@ -26,10 +26,10 @@ int main( int argc, char** argv )
         arguments.read( pos, "--lightSize", lightSize );
     }
 
-    bool noPM( false );
-    if( ( pos = arguments.find( "--noPM" ) ) > 1 )
+    bool parallaxMap( false );
+    if( ( pos = arguments.find( "--pm" ) ) > 1 )
     {
-        noPM = true;
+        parallaxMap = true;
         arguments.remove( pos, 1 );
     }
 
@@ -45,7 +45,7 @@ int main( int argc, char** argv )
     }
 
     // Main prep work for rendering.
-    RenderPrep renderPrep( models.get(), textSize, noPM );
+    RenderPrep renderPrep( models.get(), textSize, parallaxMap );
 
     root->addChild( models.get() );
 

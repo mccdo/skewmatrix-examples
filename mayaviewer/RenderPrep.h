@@ -10,7 +10,7 @@
 class RenderPrep : public osgwTools::StateTrackingNodeVisitor
 {
 public:
-    RenderPrep( osg::Node* root, const float textSize=100.f, bool noPM=false );
+    RenderPrep( osg::Node* root, const float textSize=100.f, bool parallaxMap=false );
     ~RenderPrep();
 
     virtual void apply( osg::Node& node );
