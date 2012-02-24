@@ -4,8 +4,10 @@
 #include "RenderPrep.h"
 
 #include <osgDB/ReadFile>
+#include <osgDB/FileUtils>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
+#include <osgGA/AnimationPathManipulator>
 
 
 
@@ -33,6 +35,17 @@ int main( int argc, char** argv )
         arguments.remove( pos, 1 );
     }
 
+    osg::ref_ptr< osgGA::AnimationPathManipulator > apm( NULL );
+    std::string animationPathName;
+    if( ( pos = arguments.find( "-p" ) ) > 1 )
+    {
+        arguments.read( pos, "-p", animationPathName );
+        const std::string fullName = osgDB::findDataFile( animationPathName );
+        if( !( fullName.empty() ) )
+            apm = new osgGA::AnimationPathManipulator( fullName );
+    }
+
+
     osg::ref_ptr< osgDB::ReaderWriter::Options > options = new osgDB::ReaderWriter::Options;
     options->setOptionString( "dds_flip" );
 
@@ -56,6 +69,8 @@ int main( int argc, char** argv )
     osgViewer::Viewer viewer;
     viewer.addEventHandler( lightManip.get() );
     viewer.addEventHandler( new osgViewer::RecordCameraPathHandler );
+    if( apm.valid() )
+        viewer.setCameraManipulator( apm.get() );
     viewer.setUpViewInWindow( 10, 30, 800, 450 );
     viewer.setSceneData( root.get() );
 
