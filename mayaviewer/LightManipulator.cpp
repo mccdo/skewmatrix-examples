@@ -38,6 +38,8 @@ LightManipulator::~LightManipulator()
 
 bool LightManipulator::handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa )
 {
+    const bool ctrl( ( ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_CTRL ) != 0 );
+
     bool handled( false );
     osg::Vec3 delta;
 
@@ -45,31 +47,49 @@ bool LightManipulator::handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActio
     {
     case( osgGA::GUIEventAdapter::KEYDOWN ):
     {
-        switch( ea.getKey() )
+        switch( ea.getKey() | 0x60 )
         {
         case( 'a' ):
-            delta.set( -1., 0., 0. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( -1., 0., 0. );
+                handled = true;
+            }
             break;
         case( 's' ):
-            delta.set( 1., 0., 0. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( 1., 0., 0. );
+                handled = true;
+            }
             break;
         case( 'd' ):
-            delta.set( 0., -1., 0. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( 0., -1., 0. );
+                handled = true;
+            }
             break;
         case( 'f' ):
-            delta.set( 0., 1., 0. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( 0., 1., 0. );
+                handled = true;
+            }
             break;
         case( 'e' ):
-            delta.set( 0., 0., 1. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( 0., 0., 1. );
+                handled = true;
+            }
             break;
         case( 'c' ):
-            delta.set( 0., 0., -1. );
-            handled = true;
+            if( ctrl )
+            {
+                delta.set( 0., 0., -1. );
+                handled = true;
+            }
             break;
         case( '+' ):
             _scale *= 1.2f;

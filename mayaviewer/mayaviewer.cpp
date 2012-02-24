@@ -8,6 +8,7 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 #include <osgGA/AnimationPathManipulator>
+#include <osgGA/StateSetManipulator>
 
 
 
@@ -63,15 +64,18 @@ int main( int argc, char** argv )
     root->addChild( models.get() );
 
 
-    osg::ref_ptr< LightManipulator > lightManip = new LightManipulator( lightSize );
+    osg::ref_ptr< LightManipulator > lightManip( new LightManipulator( lightSize ) );
     root->addChild( lightManip->getLightSubgraph() );
 
     osgViewer::Viewer viewer;
     viewer.addEventHandler( lightManip.get() );
-    viewer.addEventHandler( new osgViewer::RecordCameraPathHandler );
+    viewer.addEventHandler( new osgViewer::RecordCameraPathHandler() );
+    viewer.addEventHandler( new osgViewer::StatsHandler() );
+    viewer.addEventHandler( new osgViewer::WindowSizeHandler() );
+    viewer.addEventHandler( new osgGA::StateSetManipulator(
+        viewer.getCamera()->getOrCreateStateSet() ) );
     if( apm.valid() )
         viewer.setCameraManipulator( apm.get() );
-    viewer.setUpViewInWindow( 10, 30, 800, 450 );
     viewer.setSceneData( root.get() );
 
     return( viewer.run() );
