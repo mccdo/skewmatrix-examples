@@ -24,7 +24,7 @@
 #include "world.h"
 #include "character.h"
 
-#define USE_HEAD_TRACKER
+//#define USE_HEAD_TRACKER
 #ifdef USE_HEAD_TRACKER
 #include "tracker.h"
 #endif
