@@ -350,9 +350,9 @@ osg::Node* build()
         osg::Group* rampGroup = new osg::Group;
         root->addChild( rampGroup );
 
-        amt = new osgwTools::AbsoluteModelTransform;
-        geode = new osg::Geode;
-        m = osg::Matrix::translate( 40., 9., .3 ) *
+        osgwTools::AbsoluteModelTransform* amt = new osgwTools::AbsoluteModelTransform;
+        osg::Geode* geode = new osg::Geode;
+        osg::Matrix m = osg::Matrix::translate( 40., 9., .3 ) *
             osg::Matrix::rotate( .2, osg::Vec3( 1., 0., 0. ) );
         geode->addDrawable( osgwTools::makeBox( m, osg::Vec3( 1.5, 6., .25 ), osg::Vec3s( 1, 6, 1 ) ) );
         amt->addChild( geode );
