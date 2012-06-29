@@ -4,6 +4,7 @@
 #include "RenderPrep.h"
 
 #include <osgDB/ReadFile>
+#include <osgDB/WriteFile>
 #include <osgDB/FileUtils>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
@@ -60,6 +61,7 @@ int main( int argc, char** argv )
 
     // Main prep work for rendering.
     RenderPrep renderPrep( models.get(), textSize, parallaxMap );
+    osgDB::writeNodeFile( *models, "out.osg" );
 
     root->addChild( models.get() );
 

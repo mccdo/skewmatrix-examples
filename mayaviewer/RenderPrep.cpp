@@ -69,6 +69,7 @@ RenderPrep::RenderPrep( osg::Node* root, const float textSize, bool parallaxMap 
     osg::ref_ptr< osg::Program > prog = new osg::Program;
     prog->addBindAttribLocation( "a_tangent", 6 );
     prog->addBindAttribLocation( "a_binormal", 7 );
+    prog->addBindAttribLocation( "a_normal", 15 );
 
     std::string shaderName( "mayaViewer.vs" );
     osg::ref_ptr< osg::Shader > s = new osg::Shader( osg::Shader::VERTEX );

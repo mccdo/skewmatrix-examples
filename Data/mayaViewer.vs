@@ -5,6 +5,7 @@
 
 attribute vec4 a_tangent;
 attribute vec4 a_binormal;
+attribute vec4 a_normal;
 
 varying vec3 v_lightVector;
 varying vec3 v_viewVector;
@@ -37,7 +38,7 @@ void main( void )
 
     // Convert tangent, binormal, and normal into eye coordinates
     mat3 TBNMatrix = mat3( gl_ModelViewMatrix[0].xyz, gl_ModelViewMatrix[1].xyz, gl_ModelViewMatrix[2].xyz ) *
-                     mat3( a_tangent.xyz, a_binormal.xyz, gl_Normal );
+                     mat3( a_tangent.xyz, a_binormal.xyz, a_normal.xyz );
 
     // Convert light vector into tangent space
     v_lightVector = gl_LightSource[ 0 ].position.xyz - ecPosition;
