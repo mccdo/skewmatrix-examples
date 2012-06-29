@@ -47,6 +47,7 @@ bool LightManipulator::handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActio
     {
     case( osgGA::GUIEventAdapter::KEYDOWN ):
     {
+        // Hm. Why do we need "| 0x60" here??
         switch( ea.getKey() | 0x60 )
         {
         case( 'a' ):
@@ -91,6 +92,9 @@ bool LightManipulator::handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActio
                 handled = true;
             }
             break;
+        }
+        switch( ea.getKey() )
+        {
         case( '+' ):
             _scale *= 1.2f;
             handled = true;
