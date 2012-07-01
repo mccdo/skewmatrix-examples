@@ -19,25 +19,25 @@ int main( int argc, char** argv )
     if( arguments.read( "-h" ) ||
         arguments.read( "-?" ) )
     {
-        OSG_NOTICE << "Command line arguments:" << std::endl;
-        OSG_NOTICE << "  --textSize <f>\tSet the (floating point) text size to <f>. Default: 0.0 (no text)." << std::endl;
-        OSG_NOTICE << "  --lightSize <f>\tSet the (floating point) light sphere radius to <f>. Default: 10.0." << std::endl;
-        OSG_NOTICE << "  --pm\t\t\tEnable parallax mapping (bump maps required). Default: Parallax mapping disabled." << std::endl;
-        OSG_NOTICE << "  -p <file>\t\tLoad and execute the specified animation path file (as in osgviewer)." << std::endl;
-        OSG_NOTICE << "Runtime keyboard commands:" << std::endl;
-        OSG_NOTICE << "  ctrl a, ctrl s\tMove light in -x and +x." << std::endl;
-        OSG_NOTICE << "  ctrl d, ctrl f\tMove light in -y and +y." << std::endl;
-        OSG_NOTICE << "  ctrl e, ctrl c\tMove light in -z and +z." << std::endl;
-        OSG_NOTICE << "  -, +\t\t\tDecrease and increase the delta light motion." << std::endl;
-        OSG_NOTICE << "  Record camera animation path:" << std::endl;
-        OSG_NOTICE << "    z\t\t\tRecord camera path to 'saved_animation.path'." << std::endl;
-        OSG_NOTICE << "  Statistics:" << std::endl;
-        OSG_NOTICE << "    s\t\t\tCycle performance statistics." << std::endl;
-        OSG_NOTICE << "  Window size:" << std::endl;
-        OSG_NOTICE << "    f\t\t\tToggle fullscreen/windowed." << std::endl;
-        OSG_NOTICE << "  StateSet modification:" << std::endl;
-        OSG_NOTICE << "    b\t\t\tToggle backface culling." << std::endl;
-        OSG_NOTICE << "    w\t\t\tCycle fill/wire/point polygon mode." << std::endl;
+        OSG_ALWAYS << "Command line arguments:" << std::endl;
+        OSG_ALWAYS << "  --textSize <f>\tSet the (floating point) text size to <f>. Default: 0.0 (no text)." << std::endl;
+        OSG_ALWAYS << "  --lightSize <f>\tSet the (floating point) light sphere radius to <f>. Default: 10.0." << std::endl;
+        OSG_ALWAYS << "  --pm\t\t\tEnable parallax mapping (bump maps required). Default: Parallax mapping disabled." << std::endl;
+        OSG_ALWAYS << "  -p <file>\t\tLoad and execute the specified animation path file (as in osgviewer)." << std::endl;
+        OSG_ALWAYS << "Runtime keyboard commands:" << std::endl;
+        OSG_ALWAYS << "  ctrl a, ctrl s\tMove light in -x and +x." << std::endl;
+        OSG_ALWAYS << "  ctrl d, ctrl f\tMove light in -y and +y." << std::endl;
+        OSG_ALWAYS << "  ctrl e, ctrl c\tMove light in -z and +z." << std::endl;
+        OSG_ALWAYS << "  -, +\t\t\tDecrease and increase the delta light motion." << std::endl;
+        OSG_ALWAYS << "  Record camera animation path:" << std::endl;
+        OSG_ALWAYS << "    z\t\t\tRecord camera path to 'saved_animation.path'." << std::endl;
+        OSG_ALWAYS << "  Statistics:" << std::endl;
+        OSG_ALWAYS << "    s\t\t\tCycle performance statistics." << std::endl;
+        OSG_ALWAYS << "  Window size:" << std::endl;
+        OSG_ALWAYS << "    f\t\t\tToggle fullscreen/windowed." << std::endl;
+        OSG_ALWAYS << "  StateSet modification:" << std::endl;
+        OSG_ALWAYS << "    b\t\t\tToggle backface culling." << std::endl;
+        OSG_ALWAYS << "    w\t\t\tCycle fill/wire/point polygon mode." << std::endl;
         return( 0 );
     }
 
