@@ -74,7 +74,7 @@ int main(int, char **)
     osgViewer::Viewer viewer;
 
     // create the scene
-    GL2ScenePtr gl2Scene = new GL2Scene;
+    GL2ScenePtr gl2Scene = new GL2Scene( GRASS );
 
     osg::Node* model = gl2Scene->getRootNode().get();
     osgDB::writeNodeFile( *model, "surface.ive" );

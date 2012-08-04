@@ -54,10 +54,6 @@
 #include "GL2Scene.h"
 #include "Noise.h"
 
-#define CONCRETE
-//#define GRASS
-//#define DIRT
-
 #define TEXUNIT_PERM        1
 #define TEXUNIT_BUMP        2
 #define TEXUNIT_DARK        3
@@ -115,6 +111,9 @@ ModelInstance()
 static void
 LoadShaderSource( osg::Shader* shader, const std::string& fileName )
 {
+    if( shader == NULL )
+        return;
+
     std::string fqFileName = osgDB::findDataFile(fileName);
     if( fqFileName.length() != 0 )
     {
@@ -148,7 +147,7 @@ static osg::Shader*  DirtFragObj;
 // Compose a scenegraph with examples of GLSL shaders
 
 osg::ref_ptr<osg::Group>
-GL2Scene::buildScene()
+GL2Scene::buildScene( const unsigned int mode )
 {
     //osg::Texture3D* noiseTexture = make3DNoiseTexture( 32 /*128*/ );
     //osg::Texture1D* sineTexture = make1DSineTexture( 32 /*1024*/ );
@@ -170,6 +169,7 @@ GL2Scene::buildScene()
     }
 
     // Concrete Shader
+    if( mode == CONCRETE )
     {
 	    osg::Image* ConcreteDarkenImage = osgDB::readImageFile("images/ConcreteDarken.png");
 	    osg::Image* ConcreteBumpImage   = osgDB::readImageFile("images/ConcreteBump.png");
@@ -181,7 +181,7 @@ GL2Scene::buildScene()
         BumpTexture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT );
 
         osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 10.f );
-        //rootNode->addChild( model );
+        rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_DARK, DarkenTexture);
@@ -217,9 +217,10 @@ GL2Scene::buildScene()
     }
 
     // Grass Shader
+    else if( mode == GRASS )
 	{
         osg::Node* model = CreateModel( osg::Vec3( 0., -10., 0. ), 10.f );
-        //rootNode->addChild( model );
+        rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
 		ss->setTextureAttribute(TEXUNIT_PERM, PermTexture);
@@ -252,6 +253,7 @@ GL2Scene::buildScene()
     }
 
     // Dirt Shader
+    else if( mode == DIRT )
     {
         osg::Node* model = osgDB::readNodeFile( "lzground.osg" );
             //CreateModel( osg::Vec3( -5., 0., 0. ), 10.f );
@@ -297,9 +299,9 @@ GL2Scene::buildScene()
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-GL2Scene::GL2Scene()
+GL2Scene::GL2Scene( const unsigned int mode )
 {
-    _rootNode = buildScene();
+    _rootNode = buildScene( mode );
     _shadersEnabled = true;
 }
 

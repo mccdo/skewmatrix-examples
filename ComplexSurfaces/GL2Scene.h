@@ -31,10 +31,16 @@
 
 #include <osg/Program>
 
+
+#define CONCRETE 0
+#define GRASS 1
+#define DIRT 2
+
+
 class GL2Scene : public osg::Referenced
 {
     public:
-	GL2Scene();
+	GL2Scene( const unsigned int mode );
 
 	osg::ref_ptr<osg::Group> getRootNode() { return _rootNode; }
 	void reloadShaderSource();
@@ -43,7 +49,7 @@ class GL2Scene : public osg::Referenced
 	~GL2Scene();
 
     private:	/*methods*/
-	osg::ref_ptr<osg::Group> buildScene();
+	osg::ref_ptr<osg::Group> buildScene( const unsigned int mode );
 
     private:	/*data*/
 	osg::ref_ptr<osg::Group> _rootNode;
