@@ -34,6 +34,7 @@
 #include <osgViewer/Viewer>
 
 #include "GL2Scene.h"
+#include "LightManipulator.h"
 
 using namespace osg;
 
@@ -72,16 +73,23 @@ int main(int, char **)
 {
     // construct the viewer.
     osgViewer::Viewer viewer;
+    viewer.setUpViewInWindow( 20, 30, 500, 500 );
 
     // create the scene
-    GL2ScenePtr gl2Scene = new GL2Scene( GRASS );
+    GL2ScenePtr gl2Scene = new GL2Scene( DIRT );
+    viewer.addEventHandler( new KeyHandler(gl2Scene) );
 
     osg::Node* model = gl2Scene->getRootNode().get();
     osgDB::writeNodeFile( *model, "surface.ive" );
 
-    viewer.setSceneData( model );
+    osg::Group* root = new osg::Group;
+    root->addChild( model );
 
-    viewer.addEventHandler( new KeyHandler(gl2Scene) );
+    osg::ref_ptr< LightManipulator > lightManip( new LightManipulator( .25f ) );
+    root->addChild( lightManip->getLightSubgraph() );
+    viewer.addEventHandler( lightManip.get() );
+
+    viewer.setSceneData( root );
 
     return viewer.run();
 }

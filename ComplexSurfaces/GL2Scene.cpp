@@ -52,7 +52,7 @@
 #include <iostream>
 
 #include "GL2Scene.h"
-#include "Noise.h"
+
 
 #define TEXUNIT_PERM        1
 #define TEXUNIT_BUMP        2
@@ -71,22 +71,28 @@ static osg::ref_ptr<osg::Group> rootNode;
 static osg::Geode*
 CreateModel( const osg::Vec3& corner, const float len )
 {
-    osg::Geode* geode = new osg::Geode();
-
     osg::Geometry* geom = osgwTools::makePlane( corner,
         osg::Vec3( len, 0., 0. ), osg::Vec3( 0., len, 0. ),
-        osg::Vec2s( 10, 10 ) );
+        osg::Vec2s( 1, 1 ) );
+    osg::Geode* geode = new osg::Geode();
     geode->addDrawable( geom );
 
-    //osg::Geometry *geom = NULL;
-	//geode->addDrawable(geom = osgwTools::makeBox(osg::Vec3(0.5f,0.5f,0.01f), osg::Vec3s(1,1,1)));
+    /*
+    osg::Vec2Array* tc( new osg::Vec2Array );
+    tc->push_back( osg::Vec2( 0., 0. ) );
+    tc->push_back( osg::Vec2( 4., 0. ) );
+    tc->push_back( osg::Vec2( 0., 4. ) );
+    tc->push_back( osg::Vec2( 4., 4. ) );
+    geom->setTexCoordArray( 0, tc );
+    */
 
     // Compute tangent space for geometry
 	osg::ref_ptr< osgUtil::TangentSpaceGenerator > tsg = new osgUtil::TangentSpaceGenerator;
 	tsg->generate( geom, 0 ); // all textures in this test use the same texcoords, so we use 0 and not TEXUNIT_BUMP
 	geom->setVertexAttribData( TANGENT_ATR_UNIT, osg::Geometry::ArrayData(tsg->getTangentArray(), osg::Geometry::BIND_PER_VERTEX, GL_FALSE ) );
 	geom->setVertexAttribData( BINORMAL_ATR_UNIT, osg::Geometry::ArrayData(tsg->getBinormalArray(), osg::Geometry::BIND_PER_VERTEX, GL_FALSE ) );
-  return geode;
+
+    return( geode );
 }
 
 #if 0
@@ -180,7 +186,7 @@ GL2Scene::buildScene( const unsigned int mode )
         BumpTexture->setWrap( osg::Texture2D::WRAP_S, osg::Texture2D::REPEAT );
         BumpTexture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT );
 
-        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 10.f );
+        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
@@ -219,7 +225,7 @@ GL2Scene::buildScene( const unsigned int mode )
     // Grass Shader
     else if( mode == GRASS )
 	{
-        osg::Node* model = CreateModel( osg::Vec3( 0., -10., 0. ), 10.f );
+        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
@@ -255,8 +261,7 @@ GL2Scene::buildScene( const unsigned int mode )
     // Dirt Shader
     else if( mode == DIRT )
     {
-        osg::Node* model = osgDB::readNodeFile( "lzground.osg" );
-            //CreateModel( osg::Vec3( -5., 0., 0. ), 10.f );
+        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
