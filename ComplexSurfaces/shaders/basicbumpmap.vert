@@ -1,4 +1,4 @@
-uniform vec3 fvEyePosition;
+#version 120
 
 varying vec2 Texcoord;
 //varying vec3 ViewDirection; //not using specular right now

@@ -1,3 +1,5 @@
+#version 120
+
 vec2 localDFD;
 
 /*
@@ -364,7 +366,7 @@ float snoise(vec3 P)
 
 
 
-// octaves can be 1...5
+// octaves can be 1.0 - 5.0
 // returns roughly +-1.0, but can go out of range, so clamp if needed
 float fBm(vec2 P, float octaves)
 {
@@ -396,9 +398,9 @@ float clampedfBm(vec2 P, float octaves)
 } 
 
 
-float clampedfBmZeroToOne(vec2 P, float octaves)
+float clampedfBmZeroToOne( vec2 P, float octaves )
 {
-    float n = clamp(fBm(P, octaves), -1.0, 1.0); // -1...+1
+    float n = clamp( fBm( P, octaves ), -1.0, 1.0 );
     float v = (n * 0.5) + 0.5; // convert to 0...1 range
     return(v);
 } 
@@ -425,10 +427,10 @@ vec3 SlopeToNormal(vec2 slope)
 }
 
 // convert one point with two axis-offset points to a slope and thence a normal
-vec3 SamplesToNormal(float BaseAmplitude, float DeltaAmplitudeX,
-        float DeltaAmplitudeY, float Delta, float scale)
+vec3 SamplesToNormal( float BaseAmplitude, vec2 DeltaAmp,
+        float Delta, float scale )
 {
-    vec2  DeltaAmplitude = BaseAmplitude - vec2(DeltaAmplitudeX, DeltaAmplitudeY);
+    vec2  DeltaAmplitude = BaseAmplitude - DeltaAmp;
     vec2 slope   = DeltaAmplitude * (1.0 / Delta);  // slope of amplitude fn at this point
     return(SlopeToNormal(slope * scale));
 }
@@ -442,7 +444,7 @@ vec3 MapToNormal(sampler2D Map, vec2 MapCoord, float scale)
         vec2(SampleAmplitude(Map, MapCoord + vec2(localDFD.x, 0.0)),
              SampleAmplitude(Map, MapCoord + vec2(0.0, localDFD.y)));
     float Delta = (localDFD.x + localDFD.y) * .5; // average is better than nothing
-    return(SamplesToNormal(BaseAmplitude, DeltaAmplitudeXY.x, DeltaAmplitudeXY.y, Delta, scale));
+    return(SamplesToNormal( BaseAmplitude, DeltaAmplitudeXY, Delta, scale));
  }
 
 
@@ -454,7 +456,7 @@ vec3 fBMToNormal(vec2 MapCoord, float octaves, float scale)
         vec2(clampedfBmZeroToOne(MapCoord + vec2(localDFD.x, 0.0), octaves),
              clampedfBmZeroToOne(MapCoord + vec2(0.0, localDFD.y), octaves));
     float Delta = (localDFD.x + localDFD.y) * .5; // average is better than nothing
-    return(SamplesToNormal(BaseAmplitude, DeltaAmplitudeXY.x, DeltaAmplitudeXY.y, Delta, scale));
+    return( SamplesToNormal( BaseAmplitude, DeltaAmplitudeXY, Delta, scale ) );
  }
 
 
@@ -480,7 +482,14 @@ void main( void )
     vec2  TexScale = vec2(fScale, fScale);
     localDFD.x = 0.002; // dFdx(Texcoord);
     localDFD.y = 0.002; // dFdy(Texcoord);
+    // A possibly better way to do this is:
+    //localDFD.x = fwidth( Texcoord.x ); // length( vec2( dFdx(Texcoord.x), dFdy(Texcoord.x) ) );
+    //localDFD.y = fwidth( Texcoord.y ); // length( vec2( dFdx(Texcoord.y), dFdy(Texcoord.y) ) );
+    // Yet another way (more expensive) would be:
+    //localDFD.x = length( vec2( dFdx(Texcoord.x), dFdy(Texcoord.x) ) );
+    //localDFD.y = length( vec2( dFdx(Texcoord.y), dFdy(Texcoord.y) ) );
     //localDFD *= TexScale;
+
     vec2  TexCoordScaled = Texcoord * TexScale;
     vec3  fvLightDirection = normalize( LightDirection );
 
@@ -488,15 +497,15 @@ void main( void )
     float fMacroDirtGravel = clampedfBmZeroToOne(100.0 + (TexCoordScaled * fDirtGravelDistScale), 2.0); // 100: random offset
 
     // evaluate gravel properties
-    vec3  fvNormalGravel   = fBMToNormal(TexCoordScaled * fGravelScale, 1.0, 0.02);
+    vec3  fvNormalGravel   = fBMToNormal( TexCoordScaled * fGravelScale, 1.0, 0.02 );
     float fGravelVal       = clampedfBmZeroToOne(TexCoordScaled * (fGravelScale * .25), 4.0);
     vec4  fvGravelColor    = mix(vec4(.5, .4, .3, 1.0), vec4(.7, .6, .5, 1.0), fGravelVal);
-   
+
     // evaluate dirt properties
-    vec3  fvNormalDirt     = vec3(0.0, 0.0, 1.0);
+    vec3  fvNormalDirt     = vec3(0.0, 0.0, .75);
     float fDirtVal         = clampedfBmZeroToOne(500.0 - (TexCoordScaled * fDirtScale), 4.0); // -500: random offset
     vec4  fvDirtColor      = mix(fvBaseColorA, fvBaseColorB, fDirtVal);
-   
+
     vec3  fvNormal         = normalize( mix(fvNormalGravel, fvNormalDirt, fMacroDirtGravel) );
     vec4  fvBaseColor      = mix(fvGravelColor, fvDirtColor, fMacroDirtGravel);
 

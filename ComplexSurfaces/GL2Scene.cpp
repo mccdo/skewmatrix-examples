@@ -201,9 +201,6 @@ GL2Scene::buildScene( const unsigned int mode )
         ss->addUniform( new osg::Uniform("fSpecularPower", 25.0f) );
         ss->addUniform( new osg::Uniform("fScale", 4.0f) );
 		
-		ss->addUniform( new osg::Uniform("fvLightPosition", osg::Vec3(-100.0f, 0.0f, 100.0f)) );
-		ss->addUniform( new osg::Uniform("fvEyePosition", osg::Vec3(0.0f, 0.0f, 100.0f)) );
-
 		ss->addUniform( new osg::Uniform("fvDiffuse", osg::Vec4(0.8863f, 0.8850f, 0.8850f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvSpecular", osg::Vec4(0.0157f, 0.0157f, 0.0157f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvAmbient", osg::Vec4(0.3686f, 0.3686f, 0.3686f, 1.0f)) );
@@ -237,9 +234,6 @@ GL2Scene::buildScene( const unsigned int mode )
         ss->addUniform( new osg::Uniform("fScale", 1.403f) );
         ss->addUniform( new osg::Uniform("fMacroToMicroScale", -0.56f) );
 		
-		ss->addUniform( new osg::Uniform("fvLightPosition", osg::Vec3(-100.0f, 0.0f, 100.0f)) );
-		ss->addUniform( new osg::Uniform("fvEyePosition", osg::Vec3(0.0f, 0.0f, 100.0f)) );
-
 		ss->addUniform( new osg::Uniform("fvDiffuse", osg::Vec4(0.8863f, 0.8850f, 0.8850f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvSpecular", osg::Vec4(0.0157f, 0.0157f, 0.0157f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvAmbient", osg::Vec4(0.3686f, 0.3686f, 0.3686f, 1.0f)) );
@@ -275,9 +269,6 @@ GL2Scene::buildScene( const unsigned int mode )
         ss->addUniform( new osg::Uniform("fDirtScale", 0.15f) );
         ss->addUniform( new osg::Uniform("fDirtGravelDistScale", 0.06f) );
 		
-		ss->addUniform( new osg::Uniform("fvLightPosition", osg::Vec3(-100.0f, 0.0f, 100.0f)) );
-		ss->addUniform( new osg::Uniform("fvEyePosition", osg::Vec3(0.0f, 0.0f, 100.0f)) );
-
 		ss->addUniform( new osg::Uniform("fvDiffuse", osg::Vec4(0.8863f, 0.8850f, 0.8850f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvSpecular", osg::Vec4(0.0157f, 0.0157f, 0.0157f, 1.0f)) );
 		ss->addUniform( new osg::Uniform("fvAmbient", osg::Vec4(0.3686f, 0.3686f, 0.3686f, 1.0f)) );
