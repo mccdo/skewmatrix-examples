@@ -69,14 +69,18 @@ class KeyHandler: public osgGA::GUIEventHandler
 
 ///////////////////////////////////////////////////////////////////////////
 
-int main(int, char **)
+int main( int argc, char** argv )
 {
+    int dim( 1 );
+    if( argc > 1 )
+        dim = atoi( argv[ 1 ] );
+
     // construct the viewer.
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow( 20, 30, 500, 500 );
 
     // create the scene
-    GL2ScenePtr gl2Scene = new GL2Scene( DIRT );
+    GL2ScenePtr gl2Scene = new GL2Scene( DIRT, dim );
     viewer.addEventHandler( new KeyHandler(gl2Scene) );
 
     osg::Node* model = gl2Scene->getRootNode().get();

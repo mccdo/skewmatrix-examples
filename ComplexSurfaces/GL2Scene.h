@@ -40,7 +40,7 @@
 class GL2Scene : public osg::Referenced
 {
     public:
-	GL2Scene( const unsigned int mode );
+	GL2Scene( const unsigned int mode, int dim );
 
 	osg::ref_ptr<osg::Group> getRootNode() { return _rootNode; }
 	void reloadShaderSource();
@@ -49,7 +49,7 @@ class GL2Scene : public osg::Referenced
 	~GL2Scene();
 
     private:	/*methods*/
-	osg::ref_ptr<osg::Group> buildScene( const unsigned int mode );
+	osg::ref_ptr<osg::Group> buildScene( const unsigned int mode, int dim );
 
     private:	/*data*/
 	osg::ref_ptr<osg::Group> _rootNode;

@@ -69,22 +69,27 @@ static osg::ref_ptr<osg::Group> rootNode;
 
 // Create some geometry upon which to render GLSL shaders.
 static osg::Geode*
-CreateModel( const osg::Vec3& corner, const float len )
+CreateModel( int dim )
 {
+    const double len( dim );
+    const double halfLen( dim*.5 );
+    const osg::Vec3 corner( -halfLen, -halfLen, 0. );
+
+    osg::Vec2s lengths;
+    if( dim >= 2 )
+        lengths.set( (short)dim/2, (short)dim/2 );
+    else
+        lengths.set( (short)dim, (short)dim );
+
     osg::Geometry* geom = osgwTools::makePlane( corner,
-        osg::Vec3( len, 0., 0. ), osg::Vec3( 0., len, 0. ),
-        osg::Vec2s( 1, 1 ) );
+        osg::Vec3( len, 0., 0. ), osg::Vec3( 0., len, 0. ), lengths );
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable( geom );
 
-    /*
-    osg::Vec2Array* tc( new osg::Vec2Array );
-    tc->push_back( osg::Vec2( 0., 0. ) );
-    tc->push_back( osg::Vec2( 4., 0. ) );
-    tc->push_back( osg::Vec2( 0., 4. ) );
-    tc->push_back( osg::Vec2( 4., 4. ) );
-    geom->setTexCoordArray( 0, tc );
-    */
+    // Set appropriate texture coords based on the dim parameter.
+    osg::Vec2Array* tc( static_cast< osg::Vec2Array* >( geom->getTexCoordArray( 0 ) ) );
+    for( size_t idx=0; idx<tc->size(); idx++ )
+        (*tc)[ idx ] = (*tc)[ idx ] * halfLen;
 
     // Compute tangent space for geometry
 	osg::ref_ptr< osgUtil::TangentSpaceGenerator > tsg = new osgUtil::TangentSpaceGenerator;
@@ -153,7 +158,7 @@ static osg::Shader*  DirtFragObj;
 // Compose a scenegraph with examples of GLSL shaders
 
 osg::ref_ptr<osg::Group>
-GL2Scene::buildScene( const unsigned int mode )
+GL2Scene::buildScene( const unsigned int mode, int dim )
 {
     //osg::Texture3D* noiseTexture = make3DNoiseTexture( 32 /*128*/ );
     //osg::Texture1D* sineTexture = make1DSineTexture( 32 /*1024*/ );
@@ -186,7 +191,7 @@ GL2Scene::buildScene( const unsigned int mode )
         BumpTexture->setWrap( osg::Texture2D::WRAP_S, osg::Texture2D::REPEAT );
         BumpTexture->setWrap( osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT );
 
-        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
+        osg::Node* model = CreateModel( dim );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
@@ -222,7 +227,7 @@ GL2Scene::buildScene( const unsigned int mode )
     // Grass Shader
     else if( mode == GRASS )
 	{
-        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
+        osg::Node* model = CreateModel( dim );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
@@ -255,7 +260,7 @@ GL2Scene::buildScene( const unsigned int mode )
     // Dirt Shader
     else if( mode == DIRT )
     {
-        osg::Node* model = CreateModel( osg::Vec3( -10., -10., 0. ), 20.f );
+        osg::Node* model = CreateModel( dim );
         rootNode->addChild( model );
         osg::StateSet* ss = model->getOrCreateStateSet();
 
@@ -295,9 +300,9 @@ GL2Scene::buildScene( const unsigned int mode )
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-GL2Scene::GL2Scene( const unsigned int mode )
+GL2Scene::GL2Scene( const unsigned int mode, int dim )
 {
-    _rootNode = buildScene( mode );
+    _rootNode = buildScene( mode, dim );
     _shadersEnabled = true;
 }
 
