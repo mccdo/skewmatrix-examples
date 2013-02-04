@@ -45,6 +45,7 @@ ADD_SUBDIRECTORY( texmerge )
 # examples
 ADD_SUBDIRECTORY( AutoTransform2 )
 ADD_SUBDIRECTORY( character )
+ADD_SUBDIRECTORY( checkindices )
 ADD_SUBDIRECTORY( CircleHighlight )
 ADD_SUBDIRECTORY( CircleHighlight2 )
 ADD_SUBDIRECTORY( ComplexSurfaces )
