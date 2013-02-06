@@ -358,7 +358,7 @@ void configureCameras( osg::Camera* rootCamera, osg::Camera* preRender, osg::Cam
     rootCamera->setImplicitBufferAttachmentMask(
         osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT|osg::Camera::IMPLICIT_DEPTH_BUFFER_ATTACHMENT,
         osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT );
-    preCamera->setImplicitBufferAttachmentMask(
+    preRender->setImplicitBufferAttachmentMask(
         osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT|osg::Camera::IMPLICIT_DEPTH_BUFFER_ATTACHMENT,
         osg::Camera::IMPLICIT_COLOR_BUFFER_ATTACHMENT );
 #endif
