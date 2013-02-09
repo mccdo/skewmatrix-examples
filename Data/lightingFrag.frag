@@ -22,3 +22,28 @@ vec4 lighting( in vec4 ambMat, in vec4 diffMat, in vec4 specMat, in float specEx
     vec4 outColor = amb + diff + spec;
     return( outColor );
 }
+
+
+uniform bool twoSided;
+
+varying vec4 ecVertex;
+varying vec3 ecNormal;
+
+void main( void )
+{
+    vec3 normal = normalize( ecNormal );
+    vec4 color;
+    if( twoSided && ( dot( ecNormal, ecVertex.xyz ) > 0. ) )
+    {
+        // Backface lighting.
+        color = lighting( gl_BackMaterial.ambient, gl_BackMaterial.diffuse,
+            gl_BackMaterial.specular, gl_BackMaterial.shininess, ecVertex, -normal );
+    }
+    else
+    {
+        // Frontface / default lighting.
+        color = lighting( gl_FrontMaterial.ambient, gl_FrontMaterial.diffuse,
+            gl_FrontMaterial.specular, gl_FrontMaterial.shininess, ecVertex, normal );
+    }
+    gl_FragColor = color;
+}
