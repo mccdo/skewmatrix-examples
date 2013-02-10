@@ -5,6 +5,7 @@
 #include <osgViewer/Viewer>
 #include <osg/ClipNode>
 #include <osg/LightModel>
+#include <osg/Material>
 
 #include <osgwTools/Shapes.h>
 
@@ -51,6 +52,15 @@ void enableTwoSided( osg::Node* node, const bool twoSided )
     // Has no effect when using FFP.
     stateSet->setMode( GL_VERTEX_PROGRAM_TWO_SIDE,
         twoSided ? osg::StateAttribute::ON : osg::StateAttribute::OFF );
+
+    // Non-default material so we can test specular lighting.
+    // Used by both FFP and shader rendering.
+    osg::ref_ptr< osg::Material > mat( new osg::Material );
+    mat->setAmbient( osg::Material::FRONT_AND_BACK, osg::Vec4( 1., 1., 1., 1. ) );
+    mat->setDiffuse( osg::Material::FRONT_AND_BACK, osg::Vec4( 1., .5, 0., 1. ) );
+    mat->setSpecular( osg::Material::FRONT_AND_BACK, osg::Vec4( 1., 1., 1., 1. ) );
+    mat->setShininess( osg::Material::FRONT_AND_BACK, 32. );
+    stateSet->setAttributeAndModes( mat.get(), osg::StateAttribute::ON );
 }
 void setShaders( osg::Node* node, const std::string& vertName, const std::string& fragName )
 {
@@ -75,7 +85,7 @@ void setShaders( osg::Node* node, const std::string& vertName, const std::string
     prog->addShader( frag.get() );
 
     osg::StateSet* stateSet( node->getOrCreateStateSet() );
-    stateSet->setAttributeAndModes( prog.get() );
+    stateSet->setAttribute( prog.get() );
 
 }
 
