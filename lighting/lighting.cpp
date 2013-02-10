@@ -63,9 +63,11 @@ void setShaders( osg::Node* node, const std::string& vertName, const std::string
     }
 
     osg::ref_ptr< osg::Shader > vert( new osg::Shader( osg::Shader::VERTEX ) );
+    vert->setName( vertName );
     vert->loadShaderSourceFromFile( fullVertName );
 
     osg::ref_ptr< osg::Shader > frag( new osg::Shader( osg::Shader::FRAGMENT ) );
+    frag->setName( fragName );
     frag->loadShaderSourceFromFile( fullFragName );
 
     osg::ref_ptr< osg::Program > prog( new osg::Program );
