@@ -1,4 +1,4 @@
-#version 120
+// NOTE "#version xxx" inserted by host code.
 
 
 // 'normal' must be normalized.
@@ -11,13 +11,12 @@ vec4 lighting( in vec4 ambProd, in vec4 diffProd, in vec4 specProd, in float spe
     vec4 spec = vec4( 0., 0., 0., 0. );
     if( ( specExp > 0. ) && ( diffDot > 0. ) )
     {
-        vec3 eyeVec = normalize( -ecVertex.xyz );
-        vec3 reflectVec = -reflect( lightVec, normal ); // lightVec and normal are already normalized,
-        spec = specProd * pow( max( dot( reflectVec, eyeVec ), 0. ), specExp );
+        vec3 vertVec = normalize( ecVertex.xyz );
+        vec3 reflectVec = reflect( lightVec, normal ); // lightVec and normal are already normalized,
+        spec = specProd * pow( max( dot( reflectVec, vertVec ), 0. ), specExp );
     }
 
-    vec4 outColor = ambProd + diff + spec;
-    return( outColor );
+    return( ambProd + diff + spec );
 }
 
 

@@ -1,4 +1,4 @@
-#version 120
+// NOTE "#version xxx" inserted by host code.
 
 
 void main( void )

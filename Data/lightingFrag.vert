@@ -1,5 +1,5 @@
-#version 120
-//#define USE_TANGENT_SPACE
+// NOTE "#version xxx" inserted by host code.
+// Host also optionally inserts "#define USE_TANGENT_SPACE"
 
 
 #ifdef USE_TANGENT_SPACE
@@ -36,7 +36,7 @@ void main( void )
     tanLightVector *= TBNMatrix;
 
     //Convert view vector into tangent space
-    tanViewVector = ecPosition;
+    tanViewVector = -ecPosition.xyz;
     tanViewVector *= TBNMatrix;
 
     vec3 ecNormal = normalize( gl_NormalMatrix * gl_Normal );
@@ -48,5 +48,6 @@ void main( void )
 
 #endif
 
+    // This tells the fragment shader whether we're a front or back face.
     dotEye = dot( ecNormal, ecPosition.xyz );
 }
