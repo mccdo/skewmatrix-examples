@@ -16,13 +16,21 @@ INCLUDE( CMakeMacros )
 include( FindOSGHelper )
 include( FindBulletHelper )
 
-FIND_PACKAGE( OSGWorks REQUIRED )
-FIND_PACKAGE( OpenGL REQUIRED )
-FIND_PACKAGE( OSGBullet )
-FIND_PACKAGE( OpenAL )
-FIND_PACKAGE( OSGAudio )
+find_package( OSGWorks REQUIRED )
+find_package( OpenGL REQUIRED )
+find_package( OSGBullet )
+find_package( OpenAL )
+find_package( OSGAudio )
 find_package( DirectInput QUIET )
 
+set(BOOST_INCLUDEDIR "$ENV{BOOST_INSTALL_DIR}/include" CACHE PATH "docstring")
+
+set(Boost_USE_STATIC_LIBS       OFF)
+set(Boost_USE_MULTITHREADED      ON)
+set(Boost_USE_STATIC_RUNTIME    OFF)
+
+set( BOOST_ROOT "Please specify" CACHE PATH "Root directory where Boost is installed" )
+find_package(Boost 1.44.0 REQUIRED COMPONENTS regex)
 
 GET_FILENAME_COMPONENT( OSG_LIBRARIES_DIR ${OSG_LIBRARY} PATH)
 INCLUDE_DIRECTORIES(
@@ -33,7 +41,6 @@ INCLUDE_DIRECTORIES(
 LINK_DIRECTORIES(
     ${OSG_LIBRARIES_DIR}
 )
-
 
 # benchmarks
 ADD_SUBDIRECTORY( uniformperf )
@@ -53,6 +60,7 @@ ADD_SUBDIRECTORY( DepthOfField )
 ADD_SUBDIRECTORY( DepthOfField2 )
 ADD_SUBDIRECTORY( depthpartition )
 ADD_SUBDIRECTORY( DepthPeel )
+ADD_SUBDIRECTORY( dwgvisitor )
 ADD_SUBDIRECTORY( GeometryOpt )
 ADD_SUBDIRECTORY( gl3SafeCow )
 ADD_SUBDIRECTORY( glow )
@@ -74,7 +82,6 @@ ADD_SUBDIRECTORY( textureatlas )
 ADD_SUBDIRECTORY( TextureSubload )
 ADD_SUBDIRECTORY( uniqifierstate )
 ADD_SUBDIRECTORY( VectorField )
-ADD_SUBDIRECTORY( WarpVertex )
 
 
 # Bullet examples
