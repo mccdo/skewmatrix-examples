@@ -20,8 +20,42 @@ find_package( OSGWorks REQUIRED )
 find_package( OpenGL REQUIRED )
 find_package( OSGBullet )
 find_package( OpenAL )
-find_package( OSGAudio )
 find_package( DirectInput QUIET )
+
+find_package(osgAudio REQUIRED)
+if( osgAudio_FOUND )
+   include(${osgAudio_USE_FILE})
+endif()
+
+# OpenAL/OpenAL++ audio subsystem support
+IF(ENABLE_SUBSYSTEM_OPENAL)
+    SET(ALUT_USE_AL_SUBDIR ON)
+    FIND_PACKAGE(ALUT)
+    if(ALUT_FOUND)
+        include_directories(${ALUT_INCLUDE_DIR})
+    endif(ALUT_FOUND)
+    FIND_PACKAGE(OpenAL)
+    if(OPENAL_FOUND)
+        include_directories(${OPENAL_INCLUDE_DIR})
+    endif(OPENAL_FOUND)
+    FIND_PACKAGE(OGG)
+    if(OGG_FOUND)
+        include_directories(${OGG_INCLUDE_DIR})
+    endif(OGG_FOUND)
+    FIND_PACKAGE(Vorbis)
+    if(VORBIS_FOUND)
+        include_directories(${VORBIS_INCLUDE_DIR})
+    endif(VORBIS_FOUND)
+    FIND_PACKAGE(VorbisFile)
+ENDIF(ENABLE_SUBSYSTEM_OPENAL)
+
+# FMOD Ex support
+IF(ENABLE_SUBSYSTEM_FMOD)
+    FIND_PACKAGE(FMOD)
+    if( FMOD_FOUND )
+        include_directories(${FMOD_INCLUDE_DIR})
+    endif(FMOD_FOUND)
+ENDIF(ENABLE_SUBSYSTEM_FMOD)
 
 set(BOOST_INCLUDEDIR "$ENV{BOOST_INSTALL_DIR}/include" CACHE PATH "docstring")
 
@@ -105,11 +139,7 @@ if( BULLET_FOUND AND OSGBULLET_FOUND )
     add_subdirectory( ghostchar )
 
 #   Collision-triggered sound examples
-    if( OSGAUDIO_FOUND AND OPENAL_FOUND )
-        INCLUDE_DIRECTORIES(
-            ${OPENAL_INCLUDE_DIR}
-            ${OSGAUDIO_INCLUDE_DIR}
-        )
+    if( osgAudio_FOUND )
         ADD_SUBDIRECTORY( bulletsound )
     endif()
 endif()

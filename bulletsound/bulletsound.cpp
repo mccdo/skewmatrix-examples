@@ -237,19 +237,32 @@ enablePhysics( osg::Node* root, const std::string& nodeName, btDiscreteDynamicsW
     osg::Group* asGrp = node->asGroup();
     osg::ref_ptr< osg::Group > copyGrp = new osg::Group( *asGrp, osg::CopyOp::DEEP_COPY_ALL );
 
-    osgbBullet::OSGToCollada converter;
+    /*osgbBullet::OSGToCollada converter;
     converter.setSceneGraph( copyGrp.get() );
     converter.setShapeType( BOX_SHAPE_PROXYTYPE );
     converter.setMass( 1. );
     converter.setOverall( true );
 
-    converter.convert();
+    converter.convert();*/
 
+    osg::ref_ptr< osgbDynamics::CreationRecord > cr =
+        new osgbDynamics::CreationRecord();
+    cr->_sceneGraph = copyGrp.get();
+    cr->setCenterOfMass( bs.center() );
+    cr->_shapeType = BOX_SHAPE_PROXYTYPE;
+    //cr->_restitution = mRestitution;
+    //cr->_friction = mFriction;
+    cr->_mass = 1.0;
+    cr->_reductionLevel = osgbDynamics::CreationRecord::NONE;
+    cr->_overall = true;
+
+    
     osg::ref_ptr< osgwTools::AbsoluteModelTransform > model( new osgwTools::AbsoluteModelTransform );
     model->setDataVariance( osg::Object::DYNAMIC );
     osgwTools::insertAbove( node, model.get() );
 
-    btRigidBody* rb = converter.getRigidBody();
+    //btRigidBody* rb = converter.getRigidBody();
+    btRigidBody* rb = osgbDynamics::createRigidBody( cr.get() );
     osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     rb->setUserPointer( new Material( Material::SILLY_PUTTY ) );
 
@@ -396,15 +409,27 @@ makeDoorFrame( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     osg::Group* asGrp = node->asGroup();
     osg::ref_ptr< osg::Group > copyGrp = new osg::Group( *asGrp, osg::CopyOp::DEEP_COPY_ALL );
 
-    osgbBullet::OSGToCollada converter;
+    /*osgbBullet::OSGToCollada converter;
     converter.setSceneGraph( copyGrp.get() );
     converter.setShapeType( BOX_SHAPE_PROXYTYPE );
     converter.setMass( 0. ); // static
     converter.setOverall( true );
 
-    converter.convert();
+    converter.convert();*/
 
-    btRigidBody* rb = converter.getRigidBody();
+    osg::ref_ptr< osgbDynamics::CreationRecord > cr =
+    new osgbDynamics::CreationRecord();
+    cr->_sceneGraph = copyGrp.get();
+    //cr->setCenterOfMass( bs.center() );
+    cr->_shapeType = BOX_SHAPE_PROXYTYPE;
+    //cr->_restitution = mRestitution;
+    //cr->_friction = mFriction;
+    cr->_mass = 0.0;
+    cr->_reductionLevel = osgbDynamics::CreationRecord::NONE;
+    cr->_overall = true;
+
+    //btRigidBody* rb = converter.getRigidBody();
+    btRigidBody* rb = osgbDynamics::createRigidBody( cr.get() );
     osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     motion->setTransform( amt );
     rb->setMotionState( motion );
@@ -450,15 +475,27 @@ makeDoor( btDiscreteDynamicsWorld* bw, InteractionManipulator* im )
     osg::Group* asGrp = node->asGroup();
     osg::ref_ptr< osg::Group > copyGrp = new osg::Group( *asGrp, osg::CopyOp::DEEP_COPY_ALL );
 
-    osgbBullet::OSGToCollada converter;
+    /*osgbBullet::OSGToCollada converter;
     converter.setSceneGraph( copyGrp.get() );
     converter.setShapeType( BOX_SHAPE_PROXYTYPE );
     converter.setMass( 1. );
     converter.setOverall( true );
 
-    converter.convert();
+    converter.convert();*/
 
-    btRigidBody* rb = converter.getRigidBody();
+    osg::ref_ptr< osgbDynamics::CreationRecord > cr =
+    new osgbDynamics::CreationRecord();
+    cr->_sceneGraph = copyGrp.get();
+    //cr->setCenterOfMass( bs.center() );
+    cr->_shapeType = BOX_SHAPE_PROXYTYPE;
+    //cr->_restitution = mRestitution;
+    //cr->_friction = mFriction;
+    cr->_mass = 1.0;
+    cr->_reductionLevel = osgbDynamics::CreationRecord::NONE;
+    cr->_overall = true;
+    
+    //btRigidBody* rb = converter.getRigidBody();
+    btRigidBody* rb = osgbDynamics::createRigidBody( cr.get() );
     osgbDynamics::MotionState* motion = new osgbDynamics::MotionState;
     motion->setTransform( amt );
     rb->setMotionState( motion );

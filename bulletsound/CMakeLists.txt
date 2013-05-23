@@ -9,3 +9,4 @@ MAKE_EXECUTABLE( bulletsound
     SoundUtilities.cpp
     SoundUtilities.h
 )
+TARGET_LINK_LIBRARIES( bulletsound ${OSGAUDIO_LIBRARIES})
