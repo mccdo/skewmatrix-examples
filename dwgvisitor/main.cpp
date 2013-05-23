@@ -13,7 +13,7 @@ main( int argc, char** argv )
 {
     osg::ref_ptr< osg::Node > scene = osgDB::readNodeFile( argv[ 1 ] );
 
-    ves::xplorer::scenegraph::util::RemoveNodeNameVisitor( scene.get(), "", "" );
+    ves::xplorer::scenegraph::util::RemoveNodeNameVisitor( scene.get() );
 
     osgDB::writeNodeFile( *scene.get(), "output.osg" );
 }
