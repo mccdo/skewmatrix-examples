@@ -4,7 +4,7 @@
 #define __WORLD_H__ 1
 
 
-#include <osg/node>
+#include <osg/Node>
 #include <osg/NodeVisitor>
 #include <btBulletDynamicsCommon.h>
 
