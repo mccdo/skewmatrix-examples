@@ -22,12 +22,12 @@
 #include <osg/Geode>
 #include <osg/StateSet>
 #include <osg/Texture>
-#include <osg/Texture1d>
-#include <osg/Texture2d>
-#include <osg/Texture3d>
+#include <osg/Texture1D>
+#include <osg/Texture2D>
+#include <osg/Texture3D>
 #include <osg/TextureCubeMap>
 #include <osg/TextureRectangle>
-#include <osg/Texture2dArray>
+#include <osg/Texture2DArray>
 #include <osg/Image>
 #include <osg/Math>
 #include <osgDB/WriteFile>

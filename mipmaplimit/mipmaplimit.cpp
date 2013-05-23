@@ -36,7 +36,6 @@ int main( int argc, char** argv )
         ves::xplorer::scenegraph::util::UnRefImageDataVisitor unrefImage( root );       
     }
 
-    std::cout << outputTextures << std::endl;
     osgViewer::Viewer viewer;
     viewer.setThreadingModel( osgViewer::ViewerBase::SingleThreaded );
     viewer.setUpViewInWindow( 10, 30, 768, 480 );
