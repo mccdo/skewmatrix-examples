@@ -28,7 +28,7 @@ int main( int argc, char** argv )
     root->accept( cv0 );
     cv0.dump( osg::notify( osg::ALWAYS ) );
 
-    OSG_ALWAYS << "Running TriMeshVisitor..." << std::endl;
+    OSG_ALWAYS << "Running IndexMeshVisitor..." << std::endl;
     osgUtil::IndexMeshVisitor imv;
     root->accept( imv );
     imv.makeMesh();
@@ -39,7 +39,7 @@ int main( int argc, char** argv )
     if( ( cv0.getVertices() != cv1.getVertices() ) ||
         ( cv0.getDrawArrays() != cv1.getDrawArrays() ) )
     {
-        OSG_ALWAYS << "TriMeshVisitor results:" << std::endl;
+        OSG_ALWAYS << "IndexMeshVisitor results:" << std::endl;
         OSG_ALWAYS << "  Vertices delta: " << (int)cv1.getVertices() - (int)cv0.getVertices() << std::endl;
         OSG_ALWAYS << "  DrawArrays delta: " << (int)cv1.getDrawArrays() - (int)cv0.getDrawArrays() << std::endl;
     }
