@@ -59,7 +59,10 @@ ENDIF(ENABLE_SUBSYSTEM_FMOD)
 
 set(BOOST_INCLUDEDIR "$ENV{BOOST_INSTALL_DIR}/include" CACHE PATH "docstring")
 
-set(Boost_USE_STATIC_LIBS       OFF)
+# Must use Boost as dynamic libs.
+add_definitions( -DBOOST_ALL_DYN_LINK )
+#set(Boost_USE_STATIC_LIBS       OFF)
+
 set(Boost_USE_MULTITHREADED      ON)
 set(Boost_USE_STATIC_RUNTIME    OFF)
 
