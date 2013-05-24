@@ -5,7 +5,7 @@
 #include <osg/NodeVisitor>
 
 #include <set>
-#include <list>
+#include <vector>
 
 
 class CompressSubgraphVisitor : public osg::NodeVisitor
