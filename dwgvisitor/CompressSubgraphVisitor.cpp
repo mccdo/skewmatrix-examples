@@ -75,7 +75,7 @@ void CompressSubgraphVisitor::apply( osg::Group& node )
     {
         // Take all the StateSets in this
         // subgraph and insert them into the new top of stack.
-        StateSetSet newTop( _stack[ _stack.size() - 2 ] );
+        StateSetSet& newTop( _stack[ _stack.size() - 2 ] );
         newTop.insert( sss.begin(), sss.end() );
     }
 
