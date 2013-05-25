@@ -17,5 +17,5 @@ main( int argc, char** argv )
     ves::xplorer::scenegraph::util::RemoveNodeNameVisitor( scene.get() );
     CompressSubgraphVisitor( scene.get(), 50 );
 
-    osgDB::writeNodeFile( *scene.get(), "output.osg" );
+    osgDB::writeNodeFile( *scene.get(), "output.ive" );
 }
