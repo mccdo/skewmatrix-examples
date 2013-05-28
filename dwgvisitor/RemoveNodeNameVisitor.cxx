@@ -90,6 +90,38 @@ void RemoveNodeNameVisitor::apply( osg::Node& node )
         osg::NodeVisitor::traverse( node );
         return;
     }
+    
+    /*if( boost::regex_search( name, boost::regex( "^Polyface\\ Mesh\\ \\[" ) ) )
+    {
+        name.erase();
+        node.setName( name );
+        osg::NodeVisitor::traverse( node );
+        return;
+    }*/
+    
+    if( boost::regex_search( name, boost::regex( "^BODY\\ \\[" ) ) )
+    {
+        name.erase();
+        node.setName( name );
+        osg::NodeVisitor::traverse( node );
+        return;
+    }
+        
+    if( boost::regex_search( name, boost::regex( "^curves\\ " ) ) )
+    {
+        name.erase();
+        node.setName( name );
+        osg::NodeVisitor::traverse( node );
+        return;
+    }
+        
+    if( boost::regex_search( name, boost::regex( "^\\d+$" ) ) )
+    {
+        name.erase();
+        node.setName( name );
+        osg::NodeVisitor::traverse( node );
+        return;
+    }
 
     node.setName( name );
     osg::NodeVisitor::traverse( node );

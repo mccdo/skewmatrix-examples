@@ -15,7 +15,13 @@ main( int argc, char** argv )
     osg::ref_ptr< osg::Node > scene = osgDB::readNodeFile( argv[ 1 ] );
 
     ves::xplorer::scenegraph::util::RemoveNodeNameVisitor( scene.get() );
+    //osgDB::writeNodeFile( *scene.get(), "no_name.osg" );
     CompressSubgraphVisitor( scene.get(), 50 );
 
-    osgDB::writeNodeFile( *scene.get(), "output.ive" );
+    std::string filename = "output.ive";
+    if( argc > 2 )
+    {
+        filename = argv[ 2 ];
+    }
+    osgDB::writeNodeFile( *scene.get(), filename );
 }
