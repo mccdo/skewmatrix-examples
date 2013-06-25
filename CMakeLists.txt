@@ -138,13 +138,11 @@ if( BULLET_FOUND AND osgBullet_FOUND )
         add_definitions( -DBT_USE_DOUBLE_PRECISION )
     endif()
 
-    INCLUDE_DIRECTORIES(
-        ${BULLET_INCLUDE_DIRS}
-    )
     # TBD add bullet-specific examples here
     #ADD_SUBDIRECTORY( bullet_tbd )
     add_subdirectory( ghostchar )
-
+    INCLUDE_DIRECTORIES(
+    ${BULLET_INCLUDE_DIR} )
 #   Collision-triggered sound examples
     if( osgAudio_FOUND )
         ADD_SUBDIRECTORY( bulletsound )

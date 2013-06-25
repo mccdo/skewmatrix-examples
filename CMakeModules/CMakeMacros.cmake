@@ -22,7 +22,7 @@ MACRO( ADD_OSGPLUGIN TRGTNAME )
         ${OPENGL_LIBRARIES}
     )
 
-    if( BULLET_FOUND AND OSGBULLET_FOUND )
+    if( BULLET_FOUND AND osgBullet_FOUND )
         TARGET_LINK_LIBRARIES( ${TRGTNAME}
             ${BULLET_LIBRARIES}
             ${OSGBULLET_LIBRARIES}
@@ -52,10 +52,10 @@ MACRO( MAKE_EXECUTABLE EXENAME )
         ${OPENGL_LIBRARIES}
     )
 
-    if( BULLET_FOUND AND OSGBULLET_FOUND )
+    if( BULLET_FOUND AND osgBullet_FOUND )
         TARGET_LINK_LIBRARIES( ${EXENAME}
             ${BULLET_LIBRARIES}
-            ${osgBullet_LIBRARIES}
+            ${OSGBULLET_LIBRARIES}
         )
     endif()
 
