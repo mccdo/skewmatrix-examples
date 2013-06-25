@@ -16,9 +16,16 @@ INCLUDE( CMakeMacros )
 include( FindOSGHelper )
 include( FindBulletHelper )
 
-find_package( OSGWorks REQUIRED )
+FIND_PACKAGE( osgWorks 2.0.0 REQUIRED )
+if( osgWorks_FOUND )
+    include( ${osgWorks_USE_FILE} )
+endif()
+
 find_package( OpenGL REQUIRED )
-find_package( OSGBullet )
+FIND_PACKAGE( osgBullet 2.0.0 REQUIRED )
+if( osgBullet_FOUND )
+    include( ${osgBullet_USE_FILE} )
+endif()
 find_package( OpenAL )
 find_package( DirectInput QUIET )
 
@@ -71,7 +78,6 @@ find_package(Boost 1.44.0 REQUIRED COMPONENTS regex)
 GET_FILENAME_COMPONENT( OSG_LIBRARIES_DIR ${OSG_LIBRARY} PATH)
 INCLUDE_DIRECTORIES(
     ${OSG_INCLUDE_DIRS}
-    ${OSGWORKS_INCLUDE_DIR}
     ${OPENGL_INCLUDE_DIR}
 )
 LINK_DIRECTORIES(
@@ -124,7 +130,7 @@ ADD_SUBDIRECTORY( VectorField )
 # message( STATUS "Bullet: " ${BULLET_FOUND} )
 # message( STATUS "osgBullet " ${OSGBULLET_FOUND} )
 
-if( BULLET_FOUND AND OSGBULLET_FOUND )
+if( BULLET_FOUND AND osgBullet_FOUND )
 
 #   OSGBULLET_USE_DOUBLE_PRECISION gets set to TRUE or FALSE in FindBulletHelper.cmake.
 #   If TRUE, add the BT double precision definition globally.
@@ -134,7 +140,6 @@ if( BULLET_FOUND AND OSGBULLET_FOUND )
 
     INCLUDE_DIRECTORIES(
         ${BULLET_INCLUDE_DIRS}
-        ${OSGBULLET_INCLUDE_DIR}
     )
     # TBD add bullet-specific examples here
     #ADD_SUBDIRECTORY( bullet_tbd )

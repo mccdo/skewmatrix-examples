@@ -55,7 +55,7 @@ MACRO( MAKE_EXECUTABLE EXENAME )
     if( BULLET_FOUND AND OSGBULLET_FOUND )
         TARGET_LINK_LIBRARIES( ${EXENAME}
             ${BULLET_LIBRARIES}
-            ${OSGBULLET_LIBRARIES}
+            ${osgBullet_LIBRARIES}
         )
     endif()
 
