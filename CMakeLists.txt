@@ -15,6 +15,7 @@ INCLUDE( CMakeMacros )
 
 include( FindOSGHelper )
 include( FindBulletHelper )
+include_directories( ${BULLET_INCLUDE_DIR} )
 
 FIND_PACKAGE( osgWorks 2.0.0 REQUIRED )
 if( osgWorks_FOUND )

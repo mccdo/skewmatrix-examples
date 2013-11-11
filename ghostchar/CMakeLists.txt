@@ -3,6 +3,7 @@ if( DIRECTINPUT_FOUND)
 endif()
 
 set( CATEGORY Example )
+
 MAKE_EXECUTABLE( ghostchar
     ghostchar.cpp
     character.cpp
