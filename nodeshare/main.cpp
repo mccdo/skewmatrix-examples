@@ -26,4 +26,5 @@ int main( int argc, char** argv )
     if( argc > 2 )
         filename = argv[ 2 ];
     osgDB::writeNodeFile( *scene, filename );
+    return 0;
 }

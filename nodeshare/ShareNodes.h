@@ -1,5 +1,5 @@
-#ifndef __REMOVE_BY_DESC_H__
-#define __REMOVE_BY_DESC_H__ 1
+#ifndef __SHARE_NODES_H__
+#define __SHARE_NODES_H__ 1
 
 
 #include <osg/NodeVisitor>
@@ -36,5 +36,5 @@ protected:
 };
 
 
-// __COMPRESS_SUBGRAPH_VISITOR_H__
+// __SHARE_NODES_H__
 #endif

@@ -35,5 +35,5 @@ protected:
 };
 
 
-// __COMPRESS_SUBGRAPH_VISITOR_H__
+// __REMOVE_BY_DESC_H__
 #endif

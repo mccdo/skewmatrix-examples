@@ -34,4 +34,5 @@ int main( int argc, char** argv )
         filename = argv[ 2 ];
     }
     osgDB::writeNodeFile( *scene, filename );
+    return 0;
 }
